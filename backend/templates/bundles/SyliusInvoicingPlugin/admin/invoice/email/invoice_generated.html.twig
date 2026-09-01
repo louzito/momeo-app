@@ -1,0 +1,36 @@
+{# SkyBook — email d'envoi de facture (PDF joint), textes editables par centre
+   (Configuration boutique > Emails). Variables : %prenom% %nom% %commande%
+   %centre% %total% %facture%. Les "set" vivent DANS les blocs (extends). #}
+{% extends '@SyliusCore/Email/layout.html.twig' %}
+
+{% block subject %}
+    {%- set sbOrder = invoice.order -%}
+    {%- set sbChannel = invoice.channel|default(sbOrder.channel) -%}
+    {%- set skybookVars = {
+        '%prenom%': (sbOrder.customer and sbOrder.customer.firstName) ? sbOrder.customer.firstName : (sbOrder.billingAddress ? sbOrder.billingAddress.firstName|default('') : ''),
+        '%nom%': (sbOrder.customer and sbOrder.customer.lastName) ? sbOrder.customer.lastName : (sbOrder.billingAddress ? sbOrder.billingAddress.lastName|default('') : ''),
+        '%commande%': sbOrder.number,
+        '%centre%': sbChannel ? sbChannel.name : 'Momeo',
+        '%etablissement%': sbChannel ? sbChannel.name : 'Momeo',
+        '%total%': ((sbOrder.total / 100)|number_format(2, ',', ' ')) ~ ' ' ~ sbOrder.currencyCode,
+        '%facture%': invoice.number,
+    } -%}
+    {{- skybook_email_text('invoice_generated', 'subject', skybookVars) -}}
+{% endblock %}
+
+{% block content %}
+    {% set sbOrder = invoice.order %}
+    {% set sbChannel = invoice.channel|default(sbOrder.channel) %}
+    {% set skybookVars = {
+        '%prenom%': (sbOrder.customer and sbOrder.customer.firstName) ? sbOrder.customer.firstName : (sbOrder.billingAddress ? sbOrder.billingAddress.firstName|default('') : ''),
+        '%nom%': (sbOrder.customer and sbOrder.customer.lastName) ? sbOrder.customer.lastName : (sbOrder.billingAddress ? sbOrder.billingAddress.lastName|default('') : ''),
+        '%commande%': sbOrder.number,
+        '%centre%': sbChannel ? sbChannel.name : 'Momeo',
+        '%etablissement%': sbChannel ? sbChannel.name : 'Momeo',
+        '%total%': ((sbOrder.total / 100)|number_format(2, ',', ' ')) ~ ' ' ~ sbOrder.currencyCode,
+        '%facture%': invoice.number,
+    } %}
+    <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_text('invoice_generated', 'intro', skybookVars)|e }}</div>
+    <div style="margin-bottom: 26px; text-align: center; color: #64748b; font-size: 14px;">📎 Facture {{ invoice.number }} — PDF en pièce jointe</div>
+    <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_text('invoice_generated', 'signature', skybookVars)|e }}</div>
+{% endblock %}

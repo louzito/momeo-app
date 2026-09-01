@@ -1,0 +1,226 @@
+# ============================================================
+# GENERE PAR SkyBook (App\Tenant\CaddyConfigDumper) — NE PAS EDITER.
+# Regenerer : bin/console skybook:proxy:dump (auto a chaque claim/refill).
+# Caddy tourne avec --watch : toute regeneration est rechargee seule.
+# ============================================================
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	# Racine -> centre par defaut
+	redir / /skyline/ 302
+
+	# Panel Sylius, profiler, API legacy (tenant par defaut), medias, assets Sylius
+	@sylius path /admin* /_profiler* /_wdt* /api/* /media/* /assets/* /build/* /bundles/* /payment-methods/*
+	handle @sylius {
+		reverse_proxy nginx:80
+	}
+
+	# --- centre : demo2
+	@demo2_api path_regexp demo2api ^/demo2/api(/.*)?$
+	handle @demo2_api {
+		uri strip_prefix /demo2
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "demo2"
+		}
+	}
+	redir /demo2 /demo2/ 302
+	handle /demo2/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : institut-momeo-e2e-20260806131651
+	@institut_momeo_e2e_20260806131651_api path_regexp institut_momeo_e2e_20260806131651api ^/institut-momeo-e2e-20260806131651/api(/.*)?$
+	handle @institut_momeo_e2e_20260806131651_api {
+		uri strip_prefix /institut-momeo-e2e-20260806131651
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "institut-momeo-e2e-20260806131651"
+		}
+	}
+	redir /institut-momeo-e2e-20260806131651 /institut-momeo-e2e-20260806131651/ 302
+	handle /institut-momeo-e2e-20260806131651/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : lou-zito
+	@lou_zito_api path_regexp lou_zitoapi ^/lou-zito/api(/.*)?$
+	handle @lou_zito_api {
+		uri strip_prefix /lou-zito
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "lou-zito"
+		}
+	}
+	redir /lou-zito /lou-zito/ 302
+	handle /lou-zito/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : momeo-validation
+	@momeo_validation_api path_regexp momeo_validationapi ^/momeo-validation/api(/.*)?$
+	handle @momeo_validation_api {
+		uri strip_prefix /momeo-validation
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "momeo-validation"
+		}
+	}
+	redir /momeo-validation /momeo-validation/ 302
+	handle /momeo-validation/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : pool-009
+	@pool_009_api path_regexp pool_009api ^/pool-009/api(/.*)?$
+	handle @pool_009_api {
+		uri strip_prefix /pool-009
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "pool-009"
+		}
+	}
+	redir /pool-009 /pool-009/ 302
+	handle /pool-009/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : pool-010
+	@pool_010_api path_regexp pool_010api ^/pool-010/api(/.*)?$
+	handle @pool_010_api {
+		uri strip_prefix /pool-010
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "pool-010"
+		}
+	}
+	redir /pool-010 /pool-010/ 302
+	handle /pool-010/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : pool-011
+	@pool_011_api path_regexp pool_011api ^/pool-011/api(/.*)?$
+	handle @pool_011_api {
+		uri strip_prefix /pool-011
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "pool-011"
+		}
+	}
+	redir /pool-011 /pool-011/ 302
+	handle /pool-011/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : pool-012
+	@pool_012_api path_regexp pool_012api ^/pool-012/api(/.*)?$
+	handle @pool_012_api {
+		uri strip_prefix /pool-012
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "pool-012"
+		}
+	}
+	redir /pool-012 /pool-012/ 302
+	handle /pool-012/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : pool-013
+	@pool_013_api path_regexp pool_013api ^/pool-013/api(/.*)?$
+	handle @pool_013_api {
+		uri strip_prefix /pool-013
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "pool-013"
+		}
+	}
+	redir /pool-013 /pool-013/ 302
+	handle /pool-013/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : pool-014
+	@pool_014_api path_regexp pool_014api ^/pool-014/api(/.*)?$
+	handle @pool_014_api {
+		uri strip_prefix /pool-014
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "pool-014"
+		}
+	}
+	redir /pool-014 /pool-014/ 302
+	handle /pool-014/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : pool-015
+	@pool_015_api path_regexp pool_015api ^/pool-015/api(/.*)?$
+	handle @pool_015_api {
+		uri strip_prefix /pool-015
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "pool-015"
+		}
+	}
+	redir /pool-015 /pool-015/ 302
+	handle /pool-015/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : skydive-lyon
+	@skydive_lyon_api path_regexp skydive_lyonapi ^/skydive-lyon/api(/.*)?$
+	handle @skydive_lyon_api {
+		uri strip_prefix /skydive-lyon
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "skydive-lyon"
+		}
+	}
+	redir /skydive-lyon /skydive-lyon/ 302
+	handle /skydive-lyon/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : skyline
+	@skyline_api path_regexp skylineapi ^/skyline/api(/.*)?$
+	handle @skyline_api {
+		uri strip_prefix /skyline
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "skyline"
+		}
+	}
+	redir /skyline /skyline/ 302
+	handle /skyline/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : template
+	@template_api path_regexp templateapi ^/template/api(/.*)?$
+	handle @template_api {
+		uri strip_prefix /template
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "template"
+		}
+	}
+	redir /template /template/ 302
+	handle /template/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# --- centre : test3
+	@test3_api path_regexp test3api ^/test3/api(/.*)?$
+	handle @test3_api {
+		uri strip_prefix /test3
+		reverse_proxy nginx:80 {
+			header_up X-Skybook-Tenant "test3"
+		}
+	}
+	redir /test3 /test3/ 302
+	handle /test3/* {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# Assets du dev server Vite (chemins absolus sans slug) + endpoint ops dev
+	@vite path /src/* /@vite/* /@id/* /@fs/* /@react-refresh /node_modules/* /favicon* /vite.svg /__skybook_ops*
+	handle @vite {
+		reverse_proxy host.docker.internal:5173
+	}
+
+	# Tout le reste : centre inconnu -> 404 propre
+	handle {
+		respond "Centre inconnu." 404
+	}
+}

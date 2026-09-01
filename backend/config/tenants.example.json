@@ -1,0 +1,8 @@
+{
+    "template": {
+        "db": "momeo_template",
+        "name": "Template",
+        "enabled": false,
+        "status": "template"
+    }
+}

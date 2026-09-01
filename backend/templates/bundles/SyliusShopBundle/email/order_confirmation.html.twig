@@ -1,0 +1,33 @@
+{# SkyBook — email de confirmation de commande, textes editables par centre
+   (Configuration boutique > Emails). Variables : %prenom% %nom% %commande%
+   %centre% %total%. NB : les "set" doivent vivre DANS les blocs (template
+   qui extends => le code hors bloc n'est pas execute). #}
+{% extends '@SyliusCore/Email/layout.html.twig' %}
+
+{% block subject %}
+    {%- set skybookVars = {
+        '%prenom%': (order.customer and order.customer.firstName) ? order.customer.firstName : (order.billingAddress ? order.billingAddress.firstName|default('') : ''),
+        '%nom%': (order.customer and order.customer.lastName) ? order.customer.lastName : (order.billingAddress ? order.billingAddress.lastName|default('') : ''),
+        '%commande%': order.number,
+        '%centre%': channel.name,
+        '%etablissement%': channel.name,
+        '%total%': ((order.total / 100)|number_format(2, ',', ' ')) ~ ' ' ~ order.currencyCode,
+    } -%}
+    {{- skybook_email_text('order_confirmation', 'subject', skybookVars) -}}
+{% endblock %}
+
+{% block content %}
+    {% set skybookVars = {
+        '%prenom%': (order.customer and order.customer.firstName) ? order.customer.firstName : (order.billingAddress ? order.billingAddress.firstName|default('') : ''),
+        '%nom%': (order.customer and order.customer.lastName) ? order.customer.lastName : (order.billingAddress ? order.billingAddress.lastName|default('') : ''),
+        '%commande%': order.number,
+        '%centre%': channel.name,
+        '%etablissement%': channel.name,
+        '%total%': ((order.total / 100)|number_format(2, ',', ' ')) ~ ' ' ~ order.currencyCode,
+    } %}
+    <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_text('order_confirmation', 'intro', skybookVars)|e }}</div>
+    <div style="text-align: center; margin-bottom: 26px;">
+        <span style="border: 1px solid #e2e8f0; padding: 10px 18px; color: #1abb9c; font-size: 26px; border-radius: 8px;">{{ order.number }}</span>
+    </div>
+    <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_text('order_confirmation', 'signature', skybookVars)|e }}</div>
+{% endblock %}

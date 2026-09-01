@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+# See also https://symfony.com/doc/current/service_container/import.html
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+    # SkyBook multi-centres : registre des tenants + tenant par defaut (/admin, CLI legacy)
+    skybook.default_tenant: 'skyline'
+    skybook.tenants_file: '%kernel.project_dir%/config/tenants.json'
+    # Cheques cadeaux reels : base publique pour les liens d'activation /
+    # QR codes ("{base}/{slug}/beneficiary/login?code=..."). Reutilise
+    # DEFAULT_URI (deja utilise par Symfony pour generer des URLs en CLI,
+    # http://localhost en dev) plutot qu'une nouvelle variable d'env.
+    skybook.public_base_url: '%env(DEFAULT_URI)%'
+    # Authentifie les appels serveur-a-serveur emis par le portail Momeo.
+    # La valeur de production doit etre injectee par l'environnement.
+    momeo.provisioning_secret: '%env(MOMEO_PROVISIONING_SECRET)%'
+
+services:
+    # Default configuration for services in *this* file
+    _defaults:
+        # Automatically injects dependencies in your services
+        autowire: true
+
+        # Automatically registers your services as commands, event subscribers, etc.
+        autoconfigure: true
+
+        # Allows optimizing the container by removing unused services; this also means
+        # fetching services directly from the container via $container->get() won't work
+        public: false
+
+    _instanceof:
+        Sylius\Bundle\ResourceBundle\Controller\ResourceController:
+            autowire: false
+        Sylius\Bundle\ResourceBundle\Form\Type\AbstractResourceType:
+            autowire: false
+
+    # Makes classes in src/ available to be used as services;
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    # Controllers are imported separately to make sure services can be injected
+    # as action arguments even if you don't extend any base controller class
+    App\Controller\:
+        resource: '../src/Controller'
+        tags: ['controller.service_arguments']
+
+    # SkyBook multi-centres : storage PDF des factures par tenant
+    # (private/invoices/{slug}/ + cache local par slug). Voir
+    # App\Tenant\TenantInvoicePdfStorageFactory.
+    sylius_pdf_generation.storage.sylius_invoicing:
+        class: Sylius\PdfGenerationBundle\Filesystem\Gaufrette\GaufrettePdfStorage
+        factory: ['@App\Tenant\TenantInvoicePdfStorageFactory', 'create']

@@ -1,0 +1,12 @@
+# SkyBook — emails custom (hors triggers Sylius natifs, envoyes explicitement
+# depuis notre code via Sylius\Component\Mailer\Sender\SenderInterface::send()).
+# Meme mecanique de rendu que order_confirmation / invoice_generated (layout
+# commun @SyliusCore/Email/layout.html.twig, textes editables par centre via
+# App\Twig\SkybookEmailExtension) — seule la source du declenchement differe
+# (pas d'evenement Sylius natif pour "cheque cadeau active" : declenchement
+# manuel dans App\GiftVoucher\GiftVoucherMailer).
+sylius_mailer:
+    emails:
+        gift_voucher:
+            subject: skybook.emails.gift_voucher.subject
+            template: 'email/gift_voucher.html.twig'

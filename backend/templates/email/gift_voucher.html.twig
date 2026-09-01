@@ -1,0 +1,61 @@
+{# SkyBook — email d'activation d'un cheque cadeau (code + QR), textes editables
+   par centre (Configuration boutique > Emails). Variables : %prenom_beneficiaire%
+   %code% %saut% %centre% %expire% %montant%. Envoye 2 fois separement (voir
+   App\GiftVoucher\GiftVoucherMailer) : une fois au beneficiaire, une fois a
+   l'acheteur — meme contenu neutre pour les deux (pas de "cher X" cote binome).
+   NB Twig : les {% set %} doivent vivre DANS les blocs (template qui extends). #}
+{% extends '@SyliusCore/Email/layout.html.twig' %}
+
+{% block subject %}
+    {%- set skybookVars = {
+        '%prenom_beneficiaire%': (voucher.beneficiaryName ?? '')|split(' ')|first|default(''),
+        '%code%': voucher.code,
+        '%prestation%': voucher.serviceName,
+        '%saut%': voucher.serviceName,
+        '%etablissement%': channel.name,
+        '%centre%': channel.name,
+        '%expire%': voucher.expiresAt|date('d/m/Y'),
+        '%montant%': ((voucher.amount / 100)|number_format(2, ',', ' ')) ~ ' ' ~ voucher.currencyCode,
+    } -%}
+    {{- skybook_email_text('gift_voucher', 'subject', skybookVars) -}}
+{% endblock %}
+
+{% block content %}
+    {% set skybookVars = {
+        '%prenom_beneficiaire%': (voucher.beneficiaryName ?? '')|split(' ')|first|default(''),
+        '%code%': voucher.code,
+        '%prestation%': voucher.serviceName,
+        '%saut%': voucher.serviceName,
+        '%etablissement%': channel.name,
+        '%centre%': channel.name,
+        '%expire%': voucher.expiresAt|date('d/m/Y'),
+        '%montant%': ((voucher.amount / 100)|number_format(2, ',', ' ')) ~ ' ' ~ voucher.currencyCode,
+    } %}
+    <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_text('gift_voucher', 'intro', skybookVars)|e }}</div>
+
+    <div style="text-align: center; margin-bottom: 10px;">
+        <span style="border: 1px solid #e2e8f0; padding: 12px 20px; color: #1abb9c; font-size: 28px; letter-spacing: 2px; border-radius: 8px; font-family: monospace;">
+            {{- voucher.code|slice(0, 3) }} {{ voucher.code|slice(3, 3) }} {{ voucher.code|slice(6, 4) -}}
+        </span>
+    </div>
+    <div style="text-align: center; margin-bottom: 26px; color: #94a3b8; font-size: 12px;">Code de votre chèque cadeau — {{ skybookVars['%prestation%'] }}</div>
+
+    {% if qrDataUri is defined and qrDataUri %}
+        <div style="text-align: center; margin-bottom: 26px;">
+            <img src="{{ qrDataUri }}" alt="QR code d'activation" width="220" height="220" style="display: inline-block; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; background: #fff;" />
+            <div style="margin-top: 8px; color: #94a3b8; font-size: 12px;">Scannez pour activer votre espace bénéficiaire</div>
+        </div>
+    {% endif %}
+
+    <div style="margin-bottom: 26px; text-align: center; color: #64748b; font-size: 14px;">
+        Valable jusqu'au <strong>{{ skybookVars['%expire%'] }}</strong> — {{ skybookVars['%montant%'] }}
+    </div>
+
+    {% if voucher.personalMessage %}
+        <div style="margin-bottom: 26px; padding: 16px; background: #f8fafc; border-radius: 8px; font-style: italic; color: #475569;">
+            « {{ voucher.personalMessage }} »
+        </div>
+    {% endif %}
+
+    <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_text('gift_voucher', 'signature', skybookVars)|e }}</div>
+{% endblock %}

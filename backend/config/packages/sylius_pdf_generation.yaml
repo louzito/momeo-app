@@ -1,0 +1,20 @@
+# SkyBook — generation PDF via GOTENBERG (Chromium headless, service docker
+# `gotenberg` declare dans compose.override.yml, demarre avec docker compose up).
+# Utilise par le plugin de facturation (contexte sylius_invoicing) : notre
+# config surcharge l'adapter knp_snappy prepende par le plugin (qui exigerait
+# le binaire wkhtmltopdf, absent de l'image php).
+sylius_pdf_generation:
+    gotenberg:
+        base_url: 'http://gotenberg:3000'
+    default:
+        adapter: gotenberg
+        storage:
+            type: filesystem
+            directory: '%kernel.project_dir%/var/pdf'
+    contexts:
+        sylius_invoicing:
+            adapter: gotenberg
+            storage:
+                type: gaufrette
+                filesystem: 'gaufrette.sylius_invoicing_invoice_filesystem'
+                local_cache_directory: '%kernel.cache_dir%/sylius_invoicing_pdf/'

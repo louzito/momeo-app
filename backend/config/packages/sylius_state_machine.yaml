@@ -1,0 +1,7 @@
+# SkyBook — (fichier neutralise)
+# Premiere tentative : mapper le graphe sylius_payment sur winzou pour reveiller
+# le callback du plugin de facturation. ECHEC : l'adaptateur winzou n'est pas
+# enregistre dans sylius-standard 2.x ("Undefined array key winzou_state_machine").
+# Solution retenue : listener applicatif sur l'evenement symfony workflow
+# `workflow.sylius_payment.completed.complete`
+# -> voir src/EventListener/CreateInvoiceOnPaymentCompletedListener.php

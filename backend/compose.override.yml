@@ -1,0 +1,120 @@
+# =====================================================================
+# SkyBook — compose.override.yml
+# Base : le compose.override.dist.yml officiel de Sylius (montages du code,
+# service nodejs, DATABASE_URL, volumes nommes...). SEULE MODIFICATION :
+# les ports publies vers l'hote, pour ne pas entrer en conflit avec WAMP.
+#   - nginx : 80  -> 8080   (boutique/admin/api sur http://localhost:8080)
+#   - mysql : 3306 -> 3307  (le MySQL de WAMP garde 3306)
+# (le port INTERNE des conteneurs ne change pas : DATABASE_URL vise mysql:3306)
+# AJOUT SKYBOOK : service `gotenberg` (Chrome headless) pour la generation des
+# PDF de factures (sylius/pdf-generation-bundle, adapter gotenberg). Demarre
+# automatiquement avec `docker compose up -d` — rien a installer dans l'image php.
+# =====================================================================
+services:
+    php:
+        image: ghcr.io/sylius/sylius-php:8.3-fixuid-xdebug-alpine
+        user: ${DOCKER_USER:-1000:1000}
+        depends_on:
+            mysql:
+                condition: service_healthy
+        environment:
+            # You can move these environment variables to your .env.local file
+            APP_ENV: ${APP_ENV:-dev}
+            APP_SECRET: EDITME
+            DATABASE_URL: "mysql://root@mysql/sylius_%kernel.environment%"
+            MAILER_DSN: smtp://mailhog:1025
+            MESSENGER_TRANSPORT_DSN: doctrine://default
+            SYLIUS_MESSENGER_TRANSPORT_MAIN_DSN: doctrine://default
+            SYLIUS_MESSENGER_TRANSPORT_MAIN_FAILED_DSN: doctrine://default?queue_name=main_failed
+            SYLIUS_MESSENGER_TRANSPORT_CATALOG_PROMOTION_REMOVAL_DSN: doctrine://default?queue_name=catalog_promotion_removal
+            SYLIUS_MESSENGER_TRANSPORT_CATALOG_PROMOTION_REMOVAL_FAILED_DSN: doctrine://default?queue_name=catalog_promotion_removal_failed
+            SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN: sync://
+            SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_FAILED_DSN: sync://
+            PHP_DATE_TIMEZONE: ${PHP_DATE_TIMEZONE:-UTC}
+            # Xdebug DESACTIVE pour la vitesse. Repasser a "debug" seulement quand
+            # tu veux poser des points d'arret (ca ralentit fortement chaque requete).
+            XDEBUG_MODE: off
+            XDEBUG_CONFIG: >-
+                client_host=host.docker.internal
+                client_port=9003
+                log=/dev/stdout
+            # This should correspond to the server declared in PHPStorm `Preferences | Languages & Frameworks | PHP | Servers`
+            # Then PHPStorm will use the corresponding path mappings
+            PHP_IDE_CONFIG: serverName=sylius
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        volumes:
+          - .:/srv/sylius:rw,cached
+          # WINDOWS FIX : var/ dans un volume Docker (fs Linux) et NON sur le montage
+          # Windows, sinon le vidage de cache echoue ("Failed to remove directory ...
+          # Directory not empty"). Ne pas bind-mounter ./var sous Windows.
+          - var:/srv/sylius/var:rw
+          # WINDOWS PERF : vendor/ dans un volume Docker (fs Linux) au lieu du montage
+          # Windows -> supprime des milliers de lectures de fichiers par requete.
+          - vendor:/srv/sylius/vendor:rw
+          - ./public:/srv/sylius/public:rw,delegated
+          # if you develop on Linux, you may use a bind-mounted host directory instead
+#          - ./public/media:/srv/sylius/public/media:rw
+          - public-media:/srv/sylius/public/media:rw
+    mysql:
+        volumes:
+            - mysql-data:/var/lib/mysql:rw
+        ports:
+            - "3307:3306"
+    nginx:
+        depends_on:
+            php:
+                condition: service_started
+        volumes:
+            - ./public:/srv/sylius/public:ro
+            # if you develop on Linux, you may use a bind-mounted host directory instead
+#            - ./public/media:/srv/sylius/public/media:ro
+            - public-media:/srv/sylius/public/media:ro,nocopy
+        ports:
+            - "8080:80"
+    nodejs:
+        image: node:${NODE_VERSION:-22}-alpine
+        user: ${DOCKER_USER:-1000:1000}
+        working_dir: /srv/sylius
+        entrypoint: [ "/bin/sh","-c" ]
+        command:
+            - |
+                yarn install
+                yarn build
+        volumes:
+            - .:/srv/sylius:rw,cached
+            - ./public:/srv/sylius/public:rw,delegated
+    mailhog:
+        ports:
+            - "8025:8025"
+    # Generation PDF (factures) : Gotenberg = Chromium headless en conteneur.
+    # Le php l'atteint en interne via http://gotenberg:3000 (pas de port publie).
+    gotenberg:
+        image: gotenberg/gotenberg:8
+        restart: unless-stopped
+
+    # Reverse proxy MULTI-CENTRES (port hote 8081) : localhost:8081/{slug}/api -> nginx
+    # avec X-Skybook-Tenant, localhost/{slug}/* -> front (Vite en dev), slug
+    # inconnu -> 404. Config generee depuis le registre par
+    # `bin/console skybook:proxy:dump` (auto a chaque claim/refill) ; --watch
+    # recharge caddy tout seul a chaque regeneration.
+    caddy:
+        image: caddy:2-alpine
+        command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--watch"]
+        depends_on:
+            nginx:
+                condition: service_started
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        volumes:
+            - ./caddy:/etc/caddy:ro
+        ports:
+            # Wamp/Apache conserve le port 80 pour le site Momeo principal.
+            - "8081:80"
+        restart: unless-stopped
+
+volumes:
+    mysql-data:
+    public-media:
+    var:
+    vendor:

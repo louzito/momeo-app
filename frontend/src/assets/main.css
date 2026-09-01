@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Valeurs par defaut (surchargees dynamiquement par le branding du tenant,
+     voir src/composables/useBranding.js). Format R G B pour le <alpha-value>. */
+  --brand-50: 239 246 255;
+  --brand-100: 219 234 254;
+  --brand-200: 191 219 254;
+  --brand-300: 147 197 253;
+  --brand-400: 96 165 250;
+  --brand-500: 59 130 246;
+  --brand-600: 37 99 235;
+  --brand-700: 29 78 216;
+  --brand-800: 30 64 175;
+  --brand-900: 30 58 138;
+  --accent-400: 251 146 60;
+  --accent-500: 249 115 22;
+  --accent-600: 234 88 12;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased font-sans;
+}
+
+/* Composants utilitaires reutilisables ------------------------------------ */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-soft hover:bg-brand-700 active:scale-[.98];
+  }
+  .btn-accent {
+    @apply btn bg-accent-500 text-white shadow-soft hover:bg-accent-600 active:scale-[.98];
+  }
+  .btn-outline {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:border-brand-400 hover:text-brand-700;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+  .section {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* Scrollbar discrete */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
