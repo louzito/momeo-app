@@ -1,9 +1,9 @@
 // =============================================================================
 // VRAIE API — client HTTP vers Sylius (API Platform / Shop API v2)
 // -----------------------------------------------------------------------------
-// Pattern "strangler" : on part de la fausse API (mockApi) et on remplace les
-// methodes UNE PAR UNE par de vrais appels HTTP. Tout ce qui n'est pas encore
-// branche continue de fonctionner en mock -> l'app reste utilisable a chaque etape.
+// Pattern "strangler" pour les fonctions encore en migration. Le catalogue
+// public (canal, configuration, produits et options) est toutefois strictement
+// branche sur Sylius : aucune fixture ne peut prendre le relais en cas d'echec.
 //
 // Branche pour l'instant : le CATALOGUE. Les "types de saut" du front sont, a ce
 // stade, les PRODUITS Sylius (boutique de demo). Mapping cale sur la forme reelle
@@ -19,9 +19,6 @@
 import { mockApi } from '@/mocks/mockApi'
 import { API_BASE, MEDIA_BASE, TENANT_SLUG, displayImageUrl, isServiceProductCode } from './config'
 import * as sylius from './adminApi'
-
-const FALLBACK_IMAGE =
-  'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=70'
 
 // --- client HTTP minimal ---------------------------------------------------
 async function apiGet(path, params = {}) {
@@ -140,7 +137,7 @@ function membersOf(collection) {
 function imageUrl(images) {
   const list = Array.isArray(images) ? images : []
   const main = list.find((i) => i.type === 'main') || list[0]
-  if (!main?.path) return FALLBACK_IMAGE
+  if (!main?.path) return ''
   return displayImageUrl(main.path)
 }
 
@@ -591,15 +588,11 @@ export const httpApi = {
   // config (nom, contact, couleurs, reseaux sociaux) + l'image "logo".
   // Channel Sylius du centre (shop API) : nom + devise reels.
   async getShopChannel() {
-    try {
-      const res = await apiGet('/shop/channels')
-      const ch = res['hydra:member']?.[0] || res.member?.[0] || null
-      if (!ch) return null
-      const cur = typeof ch.baseCurrency === 'string' ? ch.baseCurrency.split('/').pop() : (ch.baseCurrency?.code || null)
-      return { code: ch.code || null, name: ch.name || null, currency: cur }
-    } catch {
-      return null
-    }
+    const res = await apiGet('/shop/channels')
+    const ch = res['hydra:member']?.[0] || res.member?.[0] || null
+    if (!ch) throw new Error("Aucun canal de vente n'est disponible pour cet établissement.")
+    const cur = typeof ch.baseCurrency === 'string' ? ch.baseCurrency.split('/').pop() : (ch.baseCurrency?.code || null)
+    return { code: ch.code || null, name: ch.name || null, currency: cur }
   },
 
   async getPublicShopConfig() {
@@ -616,8 +609,9 @@ export const httpApi = {
         bannerUrl: displayImageUrl(imgOf('banner')?.path),
         bannerMobileUrl: displayImageUrl(imgOf('banner_mobile')?.path),
       }
-    } catch {
-      return null
+    } catch (error) {
+      if (error.status === 404) return null
+      throw error
     }
   },
   // Ecriture (espace centre)

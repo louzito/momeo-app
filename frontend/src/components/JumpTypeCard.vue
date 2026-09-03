@@ -16,11 +16,13 @@ defineProps({
   >
     <div class="relative h-44 overflow-hidden bg-slate-100">
       <img
+        v-if="jumpType.image"
         :src="jumpType.image"
         :alt="jumpType.name"
         loading="lazy"
         class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
       />
+      <div v-else class="flex h-full items-center justify-center text-3xl text-slate-300" aria-hidden="true">✦</div>
       <span
         v-if="jumpType.popular"
         class="absolute left-3 top-3 chip bg-accent-500 text-white shadow"
