@@ -5,6 +5,11 @@ Application métier de Momeo réunissant :
 - `backend/` : API et administration Sylius ;
 - `frontend/` : interface Vue 3 construite avec Vite.
 
+## Documentation applicative
+
+- [Contrat canonique de résolution du tenant](docs/tenant-resolution.md) :
+  HTTP, CLI, workers, erreurs et compatibilité SkyBook.
+
 ## Configuration locale
 
 Les dépendances installées, fichiers générés, clés privées, factures et configurations locales ne sont pas enregistrés dans Git.
