@@ -28,6 +28,25 @@ Documentation is available at [docs.sylius.com](http://docs.sylius.com).
 
 ## Installation
 
+### Configuration de production
+
+Le backend refuse désormais de démarrer en `APP_ENV=prod` si sa configuration est
+incomplète. Partir de `.env.example`, injecter les valeurs par le gestionnaire de
+secrets de la plateforme et ne pas versionner de fichier `.env` réel.
+
+Les variables applicatives (`APP_SECRET`, `DATABASE_URL`, `DEFAULT_URI`,
+`SKYBOOK_DEFAULT_TENANT`, `MOMEO_PROVISIONING_SECRET`), les trois paramètres JWT,
+la clé de chiffrement des paiements et tous les DSN Messenger présents dans
+`.env.example` sont obligatoires. Les fichiers désignés par `JWT_SECRET_KEY`,
+`JWT_PUBLIC_KEY` et `SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH` doivent être lisibles et
+non vides.
+
+Créer `config/tenants.json` depuis `config/tenants.example.json`. Le registre doit
+être un objet JSON non vide, chaque entrée doit avoir un `db`, et
+`SKYBOOK_DEFAULT_TENANT` doit correspondre à l'une de ses entrées. Les exemples ne
+contiennent que des valeurs factices : elles doivent impérativement être remplacées
+avant une mise en production.
+
 ### Traditional
 ```bash
 $ wget http://getcomposer.org/composer.phar

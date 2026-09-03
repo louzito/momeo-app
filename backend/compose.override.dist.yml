@@ -9,6 +9,7 @@ services:
             # You can move these environment variables to your .env.local file
             APP_ENV: ${APP_ENV:-dev}
             APP_SECRET: EDITME
+            SKYBOOK_DEFAULT_TENANT: skyline
             DATABASE_URL: "mysql://root@mysql/sylius_%kernel.environment%"
             MAILER_DSN: smtp://mailhog:1025
             MESSENGER_TRANSPORT_DSN: doctrine://default
