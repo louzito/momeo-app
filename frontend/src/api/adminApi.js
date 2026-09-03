@@ -388,111 +388,26 @@ export async function updatePaymentMethod(code, patch = {}) {
   return { code }
 }
 
-// --- Plannings de creneaux -----------------------------------------------------
-// Persistes comme TAXONS Sylius sous la racine `skybook_plannings` :
-//   code = planning_*, nom = nom du planning, config JSON dans la description
-//   (openDays 0=dim..6=sam, times "HH:MM", capacity, jumpCodes cibles).
-// Le flag actif = taxon.enabled (un taxon desactive disparait du shop API ->
-// ses creneaux ne sont plus proposes). Pas d'entite dediee tant que le plugin
-// metier n'existe pas : le taxon est leger, CRUD-able via l'API admin et
-// lisible PUBLIQUEMENT via /shop/taxons (necessaire pour generer les creneaux
-// cote client).
-// PIEGE : l'@id de la translation d'un taxon est /api/v2/admin/taxon/{code}/...
-// (« taxon » au SINGULIER, contrairement aux products).
-const PLANNINGS_ROOT = 'skybook_plannings'
-const taxonIri = (code) => `/api/v2/admin/taxons/${code}`
-
-// Deux formats de config coexistent :
-//   v2 (calendrier) : days = { "YYYY-MM-DD": ["09:00","11:30"], ... }
-//   v1 (hebdo, legacy) : openDays [0=dim..6=sam] + times — encore lu, plus ecrit.
-function parsePlanningTaxon(t) {
-  let cfg = {}
-  try {
-    cfg = JSON.parse(t.translations?.en_US?.description || '{}')
-  } catch {
-    /* description non-JSON -> planning vide */
-  }
-  return {
-    id: t.code,
-    code: t.code,
-    name: cfg.name || t.translations?.en_US?.name || t.code,
-    days: cfg.days && typeof cfg.days === 'object' && !Array.isArray(cfg.days) ? cfg.days : {},
-    openDays: Array.isArray(cfg.openDays) ? cfg.openDays : [],
-    times: Array.isArray(cfg.times) ? cfg.times : [],
-    capacity: Number(cfg.capacity) || 8,
-    jumpCodes: Array.isArray(cfg.jumpCodes) ? cfg.jumpCodes : [],
-    active: t.enabled !== false,
-  }
-}
-
-function planningConfigJson(data) {
-  const base = {
-    name: data.name,
-    capacity: Number(data.capacity) || 8,
-    jumpCodes: data.jumpCodes || [],
-  }
-  // v2 des qu'il y a des jours dates ; sinon on conserve le format hebdo legacy.
-  if (data.days && Object.keys(data.days).length) {
-    return JSON.stringify({ ...base, days: data.days })
-  }
-  return JSON.stringify({ ...base, openDays: data.openDays || [], times: data.times || [] })
-}
-
-async function ensurePlanningsRoot() {
-  try {
-    await request('GET', `/admin/taxons/${PLANNINGS_ROOT}`)
-  } catch (e) {
-    if (e.status !== 404) throw e
-    await request('POST', '/admin/taxons', {
-      code: PLANNINGS_ROOT,
-      enabled: true,
-      translations: {
-        en_US: {
-          name: 'SkyBook Plannings',
-          slug: 'skybook-plannings',
-          description: 'Conteneur technique SkyBook — plannings de creneaux. Ne pas supprimer.',
-        },
-      },
-    })
-  }
-}
+// --- Plannings récurrents (ressource métier backend) --------------------------
+// Les taxons planning_* sont uniquement une source de migration historique :
+// aucune création, modification ou suppression n'est désormais faite dessus.
 
 export async function getPlannings() {
-  const data = await request('GET', '/admin/taxons?itemsPerPage=200')
-  const list = data['hydra:member'] || data.member || []
-  return list.filter((t) => (t.code || '').startsWith('planning_')).map(parsePlanningTaxon)
+  const data = await request('GET', '/admin/plannings')
+  return data.member || []
 }
 
 export async function createPlanning(data) {
-  await ensurePlanningsRoot()
   const code = data.code || codeFrom('planning_', data.name)
-  await request('POST', '/admin/taxons', {
-    code,
-    enabled: data.active !== false,
-    parent: taxonIri(PLANNINGS_ROOT),
-    translations: {
-      en_US: { name: data.name, slug: slugify(code), description: planningConfigJson(data) },
-    },
-  })
-  return { code }
+  return request('POST', '/admin/plannings', { ...data, code, timezone: data.timezone || 'Europe/Paris' }, 'application/json')
 }
 
 export async function updatePlanning(code, data) {
-  await request('PUT', `/admin/taxons/${code}`, {
-    enabled: data.active !== false,
-    translations: {
-      en_US: {
-        '@id': `/api/v2/admin/taxon/${code}/translations/en_US`,
-        name: data.name,
-        description: planningConfigJson(data),
-      },
-    },
-  })
-  return { code }
+  return request('PUT', `/admin/plannings/${encodeURIComponent(code)}`, { ...data, timezone: data.timezone || 'Europe/Paris' }, 'application/json')
 }
 
 export async function deletePlanning(code) {
-  await request('DELETE', `/admin/taxons/${code}`)
+  await request('DELETE', `/admin/plannings/${encodeURIComponent(code)}`)
   return { ok: true }
 }
 
