@@ -156,6 +156,13 @@ function moveShop(i, dir) {
 
 async function save() {
   if (!cfg.value.name?.trim()) { error.value = 'Le nom de la boutique est requis.'; tab.value = 'general'; return }
+  try {
+    new Intl.DateTimeFormat('fr-FR', { timeZone: cfg.value.timezone }).format()
+  } catch {
+    error.value = 'Le fuseau horaire est invalide (utilisez un identifiant IANA, par exemple Europe/Paris).'
+    tab.value = 'general'
+    return
+  }
   saving.value = true
   error.value = ''
   try {
@@ -226,6 +233,11 @@ async function save() {
           <div class="mt-4">
             <label class="label">Nom de la boutique</label>
             <input v-model="cfg.name" class="input" placeholder="Skyline Drop Zone" required />
+          </div>
+          <div class="mt-4">
+            <label class="label">Fuseau horaire du centre</label>
+            <input v-model="cfg.timezone" class="input" placeholder="Europe/Paris" required />
+            <p class="mt-1 text-xs text-slate-400">Identifiant IANA, par exemple Europe/Paris ou America/Guadeloupe.</p>
           </div>
         </section>
 

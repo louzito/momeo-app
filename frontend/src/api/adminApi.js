@@ -532,6 +532,7 @@ export async function getShopConfig() {
   const imgOf = (type) => (t.images || []).find((i) => i.type === type)
   return {
     name: ch.name || '',
+    timezone: typeof cfg.timezone === 'string' ? cfg.timezone : 'Europe/Paris',
     contactEmail: ch.contactEmail || '',
     contactPhone: ch.contactPhoneNumber || '',
     address: { street: '', postcode: '', city: '', ...(cfg.address || {}) },
@@ -586,6 +587,7 @@ export async function saveShopConfig(cfg) {
         '@id': `/api/v2/admin/taxon/${CONFIG_TAXON}/translations/en_US`,
         description: JSON.stringify({
           name: cfg.name,
+          timezone: cfg.timezone || 'Europe/Paris',
           contactEmail: cfg.contactEmail,
           contactPhone: cfg.contactPhone,
           address: cfg.address,

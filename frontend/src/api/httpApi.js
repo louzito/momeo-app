@@ -156,113 +156,6 @@ function defaultEligibility() {
 // Type d'association Sylius portant le lien option -> sauts precis.
 const JUMP_ASSOC_TYPE = 'skybook_jumps'
 
-// --- Plannings publics (taxons Sylius, lisibles sans auth) -------------------
-const PLANNINGS_ROOT = 'skybook_plannings'
-
-function parsePublicPlanningTaxon(t) {
-  let cfg = {}
-  try {
-    cfg = JSON.parse(t.description || '{}')
-  } catch {
-    return null
-  }
-  return {
-    code: t.code,
-    name: cfg.name || t.name || t.code,
-    // v2 : jours dates explicites { "YYYY-MM-DD": ["09:00", ...] }
-    days: cfg.days && typeof cfg.days === 'object' && !Array.isArray(cfg.days) ? cfg.days : {},
-    // v1 legacy : pattern hebdomadaire
-    openDays: Array.isArray(cfg.openDays) ? cfg.openDays : [],
-    times: Array.isArray(cfg.times) ? cfg.times : [],
-    capacity: Number(cfg.capacity) || 8,
-    jumpCodes: Array.isArray(cfg.jumpCodes) ? cfg.jumpCodes : [],
-  }
-}
-
-// Un taxon desactive n'est pas servi par le shop API (404) -> seuls les
-// plannings ACTIFS produisent des creneaux.
-async function fetchPublicPlannings() {
-  try {
-    const root = await apiGet(`/shop/taxons/${PLANNINGS_ROOT}`)
-    const codes = (root.children || []).map((iri) => String(iri).split('/').pop())
-    const taxons = await Promise.all(
-      codes.map((c) => apiGet(`/shop/taxons/${encodeURIComponent(c)}`).catch(() => null)),
-    )
-    return taxons.filter(Boolean).map(parsePublicPlanningTaxon).filter(Boolean)
-  } catch {
-    return []
-  }
-}
-
-// Occupation en memoire de session : slotId -> nb de sauts reserves.
-// (1 saut = 1 place ; decompte multi-session a venir avec le plugin metier.)
-const sessionBookedBySlot = new Map()
-
-// `compatCodes` = codes des sauts compatibles avec ce planning (sauts cibles,
-// ou TOUS les sauts si le planning ne cible rien) — utilise par SlotCalendar
-// pour griser les creneaux incompatibles avec le saut selectionne.
-// Deux formats : v2 = jours dates explicites (p.days, edite au calendrier
-// annuel), v1 legacy = pattern hebdo (openDays + times). Horizon d'affichage
-// cote client : `daysAhead` jours.
-function makeSlot(p, tenantId, compatCodes, dateStr, time) {
-  const [hh, mm] = String(time).split(':').map(Number)
-  if (!Number.isFinite(hh)) return null
-  const start = new Date(`${dateStr}T00:00:00`)
-  if (Number.isNaN(start.getTime())) return null
-  start.setHours(hh, mm || 0, 0, 0)
-  if (start.getTime() < Date.now()) return null
-  const end = new Date(start)
-  end.setMinutes(end.getMinutes() + 90)
-  const id = `slot_${p.code}_${dateStr}_${String(time).replace(':', '')}`
-  const booked = sessionBookedBySlot.get(id) || 0
-  return {
-    id,
-    tenantId,
-    planningCode: p.code,
-    start: start.toISOString(),
-    end: end.toISOString(),
-    capacity: p.capacity,
-    booked,
-    remaining: Math.max(0, p.capacity - booked),
-    compatibleJumpTypeIds: compatCodes,
-    instructor: p.name, // affiche sous l'heure : le nom du planning
-  }
-}
-
-function generatePlanningSlots(p, tenantId, compatCodes = [], daysAhead = 45) {
-  const slots = []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const horizon = new Date(today)
-  horizon.setDate(horizon.getDate() + daysAhead)
-
-  if (p.days && Object.keys(p.days).length) {
-    // v2 : jours dates explicites
-    for (const [dateStr, times] of Object.entries(p.days)) {
-      const day = new Date(`${dateStr}T00:00:00`)
-      if (Number.isNaN(day.getTime()) || day > horizon) continue
-      for (const time of times || []) {
-        const s = makeSlot(p, tenantId, compatCodes, dateStr, time)
-        if (s) slots.push(s)
-      }
-    }
-    return slots
-  }
-
-  // v1 legacy : pattern hebdomadaire
-  for (let d = 0; d < daysAhead; d++) {
-    const day = new Date(today)
-    day.setDate(today.getDate() + d)
-    if (!p.openDays.includes(day.getDay())) continue
-    const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
-    for (const time of p.times) {
-      const s = makeSlot(p, tenantId, compatCodes, dateStr, time)
-      if (s) slots.push(s)
-    }
-  }
-  return slots
-}
-
 // Resout, pour une liste de produits option, la liaison vers des sauts precis.
 // Les produits shop exposent `associations` (IRIs). On resout chaque IRI via
 // /shop/product-associations/{id} (public, sans auth) et on ne garde que les
@@ -440,54 +333,15 @@ export const httpApi = {
     return mapProductToJumpType(p, tenantId, attrs)
   },
 
-  // --- CRENEAUX : generes depuis les PLANNINGS (taxons Sylius) ---------------
-  // Les plannings sont crees par le centre dans l'onglet Plannings et stockes
-  // en taxons `planning_*` (voir adminApi). Chaque planning definit jours
-  // d'ouverture, heures, capacite par creneau (1 saut = 1 place) et sauts
-  // cibles (aucun = tous les sauts). Les creneaux sont deterministes :
-  //   id = slot_<planning>_<YYYY-MM-DD>_<HHMM>
-  // L'occupation reelle (decompte multi-session) viendra avec le plugin metier ;
-  // en attendant on decremente en memoire de session (createOrder).
+  // Les disponibilites sont integralement calculees par le backend.
   async getSlots(tenantId, { jumpTypeId = null } = {}) {
-    if (jumpTypeId) {
-      try {
-        const availability = await apiGet('/shop/availability', { serviceCode: jumpTypeId })
-        return availability.member || []
-      } catch {
-        // Repli temporaire sur les plannings historiques si l'API n'est pas disponible.
-      }
-    }
-    const plannings = (await fetchPublicPlannings()).filter(
-      (p) => Object.keys(p.days || {}).length || (p.openDays.length && p.times.length),
-    )
-    // Aucun planning configure -> comportement mock historique (autres tenants).
-    if (!plannings.length) {
-      const slots = await mockApi.getSlots(tenantId, {})
-      return jumpTypeId
-        ? slots.map((s) => ({ ...s, compatibleJumpTypeIds: [...(s.compatibleJumpTypeIds || []), jumpTypeId] }))
-        : slots
-    }
-    const applicable = jumpTypeId
-      ? plannings.filter((p) => !p.jumpCodes.length || p.jumpCodes.includes(jumpTypeId))
-      : plannings
-    // Un planning sans sauts cibles est compatible avec TOUS les sauts : il
-    // faut alors la liste des codes reels (le calendrier grise par inclusion).
-    let allJumpCodes = jumpTypeId ? [jumpTypeId] : []
-    if (applicable.some((p) => !p.jumpCodes.length) && !jumpTypeId) {
-      try {
-        const data = await apiGet('/shop/products', { itemsPerPage: 100 })
-        allJumpCodes = membersOf(data)
-          .map((x) => x.code)
-          .filter((c) => isServiceProductCode(c))
-      } catch {
-        allJumpCodes = []
-      }
-    }
-    return applicable
-      .flatMap((p) =>
-        generatePlanningSlots(p, tenantId, p.jumpCodes.length ? p.jumpCodes : allJumpCodes),
-      )
-      .sort((a, b) => new Date(a.start) - new Date(b.start))
+    const serviceCodes = jumpTypeId
+      ? [jumpTypeId]
+      : (await this.getJumpTypes(tenantId)).map((service) => service.id)
+    const responses = await Promise.all(serviceCodes.map((serviceCode) =>
+      apiGet('/shop/availability', { serviceCode }),
+    ))
+    return responses.flatMap((availability) => availability.member || [])
   },
 
   // --- ELIGIBILITE : regle REELLE du saut (attributs produit Sylius) ---------

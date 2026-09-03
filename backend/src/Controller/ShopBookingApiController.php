@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Availability\AvailabilitySlotGenerator;
+use App\Availability\CenterTimeZoneProvider;
+use App\Availability\PlanningProvider;
 use App\Entity\Booking;
 use App\Entity\GiftVoucher;
 use App\Entity\Product\Product;
@@ -22,14 +25,15 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/v2/shop')]
 final class ShopBookingApiController
 {
-    private const TIMEZONE = 'Europe/Paris';
-
     public function __construct(
         private readonly BookingRepository $bookingRepository,
         private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly StaffMemberRepository $staffRepository,
         private readonly StaffTimeOffRepository $timeOffRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly CenterTimeZoneProvider $timeZoneProvider,
+        private readonly PlanningProvider $planningProvider,
+        private readonly AvailabilitySlotGenerator $slotGenerator,
     ) {
     }
 
@@ -41,7 +45,12 @@ final class ShopBookingApiController
             return new JsonResponse(['error' => 'La prestation est obligatoire.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $timezone = new \DateTimeZone(self::TIMEZONE);
+        $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $serviceCode]);
+        if (!$product instanceof Product || !$product->isEnabled()) {
+            return new JsonResponse(['error' => 'Cette prestation n’est pas disponible.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $timezone = $this->timeZoneProvider->get();
         $today = new \DateTimeImmutable('today', $timezone);
         $from = $this->dateOrDefault((string) $request->query->get('from', ''), $today, $timezone);
         $requestedTo = $this->dateOrDefault((string) $request->query->get('to', ''), $from->modify('+45 days'), $timezone);
@@ -62,24 +71,27 @@ final class ShopBookingApiController
         $blocking = $this->bookingRepository->findBlockingBetween($rangeStart, $rangeEnd);
         $timeOffs = $this->timeOffRepository->findBetween($rangeStart, $rangeEnd);
         $slots = [];
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $plannedSlots = $this->slotGenerator->generate($this->planningProvider->active(), $serviceCode, $duration, $from, $to, $now, $timezone);
 
-        for ($day = $from; $day <= $to; $day = $day->modify('+1 day')) {
-            $dayKey = strtolower($day->format('l'));
+        foreach ($plannedSlots as $plannedSlot) {
+            $dayKey = strtolower($plannedSlot['localStart']->format('l'));
             foreach ($eligibleStaff as $staff) {
                 $hours = $staff->getWorkingHours()[$dayKey] ?? null;
                 if (!\is_array($hours) || !($hours['enabled'] ?? false)) {
                     continue;
                 }
 
-                $cursor = new \DateTimeImmutable($day->format('Y-m-d').' '.($hours['start'] ?? '09:00'), $timezone);
-                $workEnd = new \DateTimeImmutable($day->format('Y-m-d').' '.($hours['end'] ?? '18:00'), $timezone);
-                while ($cursor->modify(sprintf('+%d minutes', $duration)) <= $workEnd) {
-                    $slotEnd = $cursor->modify(sprintf('+%d minutes', $duration));
-                    $startUtc = $cursor->setTimezone(new \DateTimeZone('UTC'));
-                    $endUtc = $slotEnd->setTimezone(new \DateTimeZone('UTC'));
-                    if ($startUtc > new \DateTimeImmutable() && !$this->isBlocked($staff, $startUtc, $endUtc, $blocking, $timeOffs)) {
+                $date = $plannedSlot['localStart']->format('Y-m-d');
+                $workStart = new \DateTimeImmutable($date.' '.($hours['start'] ?? '09:00'), $timezone);
+                $workEnd = new \DateTimeImmutable($date.' '.($hours['end'] ?? '18:00'), $timezone);
+                if ($plannedSlot['localStart'] >= $workStart && $plannedSlot['end'] <= $workEnd->setTimezone(new \DateTimeZone('UTC'))) {
+                    $startUtc = $plannedSlot['start'];
+                    $endUtc = $plannedSlot['end'];
+                    if (!$this->isBlocked($staff, $startUtc, $endUtc, $blocking, $timeOffs)) {
                         $slots[] = [
-                            'id' => sprintf('staff_%d_%s', $staff->getId(), $cursor->format('Ymd_Hi')),
+                            'id' => sprintf('staff_%d_%s_%s', $staff->getId(), $startUtc->format('Ymd_Hi'), $serviceCode),
+                            'planningCode' => $plannedSlot['planningCode'],
                             'start' => $startUtc->format(\DateTimeInterface::ATOM),
                             'end' => $endUtc->format(\DateTimeInterface::ATOM),
                             'capacity' => 1,
@@ -92,18 +104,17 @@ final class ShopBookingApiController
                             'instructor' => trim($staff->getFirstName().' '.$staff->getLastName()),
                         ];
                     }
-                    $cursor = $cursor->modify('+30 minutes');
                 }
             }
         }
 
-        usort($slots, static fn (array $a, array $b): int => strcmp($a['start'], $b['start']));
+        usort($slots, static fn (array $a, array $b): int => [$a['start'], $a['staffMemberId']] <=> [$b['start'], $b['staffMemberId']]);
 
         return new JsonResponse([
             'member' => $slots,
             'staffConfigured' => \count($activeStaff) > 0,
             'durationMin' => $duration,
-            'timezone' => self::TIMEZONE,
+            'timezone' => $timezone->getName(),
         ]);
     }
 
@@ -140,13 +151,11 @@ final class ShopBookingApiController
         $connection->beginTransaction();
         $staff = null;
         $staffId = (int) ($payload['staffMemberId'] ?? 0);
-        if ($staffId > 0) {
-            $staff = $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE);
-            $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end);
-            if ($error !== null) {
-                $connection->rollBack();
-                return new JsonResponse(['error' => $error], Response::HTTP_CONFLICT);
-            }
+        $staff = $staffId > 0 ? $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE) : null;
+        $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end);
+        if ($error !== null) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => $error], Response::HTTP_CONFLICT);
         }
 
         $booking = new Booking();
@@ -220,12 +229,10 @@ final class ShopBookingApiController
 
             $staff = null;
             $staffId = (int) ($payload['staffMemberId'] ?? 0);
-            if ($staffId > 0) {
-                $staff = $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE);
-                $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end);
-                if ($error !== null) {
-                    throw new \DomainException($error);
-                }
+            $staff = $staffId > 0 ? $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE) : null;
+            $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end);
+            if ($error !== null) {
+                throw new \DomainException($error);
             }
 
             $booking = new Booking();
@@ -339,7 +346,7 @@ final class ShopBookingApiController
         if (!\in_array($serviceCode, $staff->getServiceCodes(), true)) {
             return 'Ce collaborateur ne réalise pas cette prestation.';
         }
-        $timezone = new \DateTimeZone(self::TIMEZONE);
+        $timezone = $this->timeZoneProvider->get();
         $localStart = $start->setTimezone($timezone);
         $localEnd = $end->setTimezone($timezone);
         $hours = $staff->getWorkingHours()[strtolower($localStart->format('l'))] ?? null;
@@ -351,6 +358,10 @@ final class ShopBookingApiController
         if ($localStart < $opening || $localEnd > $closing || ($end->getTimestamp() - $start->getTimestamp()) !== $this->serviceDuration($serviceCode) * 60) {
             return 'Ce créneau ne correspond plus aux disponibilités de cette prestation.';
         }
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $localStart->format('Y-m-d'), $timezone);
+        if (!$date || !$this->isPlanned($serviceCode, $start, $date, $timezone)) {
+            return 'Ce créneau ne figure plus au planning.';
+        }
         if ($this->bookingRepository->hasOverlap($staff, $start, $end)) {
             return 'Ce créneau vient d’être réservé.';
         }
@@ -361,6 +372,26 @@ final class ShopBookingApiController
         return null;
     }
 
+    private function isPlanned(string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $date, \DateTimeZone $timezone): bool
+    {
+        $slots = $this->slotGenerator->generate(
+            $this->planningProvider->active(),
+            $serviceCode,
+            $this->serviceDuration($serviceCode),
+            $date,
+            $date,
+            new \DateTimeImmutable('@0'),
+            $timezone,
+        );
+        foreach ($slots as $slot) {
+            if ($slot['start']->getTimestamp() === $start->getTimestamp()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function dateOrDefault(string $value, \DateTimeImmutable $default, \DateTimeZone $timezone): \DateTimeImmutable
     {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
@@ -368,7 +399,7 @@ final class ShopBookingApiController
         }
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value, $timezone);
 
-        return $date ?: $default;
+        return $date && $date->format('Y-m-d') === $value ? $date : $default;
     }
 
     private function nullableText(mixed $value, ?int $length = null): ?string
