@@ -14,7 +14,7 @@ const props = defineProps({
     <div class="flex items-center justify-between bg-gradient-to-r from-brand-700 to-brand-500 px-6 py-4 text-white">
       <div>
         <p class="text-xs uppercase tracking-widest text-white/70">Confirmation de rendez-vous</p>
-        <p class="font-display text-lg font-bold">{{ tenantName || 'Momeo' }}</p>
+        <p class="font-display text-lg font-bold">{{ tenantName || 'TodaTempo' }}</p>
       </div>
       <span class="text-3xl">✓</span>
     </div>
@@ -42,23 +42,13 @@ const props = defineProps({
             <p class="text-xs uppercase tracking-wide text-slate-400">Heure</p>
             <p class="font-semibold text-slate-800">{{ formatTime(pass.slotStart) }}</p>
           </div>
-          <div v-if="pass.weightDeclaredKg">
-            <p class="text-xs uppercase tracking-wide text-slate-400">Poids declare</p>
-            <p class="font-semibold text-slate-800">{{ pass.weightDeclaredKg }} kg</p>
-          </div>
-          <div v-if="pass.weightDeclaredKg || pass.waiverSigned">
-            <p class="text-xs uppercase tracking-wide text-slate-400">Decharge</p>
-            <p class="font-semibold" :class="pass.waiverSigned ? 'text-emerald-600' : 'text-rose-600'">
-              {{ pass.waiverSigned ? 'Signee' : 'Manquante' }}
-            </p>
-          </div>
         </div>
         <div v-if="pass.options?.length">
           <p class="text-xs uppercase tracking-wide text-slate-400">Options</p>
           <p class="text-sm text-slate-700">{{ pass.options.join(', ') }}</p>
         </div>
         <div v-if="pass.checkedInAt" class="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
-          ✓ Check-in effectue
+          ✓ Accueil effectué
         </div>
       </div>
 

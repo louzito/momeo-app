@@ -1,6 +1,6 @@
-# SkyBook — Front client (Vue 3) · maquette 100% mockée
+# TodaTempo — application de réservation (Vue 3)
 
-Front de démonstration du SaaS de réservation de sauts en parachute **SkyBook**.
+Front de démonstration de **TodaTempo**, solution de réservation de prestations pour les établissements de soin.
 Objectif : naviguer sur **toutes** les pages et voir le rendu visuel **avant** de connecter le
 vrai backend (Symfony + API Platform + Sylius). **Aucun appel réseau réel** : toutes les données
 viennent d'une fausse API mockée (`src/mocks/`).
@@ -9,7 +9,7 @@ viennent d'une fausse API mockée (`src/mocks/`).
 
 - **Vue 3** (Composition API, `<script setup>`) + **Vite**
 - **Vue Router** (toutes les pages)
-- **Pinia** (panier, session client, session bénéficiaire, tenant courant)
+- **Pinia** (panier, session client, session bénéficiaire, établissement courant)
 - **Tailwind CSS** (branding dynamique par tenant via variables CSS)
 
 ## Démarrage
@@ -33,7 +33,7 @@ npm run preview   # prévisualise le build
 👉 Voir **`IDENTIFIANTS_TEST.md`** à la racine de ce dossier : il liste tous les comptes clients,
 codes de chèques cadeaux et emails de bénéficiaires nécessaires pour tout tester.
 
-## Architecture (remplacement du mock plus tard)
+## Architecture
 
 ```
 src/

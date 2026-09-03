@@ -1,6 +1,6 @@
-# Momeo App
+# TodaTempo App
 
-Application métier de Momeo réunissant :
+Application métier TodaTempo destinée aux établissements de soin et réunissant :
 
 - `backend/` : API et administration Sylius ;
 - `frontend/` : interface Vue 3 construite avec Vite.

@@ -158,7 +158,7 @@ function printInvoice() {
         <!-- En-tete -->
         <div class="flex items-start justify-between border-b border-slate-200 pb-6">
           <div>
-            <p class="font-display text-2xl font-extrabold text-slate-900">{{ admin.tenant?.name || 'Momeo' }}</p>
+            <p class="font-display text-2xl font-extrabold text-slate-900">{{ admin.tenant?.name || 'TodaTempo' }}</p>
             <p class="mt-1 text-sm text-slate-500">
               {{ admin.tenant?.city || '' }}<template v-if="admin.tenant?.email"> · {{ admin.tenant.email }}</template>
             </p>
@@ -221,7 +221,7 @@ function printInvoice() {
           </tfoot>
         </table>
 
-        <!-- Contexte metier (saut / creneau / sauteur) -->
+        <!-- Contexte métier (prestation / créneau / client) -->
         <p v-if="order.notes" class="mt-6 rounded-lg bg-slate-50 p-3 text-xs text-slate-500 print:border print:border-slate-200">
           {{ order.notes }}
         </p>

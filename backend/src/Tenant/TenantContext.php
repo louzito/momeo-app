@@ -57,7 +57,7 @@ final class TenantContext
         $slug = $this->getSlug();
         $db = $this->registry->databaseFor($slug);
         if ($db === null) {
-            throw new \RuntimeException(sprintf('SkyBook : tenant inconnu "%s" (absent de config/tenants.json).', $slug));
+            throw new \RuntimeException(sprintf('TodaTempo : établissement inconnu "%s" (absent de config/tenants.json).', $slug));
         }
 
         return $db;

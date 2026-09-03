@@ -13,7 +13,7 @@ const props = defineProps({
   <div class="space-y-6">
     <div v-if="showIdentity" class="grid gap-4 sm:grid-cols-3">
       <div>
-        <label class="label">Prenom du sauteur</label>
+        <label class="label">Prénom du client</label>
         <input v-model="model.firstName" type="text" class="input" placeholder="Prenom" autocomplete="given-name" />
       </div>
       <div>
@@ -86,8 +86,8 @@ const props = defineProps({
         class="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
       />
       <span class="text-sm text-slate-700">
-        J'ai lu et j'accepte la <a href="#" class="font-medium text-brand-600 underline">decharge de responsabilite</a>
-        et je reconnais les risques inherents au saut en parachute. <em>(signature electronique simulee)</em>
+        J'ai lu et j'accepte les <a href="#" class="font-medium text-brand-600 underline">conditions de la prestation</a>.
+        <em>(signature électronique simulée)</em>
       </span>
     </label>
   </div>

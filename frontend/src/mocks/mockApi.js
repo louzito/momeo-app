@@ -78,7 +78,7 @@ function tenantSlug(id) {
   return db.tenants.find((t) => t.id === id)?.slug || ''
 }
 function jumpTypeName(tenantId, jumpTypeId) {
-  return cat(tenantId)?.jumpTypes.find((j) => j.id === jumpTypeId)?.name || 'Saut'
+  return cat(tenantId)?.jumpTypes.find((j) => j.id === jumpTypeId)?.name || 'Prestation'
 }
 function enrichVoucher(v) {
   return { ...v, tenantName: tenantName(v.tenantId), tenantSlug: tenantSlug(v.tenantId), jumpTypeName: jumpTypeName(v.tenantId, v.jumpTypeId) }
@@ -121,7 +121,7 @@ export const mockApi = {
   },
   async getJumpType(tenantId, jumpTypeId) {
     const jt = cat(tenantId)?.jumpTypes.find((j) => j.id === jumpTypeId)
-    if (!jt) throw new NotFound('Type de saut introuvable')
+    if (!jt) throw new NotFound('Prestation introuvable')
     return delay(jt)
   },
   async getOptions(tenantId, jumpTypeId = null) {
@@ -154,7 +154,7 @@ export const mockApi = {
   // ===========================================================================
   async checkEligibility(tenantId, jumpTypeId, form) {
     const jt = cat(tenantId)?.jumpTypes.find((j) => j.id === jumpTypeId)
-    if (!jt) throw new NotFound('Type de saut introuvable')
+    if (!jt) throw new NotFound('Prestation introuvable')
     const r = jt.eligibility
     const violations = []
     const age = Number(form.age)
@@ -169,7 +169,7 @@ export const mockApi = {
     if (form.heightCm !== '' && !Number.isNaN(height) && height < r.heightMinCm)
       violations.push(`Taille minimum : ${r.heightMinCm} cm (declaree : ${height} cm).`)
     if (r.medicalCertificateRequired && !form.medicalCertificate)
-      violations.push('Un certificat medical est obligatoire pour ce saut.')
+      violations.push('Un justificatif médical est obligatoire pour cette prestation.')
     if (r.waiverRequired && !form.waiverAccepted)
       violations.push('La decharge de responsabilite doit etre signee.')
     ;(r.customRules || []).forEach((cr) => {
@@ -188,7 +188,7 @@ export const mockApi = {
     const orderId = genId('ord')
     const number = `${tenant?.slug?.toUpperCase().slice(0, 3) || 'ORD'}-2026-${Math.floor(1000 + Math.random() * 8999)}`
     const lines = [
-      { label: jt?.name || 'Saut', qty: 1, price: jt?.basePrice || 0 },
+      { label: jt?.name || 'Prestation', qty: 1, price: jt?.basePrice || 0 },
       ...(payload.options || []).map((o) => ({ label: o.name, qty: 1, price: o.price })),
     ]
     const total = lines.reduce((sum, l) => sum + l.price * l.qty, 0)
@@ -220,14 +220,14 @@ export const mockApi = {
       booking = {
         id: genId('bk'), tenantId: payload.tenantId, reference: ref, source: 'direct', orderId,
         customerId: payload.customerId || null, jumpTypeId: payload.jumpTypeId,
-        jumperName: payload.jumper?.fullName || 'Sauteur', slotStart: slot?.start || null, slotEnd: slot?.end || null,
+        jumperName: payload.jumper?.fullName || 'Client', slotStart: slot?.start || null, slotEnd: slot?.end || null,
         status: 'confirmed', options: (payload.options || []).filter((o) => o.scope === 'PER_JUMP').map((o) => ({ name: o.name, price: o.price })),
         boardingPassId: bpId, weightDeclaredKg: payload.jumper?.weightKg || null,
       }
       db.bookings.push(booking)
       db.boardingPasses.push({
         id: bpId, bookingId: booking.id, tenantId: payload.tenantId, reference: ref, jumperName: booking.jumperName,
-        jumpTypeName: jt?.name || 'Saut', slotStart: booking.slotStart, options: booking.options.map((o) => o.name),
+      jumpTypeName: jt?.name || 'Prestation', slotStart: booking.slotStart, options: booking.options.map((o) => o.name),
         weightDeclaredKg: booking.weightDeclaredKg, waiverSigned: true, checkedInAt: null,
       })
       order.bookingId = booking.id
@@ -269,7 +269,7 @@ export const mockApi = {
   },
   async getBoardingPass(bookingId) {
     const bp = db.boardingPasses.find((x) => x.bookingId === bookingId)
-    if (!bp) throw new NotFound("Carte d'embarquement introuvable")
+    if (!bp) throw new NotFound('Confirmation de rendez-vous introuvable')
     return delay(bp)
   },
 
@@ -314,7 +314,7 @@ export const mockApi = {
     db.bookings.push(booking)
     db.boardingPasses.push({
       id: bpId, bookingId: booking.id, tenantId: v.tenantId, reference: ref, jumperName: booking.jumperName,
-      jumpTypeName: jt?.name || 'Saut', slotStart: booking.slotStart, options: [], weightDeclaredKg: booking.weightDeclaredKg,
+      jumpTypeName: jt?.name || 'Prestation', slotStart: booking.slotStart, options: [], weightDeclaredKg: booking.weightDeclaredKg,
       waiverSigned: true, checkedInAt: null,
     })
     v.status = 'reserved'; v.bookingId = booking.id
@@ -333,7 +333,7 @@ export const mockApi = {
   },
 
   // ===========================================================================
-  // ADMIN DROPZONE (back-office centre)
+  // ADMIN ÉTABLISSEMENT
   // ===========================================================================
   async adminLogin(email, password) {
     const a = db.admins.find((x) => x.email.toLowerCase() === String(email).toLowerCase() && x.password === password)
@@ -373,7 +373,7 @@ export const mockApi = {
     const c = cat(tenantId)
     if (!c) throw new NotFound('Centre introuvable')
     const jt = {
-      id: genId('jt'), tenantId, name: data.name || 'Nouveau saut', summary: data.summary || '',
+      id: genId('jt'), tenantId, name: data.name || 'Nouvelle prestation', summary: data.summary || '',
       description: data.description || '', basePrice: Number(data.basePrice) || 0, durationMin: Number(data.durationMin) || 20,
       capacityPerSlot: Number(data.capacityPerSlot) || 6, image: data.image || 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=70',
       popular: !!data.popular, eligibility: data.eligibility || defaultEligibility(),
@@ -384,7 +384,7 @@ export const mockApi = {
   },
   async updateJumpType(tenantId, id, patch) {
     const jt = cat(tenantId)?.jumpTypes.find((j) => j.id === id)
-    if (!jt) throw new NotFound('Type de saut introuvable')
+    if (!jt) throw new NotFound('Prestation introuvable')
     Object.assign(jt, patch)
     invalidateSlots(tenantId)
     return delay(jt, 350)
@@ -392,7 +392,7 @@ export const mockApi = {
   async deleteJumpType(tenantId, id) {
     const c = cat(tenantId)
     const idx = c?.jumpTypes.findIndex((j) => j.id === id)
-    if (idx == null || idx < 0) throw new NotFound('Type de saut introuvable')
+    if (idx == null || idx < 0) throw new NotFound('Prestation introuvable')
     c.jumpTypes.splice(idx, 1)
     invalidateSlots(tenantId)
     return delay({ ok: true }, 300)

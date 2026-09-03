@@ -19,7 +19,7 @@ const api = USE_REAL_API ? httpApi : mockApi
 
 if (typeof window !== 'undefined') {
   // eslint-disable-next-line no-console
-  console.info(`[Momeo] API source : ${USE_REAL_API ? 'Sylius (réelle)' : 'mock'}`)
+  console.info(`[TodaTempo] API source : ${USE_REAL_API ? 'Sylius (réelle)' : 'mock'}`)
 }
 
 export default api

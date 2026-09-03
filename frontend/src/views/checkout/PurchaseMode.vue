@@ -43,7 +43,7 @@ function choose(kind) {
         <div class="text-4xl">🗓️</div>
         <h3 class="mt-4 font-display text-xl font-bold text-slate-900">Pour moi (avec date)</h3>
         <p class="mt-2 text-sm text-slate-500">
-          Choisissez tout de suite votre creneau et recevez votre carte d'embarquement.
+          Choisissez tout de suite votre créneau et recevez votre confirmation de rendez-vous.
         </p>
         <span class="mt-4 inline-block font-medium text-brand-600 group-hover:underline">Choisir une date →</span>
       </button>

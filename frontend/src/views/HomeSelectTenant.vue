@@ -23,7 +23,7 @@ onMounted(() => tenantStore.loadTenants())
       <div class="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/40 to-slate-950" />
       <div class="pointer-events-none absolute right-10 top-24 hidden text-6xl opacity-80 animate-float lg:block">✦</div>
       <div class="section relative py-24 text-center sm:py-32">
-        <span class="chip mx-auto mb-5 border border-white/15 bg-white/10 text-white backdrop-blur">Momeo · Reservation en ligne</span>
+        <span class="chip mx-auto mb-5 border border-white/15 bg-white/10 text-white backdrop-blur">TodaTempo · Réservation en ligne</span>
         <h1 class="mx-auto max-w-3xl font-display text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-6xl animate-fade-up">
           Reservez votre moment.<br /><span class="bg-gradient-to-r from-brand-300 to-accent-400 bg-clip-text text-transparent">Prenez soin de vous.</span>
         </h1>

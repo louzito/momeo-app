@@ -1,5 +1,5 @@
 <script setup>
-// Coordonnees et consentements des prestations Momeo. Les anciennes
+// Coordonnées et consentements des prestations TodaTempo. Les anciennes
 // prestations a contraintes de securite conservent leur formulaire dedie.
 const model = defineModel({ type: Object, required: true })
 

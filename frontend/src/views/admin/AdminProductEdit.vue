@@ -92,7 +92,7 @@ async function save() {
     </h1>
 
     <div v-if="isLegacyService" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-      Cette prestation provient de l'ancien catalogue. Ses controles de securite restent actifs tant qu'elle n'est pas migree vers le format Momeo.
+      Cette prestation provient de l'ancien catalogue. Ses conditions de réservation restent actives tant qu'elle n'est pas migrée vers le format TodaTempo.
     </div>
 
     <Spinner v-if="loading" />

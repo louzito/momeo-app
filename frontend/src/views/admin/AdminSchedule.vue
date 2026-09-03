@@ -62,7 +62,7 @@ async function save() {
 
 <template>
   <div class="mx-auto max-w-2xl">
-    <h1 class="font-display text-2xl font-bold text-slate-900">Horaires de saut</h1>
+    <h1 class="font-display text-2xl font-bold text-slate-900">Horaires des rendez-vous</h1>
     <p class="mt-1 text-slate-500">Définissez les jours d'ouverture, les plages horaires et la capacité par créneau. Le calendrier client se régénère automatiquement.</p>
 
     <Spinner v-if="loading" />
@@ -103,7 +103,7 @@ async function save() {
       <section class="card p-6">
         <h2 class="mb-3 font-semibold text-slate-800">Capacité par créneau</h2>
         <input v-model.number="schedule.capacity" type="number" min="1" class="input max-w-[8rem]" />
-        <p class="mt-2 text-sm text-slate-400">Nombre de sauteurs maximum par créneau.</p>
+        <p class="mt-2 text-sm text-slate-400">Nombre de clients maximum par créneau.</p>
       </section>
 
       <div class="flex items-center justify-end gap-3">

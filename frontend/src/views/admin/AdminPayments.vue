@@ -308,7 +308,7 @@ async function save(pm) {
       </div>
 
       <p class="rounded-xl bg-slate-100 p-4 text-xs text-slate-500">
-        🔒 Aucune donnée de carte ne transite par Momeo : la saisie carte / PayPal se fait dans les
+        🔒 Aucune donnée de carte ne transite par TodaTempo : la saisie carte / PayPal se fait dans les
         composants securises de la passerelle. Les cles saisies ici sont stockees dans la configuration
         Sylius de la methode de paiement.
       </p>

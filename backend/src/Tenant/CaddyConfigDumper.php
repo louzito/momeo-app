@@ -43,7 +43,7 @@ final class CaddyConfigDumper
 
         $out = [];
         $out[] = '# ============================================================';
-        $out[] = '# GENERE PAR SkyBook (App\\Tenant\\CaddyConfigDumper) — NE PAS EDITER.';
+        $out[] = '# GÉNÉRÉ PAR TodaTempo (App\\Tenant\\CaddyConfigDumper) — NE PAS ÉDITER.';
         $out[] = '# Regenerer : bin/console skybook:proxy:dump (auto a chaque claim/refill).';
         $out[] = '# Caddy tourne avec --watch : toute regeneration est rechargee seule.';
         $out[] = '# ============================================================';

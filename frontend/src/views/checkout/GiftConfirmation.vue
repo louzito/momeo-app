@@ -64,7 +64,7 @@ function downloadPdf() {
         <p class="text-sm font-semibold text-slate-700">Cheque cadeau</p>
         <dl class="mt-3 grid grid-cols-2 gap-4 text-sm">
           <div>
-            <dt class="text-slate-400">Saut offert</dt>
+            <dt class="text-slate-400">Prestation offerte</dt>
             <dd class="font-semibold text-slate-800">{{ voucher.jumpTypeName }}</dd>
           </div>
           <div>

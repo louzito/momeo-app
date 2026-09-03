@@ -1,4 +1,4 @@
-// Commandes, réservations et chèques cadeaux de démonstration Momeo.
+// Commandes, rendez-vous et chèques cadeaux de démonstration TodaTempo.
 
 function daysFromNow(n, hh = 10, mm = 0) {
   const date = new Date()

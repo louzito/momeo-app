@@ -43,7 +43,7 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
           <div class="flex items-center gap-2.5">
             <img v-if="tenant?.logoUrl" :src="tenant.logoUrl" alt="Logo" class="h-9 w-9 rounded-xl object-cover" />
             <span v-else class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-accent-500 text-lg">✦</span>
-            <span class="font-display text-lg font-extrabold">{{ tenant?.name || 'Momeo' }}</span>
+            <span class="font-display text-lg font-extrabold">{{ tenant?.name || 'TodaTempo' }}</span>
           </div>
           <p class="mt-4 text-sm">{{ tenant?.tagline || 'Réservez vos prestations en ligne, simplement.' }}</p>
           <div v-if="socialLinks.length" class="mt-5 flex gap-2">
@@ -94,7 +94,7 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
     </div>
 
     <div class="border-t border-white/10 py-5 text-center text-xs">
-      <p>© 2026 {{ tenant?.name || 'Momeo' }} — réservation de prestations en ligne.</p>
+      <p>© 2026 {{ tenant?.name || 'TodaTempo' }} — réservation de prestations en ligne.</p>
       <p v-if="legalLinks.length" class="mt-2 flex items-center justify-center gap-3">
         <RouterLink
           v-for="l in legalLinks"

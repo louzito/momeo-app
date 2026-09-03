@@ -1,13 +1,14 @@
 {
-  "name": "momeo-front",
+  "name": "todatempo-front",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Front Vue 3 des espaces professionnels et boutiques de réservation Momeo.",
+  "description": "Front Vue 3 des espaces professionnels et boutiques de réservation TodaTempo.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "pinia": "^2.1.7",

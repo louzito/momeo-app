@@ -6,8 +6,8 @@ export const customers = [
   {
     id: 'cust_lou',
     tenantId: 'dz_skyline',
-    email: 'client@momeo.test',
-    password: 'momeo2026',
+    email: 'client@todatempo.test',
+    password: 'todatempo2026',
     firstName: 'Lou',
     lastName: 'Martin',
     phone: '+1 (951) 555-0110',
@@ -16,7 +16,7 @@ export const customers = [
   {
     id: 'cust_marie',
     tenantId: 'dz_chutelibre',
-    email: 'marie@skybook.test',
+    email: 'marie@todatempo.test',
     password: 'quebec2026',
     firstName: 'Marie',
     lastName: 'Tremblay',

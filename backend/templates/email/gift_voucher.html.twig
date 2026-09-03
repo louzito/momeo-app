@@ -1,6 +1,6 @@
-{# SkyBook — email d'activation d'un cheque cadeau (code + QR), textes editables
+{# TodaTempo — email d'activation d'un cheque cadeau (code + QR), textes editables
    par centre (Configuration boutique > Emails). Variables : %prenom_beneficiaire%
-   %code% %saut% %centre% %expire% %montant%. Envoye 2 fois separement (voir
+   %code% %prestation% %etablissement% %expire% %montant%. Envoye 2 fois separement (voir
    App\GiftVoucher\GiftVoucherMailer) : une fois au beneficiaire, une fois a
    l'acheteur — meme contenu neutre pour les deux (pas de "cher X" cote binome).
    NB Twig : les {% set %} doivent vivre DANS les blocs (template qui extends). #}

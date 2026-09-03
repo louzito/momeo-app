@@ -12,7 +12,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Claims a pre-installed Sylius database for a Momeo workspace.
+ * Claims a pre-installed Sylius database for a TodaTempo workspace.
  *
  * The claim is serialized with a filesystem lock so two simultaneous sign-ups
  * cannot configure the same pool database. The external id makes retries

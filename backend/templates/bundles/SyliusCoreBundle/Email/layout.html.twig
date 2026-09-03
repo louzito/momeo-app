@@ -1,11 +1,11 @@
-{# SkyBook — layout commun des emails : identite du CENTRE (nom du channel),
+{# TodaTempo — layout commun des emails : identité de l'établissement (nom du channel),
    plus de logo ni de lien sylius.com. Surcharge de @SyliusCore/Email/layout. #}
 {% block body %}
     {% autoescape false %}
         <div style="font-family: sans-serif; background: #f1f5f9; padding: 30px 0; font-size: 16px; color: #333; line-height: 1.55;">
             <div style="max-width: 600px; margin: 0 auto; padding: 0 12px;">
                 <div style="margin-bottom: 22px; text-align: center; font-size: 21px; font-weight: 700; color: #0f172a;">
-                    {{ channel is defined and channel ? channel.name : (invoice is defined and invoice ? invoice.channel.name|default('Momeo') : 'Momeo') }}
+                    {{ channel is defined and channel ? channel.name : (invoice is defined and invoice ? invoice.channel.name|default('TodaTempo') : 'TodaTempo') }}
                 </div>
                 <div style="background: #ffffff; padding: 36px 30px; border-radius: 12px; border: 1px solid #e2e8f0;">
                     {% block content %}{% endblock %}

@@ -42,7 +42,7 @@ function logout() {
       <div class="flex h-16 items-center gap-2.5 border-b border-white/10 px-5">
         <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-300 font-display text-lg font-black text-slate-950">M</span>
         <div class="min-w-0">
-          <p class="truncate font-display text-sm font-bold text-white">{{ admin.tenant?.name || 'Momeo' }}</p>
+          <p class="truncate font-display text-sm font-bold text-white">{{ admin.tenant?.name || 'TodaTempo' }}</p>
           <p class="text-[11px] text-white/40">Espace professionnel</p>
         </div>
       </div>

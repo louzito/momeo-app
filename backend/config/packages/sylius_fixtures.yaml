@@ -43,7 +43,7 @@ sylius_fixtures:
                     options:
                         custom:
                             skybook:
-                                name: 'SkyBook Center'
+                                name: 'Établissement TodaTempo'
                                 code: 'FASHION_WEB'
                                 locales:
                                     - 'en_US'
@@ -68,5 +68,5 @@ sylius_fixtures:
                                 password: 'sylius'
                                 enabled: true
                                 locale_code: 'en_US'
-                                first_name: 'SkyBook'
+                                first_name: 'TodaTempo'
                                 last_name: 'Admin'

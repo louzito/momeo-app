@@ -31,7 +31,7 @@ final class AdminSsoController
         try {
             $ticket = $this->ticketStore->consumeBrowserSession((string) $request->cookies->get(self::COOKIE_NAME, ''));
         } catch (\Throwable $exception) {
-            $this->logger->warning('Momeo admin browser session rejected.', [
+            $this->logger->warning('TodaTempo admin browser session rejected.', [
                 'exception' => $exception,
             ]);
 

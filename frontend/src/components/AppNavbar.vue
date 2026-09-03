@@ -26,7 +26,7 @@ const mobileOpen = ref(false)
         />
         <span v-else class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-accent-500 text-lg shadow-glow">✦</span>
         <span class="font-display text-lg font-extrabold tracking-tight">
-          {{ tenantStore.current?.name || 'Momeo' }}
+          {{ tenantStore.current?.name || 'TodaTempo' }}
         </span>
       </RouterLink>
 

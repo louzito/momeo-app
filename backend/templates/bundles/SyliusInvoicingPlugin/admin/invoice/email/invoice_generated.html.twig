@@ -1,4 +1,4 @@
-{# SkyBook — email d'envoi de facture (PDF joint), textes editables par centre
+{# TodaTempo — email d'envoi de facture (PDF joint), textes éditables par établissement
    (Configuration boutique > Emails). Variables : %prenom% %nom% %commande%
    %centre% %total% %facture%. Les "set" vivent DANS les blocs (extends). #}
 {% extends '@SyliusCore/Email/layout.html.twig' %}
@@ -10,8 +10,8 @@
         '%prenom%': (sbOrder.customer and sbOrder.customer.firstName) ? sbOrder.customer.firstName : (sbOrder.billingAddress ? sbOrder.billingAddress.firstName|default('') : ''),
         '%nom%': (sbOrder.customer and sbOrder.customer.lastName) ? sbOrder.customer.lastName : (sbOrder.billingAddress ? sbOrder.billingAddress.lastName|default('') : ''),
         '%commande%': sbOrder.number,
-        '%centre%': sbChannel ? sbChannel.name : 'Momeo',
-        '%etablissement%': sbChannel ? sbChannel.name : 'Momeo',
+        '%centre%': sbChannel ? sbChannel.name : 'TodaTempo',
+        '%etablissement%': sbChannel ? sbChannel.name : 'TodaTempo',
         '%total%': ((sbOrder.total / 100)|number_format(2, ',', ' ')) ~ ' ' ~ sbOrder.currencyCode,
         '%facture%': invoice.number,
     } -%}
@@ -25,8 +25,8 @@
         '%prenom%': (sbOrder.customer and sbOrder.customer.firstName) ? sbOrder.customer.firstName : (sbOrder.billingAddress ? sbOrder.billingAddress.firstName|default('') : ''),
         '%nom%': (sbOrder.customer and sbOrder.customer.lastName) ? sbOrder.customer.lastName : (sbOrder.billingAddress ? sbOrder.billingAddress.lastName|default('') : ''),
         '%commande%': sbOrder.number,
-        '%centre%': sbChannel ? sbChannel.name : 'Momeo',
-        '%etablissement%': sbChannel ? sbChannel.name : 'Momeo',
+        '%centre%': sbChannel ? sbChannel.name : 'TodaTempo',
+        '%etablissement%': sbChannel ? sbChannel.name : 'TodaTempo',
         '%total%': ((sbOrder.total / 100)|number_format(2, ',', ' ')) ~ ' ' ~ sbOrder.currencyCode,
         '%facture%': invoice.number,
     } %}

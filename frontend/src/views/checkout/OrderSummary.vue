@@ -39,7 +39,7 @@ function pay() {
         <p class="mt-1 capitalize text-slate-800">
           🗓️ {{ formatDate(cart.slot.start, { weekday: true }) }} a {{ formatTime(cart.slot.start) }}
         </p>
-        <p class="text-sm text-slate-400">Moniteur : {{ cart.slot.instructor }}</p>
+        <p class="text-sm text-slate-400">Membre de l'équipe : {{ cart.slot.instructor }}</p>
       </div>
 
       <!-- Beneficiaire (gift) -->

@@ -31,8 +31,8 @@ async function submit() {
 
 function fillDemo() {
   mode.value = 'login'
-  form.value.email = 'client@momeo.test'
-  form.value.password = 'momeo2026'
+  form.value.email = 'client@todatempo.test'
+  form.value.password = 'todatempo2026'
 }
 </script>
 
@@ -40,14 +40,14 @@ function fillDemo() {
   <div class="section grid gap-10 py-16 lg:grid-cols-2 lg:items-center">
     <div>
       <span class="chip bg-brand-50 text-brand-700">👤 Espace client</span>
-      <h1 class="mt-4 font-display text-4xl font-extrabold text-slate-900">Votre compte Momeo</h1>
+      <h1 class="mt-4 font-display text-4xl font-extrabold text-slate-900">Votre compte TodaTempo</h1>
       <p class="mt-3 text-lg text-slate-500">
         Retrouvez l'historique de vos commandes, vos reservations a venir et leurs confirmations.
       </p>
       <div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm">
         <p class="font-semibold text-slate-700">🔎 Compte de demonstration</p>
         <button class="mt-2 w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50" @click="fillDemo">
-          <span class="font-mono font-semibold">client@momeo.test</span> · mot de passe <span class="font-mono">momeo2026</span>
+          <span class="font-mono font-semibold">client@todatempo.test</span> · mot de passe <span class="font-mono">todatempo2026</span>
         </button>
       </div>
     </div>

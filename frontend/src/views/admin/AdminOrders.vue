@@ -66,9 +66,9 @@ function payBadge(o) {
   }
 }
 
-// "SkyBook — saut X, creneau Y, sauteur Z, options : ..." -> details lisibles
+// Notes historiques ou actuelles -> détails lisibles sans préfixe de marque.
 function details(o) {
-  return (o.notes || '').replace(/^SkyBook\s*—\s*/, '') || '—'
+  return (o.notes || '').replace(/^(?:\x53kyBook|TodaTempo)\s*—\s*/, '') || '—'
 }
 
 async function load() {

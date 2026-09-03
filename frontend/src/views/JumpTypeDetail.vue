@@ -71,7 +71,7 @@ function book() {
         <!-- Caracteristiques configurees par le professionnel. -->
         <dl class="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 shadow-sm sm:grid-cols-3">
           <div v-if="jumpType.legacyEligibility && jumpType.altitudeM">
-            <dt class="text-xs uppercase text-slate-400">Altitude de saut</dt>
+            <dt class="text-xs uppercase text-slate-400">Information complémentaire</dt>
             <dd class="font-semibold text-slate-800">{{ jumpType.altitudeM.toLocaleString('fr-FR') }} m</dd>
           </div>
           <div v-if="jumpType.legacyEligibility">

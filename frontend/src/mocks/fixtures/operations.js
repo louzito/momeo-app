@@ -1,31 +1,31 @@
 // Donnees d'exploitation cote centre (back-office) : comptes admin, horaires de
 // creneaux par centre, et moyens de paiement. Tout est factice.
 
-// --- Comptes Admin Dropzone -----------------------------------------------
+// --- Comptes de l'équipe --------------------------------------------------
 export const admins = [
   {
     id: 'adm_skyline',
     tenantId: 'dz_skyline',
-    email: 'admin@skyline-dz.example',
+    email: 'admin@institut-lumiere.example',
     password: 'admin123',
-    name: 'Jordan Pike',
-    role: 'DropzoneAdmin',
+    name: 'Camille Martin',
+    role: 'Responsable établissement',
   },
   {
     id: 'adm_chutelibre',
     tenantId: 'dz_chutelibre',
-    email: 'admin@chutelibre-qc.example',
+    email: 'admin@atelier-nova.example',
     password: 'quebec',
-    name: 'Genevieve Roy',
-    role: 'DropzoneAdmin',
+    name: 'Geneviève Roy',
+    role: 'Responsable établissement',
   },
   {
     id: 'adm_andes',
     tenantId: 'dz_andes',
-    email: 'admin@andesskydive.example',
+    email: 'admin@maison-sauge.example',
     password: 'andes',
     name: 'Camila Torres',
-    role: 'DropzoneAdmin',
+    role: 'Responsable établissement',
   },
 ]
 

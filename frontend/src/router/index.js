@@ -174,7 +174,7 @@ const routes = [
     meta: { title: 'Confirmation de rendez-vous' },
   },
 
-  // --- Espace professionnel Momeo ------------------------------------------
+  // --- Espace professionnel TodaTempo --------------------------------------
   {
     path: '/admin/login',
     name: 'admin-login',
@@ -272,7 +272,7 @@ const router = createRouter({
 
 // Garde de navigation (mock) : protege les espaces beneficiaire / client.
 router.beforeEach(async (to) => {
-  document.title = to.meta?.title ? `${to.meta.title} · Momeo` : 'Momeo'
+  document.title = to.meta?.title ? `${to.meta.title} · TodaTempo` : 'TodaTempo'
 
   if (to.meta?.requiresBeneficiary) {
     const { useBeneficiaryStore } = await import('@/stores/beneficiary')

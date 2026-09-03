@@ -225,7 +225,7 @@ async function save() {
           </div>
           <div class="mt-4">
             <label class="label">Nom de la boutique</label>
-            <input v-model="cfg.name" class="input" placeholder="Skyline Drop Zone" required />
+            <input v-model="cfg.name" class="input" placeholder="Institut TodaTempo" required />
           </div>
         </section>
 

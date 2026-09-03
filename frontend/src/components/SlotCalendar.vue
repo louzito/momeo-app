@@ -4,7 +4,7 @@ import SlotCard from './SlotCard.vue'
 import { isoDay, formatDate } from '@/utils/format'
 
 // Calendrier reutilisable : regroupe les creneaux par jour, grise les creneaux
-// complets et les creneaux non compatibles avec le type de saut choisi.
+// complets et les créneaux non compatibles avec la prestation choisie.
 const props = defineProps({
   slots: { type: Array, default: () => [] },
   selectedSlotId: { type: String, default: null },

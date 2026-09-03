@@ -407,7 +407,7 @@ async function buildAdminSession(identity = {}) {
     tenant: {
       id: `workspace_${TENANT_SLUG}`,
       slug: TENANT_SLUG,
-      name: shopConfig?.name || channel?.name || 'Mon espace Momeo',
+      name: shopConfig?.name || channel?.name || 'Mon établissement',
       currency: channel?.currency || 'EUR',
       city: shopConfig?.address?.city || '',
       email: shopConfig?.contactEmail || email,
@@ -521,7 +521,7 @@ export const httpApi = {
         )
     }
     if (r.medicalCertificateRequired && !form.medicalCertificate)
-      violations.push('Un certificat medical est obligatoire pour ce saut.')
+      violations.push('Un justificatif médical est obligatoire pour cette prestation.')
     if (r.waiverRequired && !form.waiverAccepted)
       violations.push('La decharge de responsabilite doit etre signee.')
     return { eligible: violations.length === 0, violations, rule: r }
@@ -709,12 +709,12 @@ export const httpApi = {
     //    que le front ne collecte pas d'adresse — le sauteur, lui, est connu).
     //    Prenom / nom collectes separement dans le tunnel (fallback : decoupage
     //    de l'ancien fullName).
-    const fullName = payload.jumper?.fullName?.trim() || 'Client SkyBook'
+    const fullName = payload.jumper?.fullName?.trim() || 'Client TodaTempo'
     const [splitFirst, ...rest] = fullName.split(/\s+/)
     const firstName = payload.jumper?.firstName?.trim() || splitFirst
     const lastName = payload.jumper?.lastName?.trim() || rest.join(' ') || firstName
     await apiWrite('PUT', `/shop/orders/${t}`, {
-      email: payload.jumper?.email || 'client@skybook.local',
+      email: payload.jumper?.email || 'client@todatempo.local',
       billingAddress: {
         firstName,
         lastName,
@@ -738,7 +738,7 @@ export const httpApi = {
     const slotTxt = payload.slotId ? `creneau ${payload.slotId}` : 'sans creneau'
     const optTxt = (payload.options || []).map((o) => o.name).join(', ') || 'aucune'
     const completed = await apiWrite('PATCH', `/shop/orders/${t}/complete`, {
-      notes: `SkyBook — saut ${payload.jumpTypeId}, ${slotTxt}, sauteur ${fullName}, options : ${optTxt}`,
+      notes: `TodaTempo — prestation ${payload.jumpTypeId}, ${slotTxt}, client ${fullName}, options : ${optTxt}`,
     })
 
     // Instructions de reglement (coordonnees bancaires) configurees par le
@@ -804,7 +804,7 @@ export const httpApi = {
     }
 
     // 3. Email + adresse de facturation : ceux de l'ACHETEUR.
-    const purchaserFullName = payload.gift?.purchaserName?.trim() || 'Client SkyBook'
+    const purchaserFullName = payload.gift?.purchaserName?.trim() || 'Client TodaTempo'
     const [pFirst, ...pRest] = purchaserFullName.split(/\s+/)
     await apiWrite('PUT', `/shop/orders/${t}`, {
       email: payload.gift?.purchaserEmail,

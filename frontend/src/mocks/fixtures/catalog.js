@@ -1,4 +1,4 @@
-// Données de démonstration Momeo. Le format reste compatible avec l’ancienne
+// Données de démonstration TodaTempo. Le format reste compatible avec l’ancienne
 // couche mock pendant que les écrans sont progressivement reliés à Sylius.
 
 const IMG = {

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import api from '@/api'
 import { TENANT_SLUG } from '@/api/config'
 
-// Session du back-office Momeo, isolee par etablissement.
+// Session du back-office TodaTempo, isolée par établissement.
 const STORAGE_KEY = `momeo.admin.${TENANT_SLUG}`
 
 function loadPersisted() {

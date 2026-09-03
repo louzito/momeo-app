@@ -92,7 +92,7 @@ export async function login(email, password) {
   return { email, token: data.token }
 }
 
-/** Finalise la connexion Momeo depuis le cookie temporaire HttpOnly. */
+/** Finalise la connexion TodaTempo depuis le cookie temporaire HttpOnly. */
 export async function exchangeSsoSession() {
   const data = await request(
     'POST',
@@ -448,9 +448,9 @@ async function ensurePlanningsRoot() {
       enabled: true,
       translations: {
         en_US: {
-          name: 'SkyBook Plannings',
+          name: 'TodaTempo Plannings',
           slug: 'skybook-plannings',
-          description: 'Conteneur technique SkyBook — plannings de creneaux. Ne pas supprimer.',
+          description: 'Conteneur technique TodaTempo — plannings de créneaux. Ne pas supprimer.',
         },
       },
     })
@@ -513,7 +513,7 @@ async function ensureConfigTaxon() {
     await request('POST', '/admin/taxons', {
       code: CONFIG_TAXON,
       enabled: true,
-      translations: { en_US: { name: 'SkyBook Config', slug: 'skybook-config', description: '{}' } },
+      translations: { en_US: { name: 'TodaTempo Config', slug: 'skybook-config', description: '{}' } },
     })
   }
 }
@@ -572,7 +572,7 @@ export async function saveShopConfig(cfg) {
   await ensureConfigTaxon()
   // 1. Champs natifs Sylius sur le channel.
   await request('PUT', `/admin/channels/${DEFAULT_CHANNEL}`, {
-    name: cfg.name || 'SkyBook',
+    name: cfg.name || 'TodaTempo',
     contactEmail: cfg.contactEmail || null,
     contactPhoneNumber: cfg.contactPhone || null,
   })

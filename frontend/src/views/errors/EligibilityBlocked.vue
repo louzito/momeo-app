@@ -8,7 +8,7 @@ import StatusScreen from '@/components/StatusScreen.vue'
     icon="🚫"
     tone="rose"
     title="Eligibilite non respectee"
-    message="Les informations declarees ne respectent pas les regles de securite de ce saut (age, poids, taille, certificat medical ou decharge). Pour votre securite, la reservation ne peut pas aboutir en l'etat."
+    message="Les informations déclarées ne respectent pas les conditions de réservation de cette prestation. Contactez l'établissement pour vérifier les modalités du rendez-vous."
   >
     <RouterLink :to="{ name: 'home' }" class="btn-primary">Retour a l'accueil</RouterLink>
     <a href="#" class="btn-outline">Contacter le centre</a>
