@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tenant;
 
-use App\Entity\Channel\Channel;
 use App\Entity\Taxonomy\Taxon;
-use App\Entity\User\AdminUser;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -25,6 +23,7 @@ final class TenantProvisioner
         private readonly TenantRegistryWriter $writer,
         private readonly EntityManagerInterface $em,
         private readonly Connection $connection,
+        private readonly MinimalSyliusInitializer $syliusInitializer,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {}
 
@@ -44,7 +43,10 @@ final class TenantProvisioner
         if ($externalId === '') {
             throw new \InvalidArgumentException('L’identifiant externe est obligatoire.');
         }
-        if ($email !== null && $email !== '' && filter_var($email, \FILTER_VALIDATE_EMAIL) === false) {
+        if ($email === null || $email === '') {
+            throw new \InvalidArgumentException('L’adresse email de l’administrateur est obligatoire.');
+        }
+        if (filter_var($email, \FILTER_VALIDATE_EMAIL) === false) {
             throw new \InvalidArgumentException('Adresse email invalide.');
         }
 
@@ -88,14 +90,7 @@ final class TenantProvisioner
                 $this->connection->close();
             }
 
-            $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
-            if (!$channel instanceof Channel) {
-                throw new \RuntimeException('La base modèle ne contient aucun canal Sylius.');
-            }
-            $channel->setName($name);
-            if ($email !== null && $email !== '') {
-                $channel->setContactEmail($email);
-            }
+            $password = $this->syliusInitializer->initialize($name, $email !== '' ? $email : null);
 
             // Transitional storage: this taxon will be renamed to momeo_config
             // when the parachuting vocabulary is removed from the tenant template.
@@ -109,18 +104,6 @@ final class TenantProvisioner
                     $config['contactEmail'] = $email;
                 }
                 $translation->setDescription((string) json_encode($config, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE));
-            }
-
-            $password = null;
-            if ($email !== null && $email !== '') {
-                $admin = $this->em->getRepository(AdminUser::class)->findOneBy([]);
-                if ($admin instanceof AdminUser) {
-                    $password = substr(rtrim(strtr(base64_encode(random_bytes(18)), '+/', '-_'), '='), 0, 20);
-                    $admin->setEmail($email);
-                    $admin->setUsername($email);
-                    $admin->setPlainPassword($password);
-                    $admin->setEnabled(true);
-                }
             }
 
             $this->em->flush();

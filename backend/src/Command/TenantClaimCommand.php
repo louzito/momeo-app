@@ -18,7 +18,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * rapides — aucune installation :
  *   1. mise a jour du channel (nom, contactEmail) et du taxon skybook_config
  *      (nom affiche) DANS LA BDD DU CENTRE (bascule via TenantContext) ;
- *   2. compte admin du centre si email fourni (mot de passe aleatoire affiche) ;
+ *   2. socle Sylius minimal et compte admin du centre si email fourni ;
  *   3. repertoires medias / factures du slug ;
  *   4. rename dans le registre : slug provisoire -> slug definitif, status=active.
  * La logique réutilisable vit dans TenantProvisioner ; cette commande reste le
@@ -38,7 +38,7 @@ final class TenantClaimCommand extends Command
         $this
             ->addArgument('slug', InputArgument::REQUIRED, 'Slug definitif (ex. skydive-lyon)')
             ->addArgument('name', InputArgument::REQUIRED, 'Nom du centre (ex. "Skydive Lyon")')
-            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Email admin du centre (cree/renomme le compte admin)');
+            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Email admin du centre (obligatoire)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

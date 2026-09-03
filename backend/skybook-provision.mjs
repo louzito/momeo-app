@@ -22,8 +22,8 @@
  *   node skybook-provision.mjs
  *   Variables d'environnement (optionnelles) :
  *     SKYBOOK_API             defaut http://localhost:8080/api/v2
- *     SKYBOOK_ADMIN_EMAIL     defaut sylius@example.com
- *     SKYBOOK_ADMIN_PASSWORD  defaut sylius
+ *     SKYBOOK_ADMIN_EMAIL     obligatoire
+ *     SKYBOOK_ADMIN_PASSWORD  obligatoire
  *
  * PERSONNALISATIONS HORS-API (appliquees ailleurs, listees ici pour memoire)
  *   - config/packages/security.yaml : role_hierarchy
@@ -36,8 +36,11 @@
  */
 
 const API = (process.env.SKYBOOK_API || 'http://localhost:8080/api/v2').replace(/\/+$/, '')
-const ADMIN_EMAIL = process.env.SKYBOOK_ADMIN_EMAIL || 'sylius@example.com'
-const ADMIN_PASSWORD = process.env.SKYBOOK_ADMIN_PASSWORD || 'sylius'
+const ADMIN_EMAIL = process.env.SKYBOOK_ADMIN_EMAIL
+const ADMIN_PASSWORD = process.env.SKYBOOK_ADMIN_PASSWORD
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  throw new Error('SKYBOOK_ADMIN_EMAIL et SKYBOOK_ADMIN_PASSWORD sont obligatoires')
+}
 // Multi-centres : cible un tenant precis (en-tete X-Skybook-Tenant sur chaque
 // appel API). Ex. : SKYBOOK_TENANT=template node skybook-provision.mjs
 const TENANT = process.env.SKYBOOK_TENANT || ''
