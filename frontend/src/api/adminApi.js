@@ -9,10 +9,10 @@
 //       * opt_po_...  -> rattachee a la COMMANDE (PER_ORDER)
 //
 // Le JWT est stocke (memoire + localStorage) et rejoue en Bearer sur chaque appel.
-// Passe par le proxy Vite (API_BASE = /api/v2) -> Sylius sur :8080, donc pas de CORS.
+// Chaque requete porte le tenant et cible /api/v2 sur l'origine courante.
 // =============================================================================
 
-import { API_BASE, TENANT_SLUG, displayImageUrl } from './config'
+import { API_BASE, TENANT_SLUG, displayImageUrl, tenantHeaders } from './config'
 import { normalizeShopColors } from '@/composables/useBranding'
 
 const TOKEN_KEY = `momeo.sylius.jwt.${TENANT_SLUG}`
@@ -50,7 +50,7 @@ function headers(contentType = 'application/ld+json', withAuth = true) {
   const h = { Accept: 'application/ld+json' }
   if (contentType) h['Content-Type'] = contentType
   if (withAuth && token) h['Authorization'] = 'Bearer ' + token
-  return h
+  return tenantHeaders(h)
 }
 
 async function request(method, path, body, contentType, { auth = true } = {}) {
@@ -619,7 +619,7 @@ export async function uploadShopImage(file, type = 'logo') {
   fd.append('type', type)
   const res = await fetch(`${API_BASE}/admin/taxons/${CONFIG_TAXON}/images`, {
     method: 'POST',
-    headers: { Accept: 'application/ld+json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    headers: tenantHeaders({ Accept: 'application/ld+json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }),
     body: fd,
   })
   const data = await res.json().catch(() => null)
@@ -652,7 +652,7 @@ export async function findInvoicesForOrder(orderNumber) {
 
 export async function downloadInvoiceBlob(invoiceId) {
   const res = await fetch(`${API_BASE}/admin/invoices/${invoiceId}/download`, {
-    headers: { ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    headers: tenantHeaders({ ...(token ? { Authorization: 'Bearer ' + token } : {}) }),
   })
   if (!res.ok) throw new Error(`Telechargement impossible (HTTP ${res.status}).`)
   return res.blob()
@@ -668,7 +668,7 @@ async function uploadProductImage(code, file) {
   fd.append('type', 'main')
   const res = await fetch(`${API_BASE}/admin/products/${encodeURIComponent(code)}/images`, {
     method: 'POST',
-    headers: { Accept: 'application/ld+json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    headers: tenantHeaders({ Accept: 'application/ld+json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }),
     body: fd,
   })
   const data = await res.json().catch(() => null)
