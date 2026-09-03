@@ -41,6 +41,18 @@ final class TenantContext
         return $this->defaultTenant;
     }
 
+    /** Tenant fourni explicitement au processus (sans repli sur le tenant par defaut). */
+    public function getExplicitSlug(): ?string
+    {
+        if ($this->slug !== null && $this->slug !== '') {
+            return $this->slug;
+        }
+
+        $env = $_SERVER['SKYBOOK_TENANT'] ?? $_ENV['SKYBOOK_TENANT'] ?? getenv('SKYBOOK_TENANT');
+
+        return \is_string($env) && trim($env) !== '' ? trim($env) : null;
+    }
+
     public function isDefaultTenant(): bool
     {
         return $this->getSlug() === $this->defaultTenant;
