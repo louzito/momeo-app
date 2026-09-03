@@ -80,8 +80,8 @@ final class CaddyConfigDumper
             $out[] = '';
         }
 
-        $out[] = "\t# Assets du dev server Vite (chemins absolus sans slug) + endpoint ops dev";
-        $out[] = "\t@vite path /src/* /@vite/* /@id/* /@fs/* /@react-refresh /node_modules/* /favicon* /vite.svg /__skybook_ops*";
+        $out[] = "\t# Assets du dev server Vite (chemins absolus sans slug)";
+        $out[] = "\t@vite path /src/* /@vite/* /@id/* /@fs/* /@react-refresh /node_modules/* /favicon* /vite.svg";
         $out[] = "\thandle @vite {";
         $out[] = "\t\treverse_proxy {$front}";
         $out[] = "\t}";

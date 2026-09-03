@@ -26,7 +26,15 @@ Autres commandes :
 ```bash
 npm run build     # build de production
 npm run preview   # prévisualise le build
+npm test          # vérifie la configuration de sécurité puis réalise un build
 ```
+
+## Exécution de commandes locales
+
+Le serveur Vite n'expose aucun endpoint permettant d'exécuter des commandes. Les commandes de
+développement doivent être lancées explicitement depuis un terminal local, à la racine du projet.
+Cette fonctionnalité n'est donc activable ni dans un build, ni dans une preview, ni via une variable
+d'environnement.
 
 ## Comptes / codes de test
 

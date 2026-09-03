@@ -213,8 +213,8 @@
 		reverse_proxy host.docker.internal:5173
 	}
 
-	# Assets du dev server Vite (chemins absolus sans slug) + endpoint ops dev
-	@vite path /src/* /@vite/* /@id/* /@fs/* /@react-refresh /node_modules/* /favicon* /vite.svg /__skybook_ops*
+	# Assets du dev server Vite (chemins absolus sans slug)
+	@vite path /src/* /@vite/* /@id/* /@fs/* /@react-refresh /node_modules/* /favicon* /vite.svg
 	handle @vite {
 		reverse_proxy host.docker.internal:5173
 	}
