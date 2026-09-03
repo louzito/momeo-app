@@ -14,14 +14,16 @@ final class InternalProvisioningController
 {
     public function __construct(
         private readonly TenantProvisioner $provisioner,
-        #[Autowire('%momeo.provisioning_secret%')] private readonly string $secret,
-        #[Autowire('%skybook.public_base_url%')] private readonly string $publicBaseUrl,
+        #[Autowire('%todatempo.provisioning_secret%')] private readonly string $secret,
+        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
     ) {}
 
-    #[Route('/internal/momeo/provisioning/instances', name: 'momeo_internal_provision_instance', methods: ['POST'])]
+    #[Route('/internal/todatempo/provisioning/instances', name: 'todatempo_internal_provision_instance', methods: ['POST'])]
+    #[Route('/internal/momeo/provisioning/instances', name: 'momeo_internal_provision_instance_legacy', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $providedSecret = (string) $request->headers->get('X-Momeo-Provisioning-Key', '');
+        $providedSecret = (string) ($request->headers->get('X-TodaTempo-Provisioning-Key')
+            ?? $request->headers->get('X-Momeo-Provisioning-Key', ''));
         if ($this->secret === '' || !hash_equals($this->secret, $providedSecret)) {
             return new JsonResponse(['error' => 'unauthorized'], JsonResponse::HTTP_UNAUTHORIZED);
         }

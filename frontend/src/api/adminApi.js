@@ -14,15 +14,17 @@
 
 import { API_BASE, TENANT_SLUG, displayImageUrl } from './config'
 import { normalizeShopColors } from '@/composables/useBranding'
+import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
 
-const TOKEN_KEY = `momeo.sylius.jwt.${TENANT_SLUG}`
+const TOKEN_KEY = `todatempo.sylius.jwt.${TENANT_SLUG}`
 const DEFAULT_CHANNEL = 'FASHION_WEB' // channel du Sylius de demo (a rendre configurable plus tard)
 // Type d'association Sylius servant a lier une option PER_JUMP a des sauts precis.
-const JUMP_ASSOC_TYPE = 'skybook_jumps'
+const JUMP_ASSOC_TYPE = 'todatempo_services'
+const LEGACY_JUMP_ASSOC_TYPES = new Set(['skybook_jumps'])
 
 let token = null
 try {
-  token = localStorage.getItem(TOKEN_KEY)
+  token = migrateLocalStorageKey(TOKEN_KEY, [`momeo.sylius.jwt.${TENANT_SLUG}`])
 } catch {
   /* ignore */
 }
@@ -96,7 +98,7 @@ export async function login(email, password) {
 export async function exchangeSsoSession() {
   const data = await request(
     'POST',
-    '/admin/momeo/sso/session',
+    '/admin/todatempo/sso/session',
     null,
     'application/json',
     { auth: false },
@@ -187,17 +189,17 @@ const JUMP_ATTRIBUTE_DEFS = [
   { field: 'medicalCertificateRequired', code: 'jump_medical_cert', kind: 'bool', from: 'eligibility' },
   { field: 'waiverRequired', code: 'jump_waiver', kind: 'bool', from: 'eligibility' },
 ]
-const MOMEO_ATTRIBUTE_DEFS = [
-  { field: 'durationMin', code: 'momeo_duration', kind: 'integer', name: 'Duree de la prestation (min)' },
-  { field: 'capacityPerSlot', code: 'momeo_capacity', kind: 'integer', name: 'Capacite par creneau' },
-  { field: 'requirements', code: 'momeo_requirements', kind: 'textarea', name: 'Conditions de reservation' },
+const TODATEMPO_ATTRIBUTE_DEFS = [
+  { field: 'durationMin', code: 'todatempo_duration', kind: 'integer', name: 'Duree de la prestation (min)' },
+  { field: 'capacityPerSlot', code: 'todatempo_capacity', kind: 'integer', name: 'Capacite par creneau' },
+  { field: 'requirements', code: 'todatempo_requirements', kind: 'textarea', name: 'Conditions de reservation' },
 ]
 const attributeIri = (code) => `/api/v2/admin/product-attributes/${code}`
 
 let momeoAttributesReady = false
 async function ensureMomeoAttributes() {
   if (momeoAttributesReady) return
-  for (const def of MOMEO_ATTRIBUTE_DEFS) {
+  for (const def of TODATEMPO_ATTRIBUTE_DEFS) {
     try {
       await request('GET', `/admin/product-attributes/${def.code}`)
     } catch (e) {
@@ -220,9 +222,9 @@ async function setMomeoAttributes(code, values = {}) {
     .filter((item) => item?.key && item?.label)
     .map((item) => ({ key: String(item.key), label: String(item.label) }))
   const attributes = [
-    { attribute: attributeIri('momeo_duration'), value: Math.max(5, Math.round(Number(values.durationMin) || 60)) },
-    { attribute: attributeIri('momeo_capacity'), value: Math.max(1, Math.round(Number(values.capacityPerSlot) || 1)) },
-    { attribute: attributeIri('momeo_requirements'), value: JSON.stringify(requirements) },
+    { attribute: attributeIri('todatempo_duration'), value: Math.max(5, Math.round(Number(values.durationMin) || 60)) },
+    { attribute: attributeIri('todatempo_capacity'), value: Math.max(1, Math.round(Number(values.capacityPerSlot) || 1)) },
+    { attribute: attributeIri('todatempo_requirements'), value: JSON.stringify(requirements) },
   ]
   await request('PUT', `/admin/products/${code}`, { attributes })
 }
@@ -283,7 +285,7 @@ async function jumpAssociationsOf(ownerCode) {
     const id = codeFromIri(iri)
     try {
       const a = await request('GET', `/admin/product-associations/${id}`)
-      if (codeFromIri(a?.type) === JUMP_ASSOC_TYPE) found.push(id)
+      if (codeFromIri(a?.type) === JUMP_ASSOC_TYPE || LEGACY_JUMP_ASSOC_TYPES.has(codeFromIri(a?.type))) found.push(id)
     } catch {
       /* ignore */
     }
@@ -399,7 +401,7 @@ export async function updatePaymentMethod(code, patch = {}) {
 // cote client).
 // PIEGE : l'@id de la translation d'un taxon est /api/v2/admin/taxon/{code}/...
 // (« taxon » au SINGULIER, contrairement aux products).
-const PLANNINGS_ROOT = 'skybook_plannings'
+const PLANNINGS_ROOT = 'todatempo_plannings'
 const taxonIri = (code) => `/api/v2/admin/taxons/${code}`
 
 // Deux formats de config coexistent :
@@ -448,9 +450,9 @@ async function ensurePlanningsRoot() {
       enabled: true,
       translations: {
         en_US: {
-          name: 'SkyBook Plannings',
-          slug: 'skybook-plannings',
-          description: 'Conteneur technique SkyBook — plannings de creneaux. Ne pas supprimer.',
+          name: 'TodaTempo Plannings',
+          slug: 'todatempo-plannings',
+          description: 'Conteneur technique TodaTempo — plannings de creneaux. Ne pas supprimer.',
         },
       },
     })
@@ -503,17 +505,27 @@ export async function deletePlanning(code) {
 //   - logo -> IMAGE (type "logo") du taxon technique skybook_config.
 //   - couleurs / reseaux sociaux / adresse -> JSON du taxon skybook_config
 //     (pas de champ Sylius pour ca), lisible PUBLIQUEMENT via /shop/taxons.
-const CONFIG_TAXON = 'skybook_config'
+const CONFIG_TAXON = 'todatempo_config'
 
 async function ensureConfigTaxon() {
   try {
     await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
   } catch (e) {
     if (e.status !== 404) throw e
+    // Copy persisted legacy configuration once. Subsequent calls find the
+    // canonical taxon, so this migration is idempotent.
+    let legacy = null
+    try { legacy = await request('GET', '/admin/taxons/skybook_config') } catch { /* first install */ }
     await request('POST', '/admin/taxons', {
       code: CONFIG_TAXON,
       enabled: true,
-      translations: { en_US: { name: 'SkyBook Config', slug: 'skybook-config', description: '{}' } },
+      translations: {
+        en_US: {
+          name: 'TodaTempo Config',
+          slug: 'todatempo-config',
+          description: legacy?.translations?.en_US?.description || '{}',
+        },
+      },
     })
   }
 }
@@ -572,7 +584,7 @@ export async function saveShopConfig(cfg) {
   await ensureConfigTaxon()
   // 1. Champs natifs Sylius sur le channel.
   await request('PUT', `/admin/channels/${DEFAULT_CHANNEL}`, {
-    name: cfg.name || 'SkyBook',
+    name: cfg.name || 'TodaTempo',
     contactEmail: cfg.contactEmail || null,
     contactPhoneNumber: cfg.contactPhone || null,
   })

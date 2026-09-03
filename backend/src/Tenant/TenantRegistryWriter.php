@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 final class TenantRegistryWriter
 {
     public function __construct(
-        #[Autowire('%skybook.tenants_file%')] private readonly string $file,
+        #[Autowire('%todatempo.tenants_file%')] private readonly string $file,
         private readonly CaddyConfigDumper $caddyDumper,
     ) {
     }

@@ -16,7 +16,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class AdminSsoController
 {
-    private const COOKIE_NAME = 'MOMEO_ADMIN_SSO';
+    private const COOKIE_NAME = 'TODATEMPO_ADMIN_SSO';
+    private const LEGACY_COOKIE_NAME = 'MOMEO_ADMIN_SSO';
 
     public function __construct(
         private readonly AdminLoginTicketStore $ticketStore,
@@ -25,11 +26,13 @@ final class AdminSsoController
         private readonly LoggerInterface $logger,
     ) {}
 
-    #[Route('/api/v2/admin/momeo/sso/session', name: 'momeo_api_admin_sso_session', methods: ['POST'])]
+    #[Route('/api/v2/admin/todatempo/sso/session', name: 'todatempo_api_admin_sso_session', methods: ['POST'])]
+    #[Route('/api/v2/admin/momeo/sso/session', name: 'momeo_api_admin_sso_session_legacy', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
         try {
-            $ticket = $this->ticketStore->consumeBrowserSession((string) $request->cookies->get(self::COOKIE_NAME, ''));
+            $cookie = $request->cookies->get(self::COOKIE_NAME) ?? $request->cookies->get(self::LEGACY_COOKIE_NAME, '');
+            $ticket = $this->ticketStore->consumeBrowserSession((string) $cookie);
         } catch (\Throwable $exception) {
             $this->logger->warning('Momeo admin browser session rejected.', [
                 'exception' => $exception,
@@ -52,7 +55,7 @@ final class AdminSsoController
             Cookie::create(self::COOKIE_NAME)
                 ->withValue('')
                 ->withExpires(new \DateTimeImmutable('-1 day'))
-                ->withPath('/'.$ticket['slug'].'/api/v2/admin/momeo/sso/session')
+                ->withPath('/'.$ticket['slug'].'/api/v2/admin/todatempo/sso/session')
                 ->withHttpOnly(true)
                 ->withSameSite(Cookie::SAMESITE_LAX),
         );

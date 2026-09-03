@@ -26,7 +26,7 @@ final class GiftVoucherQrCodeGenerator
 {
     public function __construct(
         private readonly TenantContext $tenantContext,
-        #[Autowire('%skybook.public_base_url%')] private readonly string $publicBaseUrl,
+        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
     ) {
     }
 

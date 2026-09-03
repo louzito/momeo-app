@@ -15,15 +15,16 @@ use Symfony\Component\Routing\Attribute\Route;
 /** Receives the opaque ticket in a POST body, never in the browser URL. */
 final class AdminSsoHandoffController
 {
-    private const COOKIE_NAME = 'MOMEO_ADMIN_SSO';
+    private const COOKIE_NAME = 'TODATEMPO_ADMIN_SSO';
 
     public function __construct(
         private readonly AdminLoginTicketStore $ticketStore,
         private readonly TenantContext $tenantContext,
-        #[Autowire('%skybook.public_base_url%')] private readonly string $publicBaseUrl,
+        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
     ) {}
 
-    #[Route('/api/v2/admin/momeo/sso/handoff', name: 'momeo_api_admin_sso_handoff', methods: ['POST'])]
+    #[Route('/api/v2/admin/todatempo/sso/handoff', name: 'todatempo_api_admin_sso_handoff', methods: ['POST'])]
+    #[Route('/api/v2/admin/momeo/sso/handoff', name: 'momeo_api_admin_sso_handoff_legacy', methods: ['POST'])]
     public function __invoke(Request $request): RedirectResponse
     {
         $slug = $this->tenantContext->getSlug();
@@ -50,7 +51,7 @@ final class AdminSsoHandoffController
         return Cookie::create(self::COOKIE_NAME)
             ->withValue($value)
             ->withExpires($expires)
-            ->withPath('/'.$slug.'/api/v2/admin/momeo/sso/session')
+            ->withPath('/'.$slug.'/api/v2/admin/todatempo/sso/session')
             ->withSecure(str_starts_with($this->publicBaseUrl, 'https://'))
             ->withHttpOnly(true)
             ->withSameSite(Cookie::SAMESITE_LAX);

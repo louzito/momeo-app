@@ -27,7 +27,7 @@ final class TenantRegistry
     private int $loadedMtime = 0;
 
     public function __construct(
-        #[Autowire('%skybook.tenants_file%')] private readonly string $file,
+        #[Autowire('%todatempo.tenants_file%')] private readonly string $file,
         #[Autowire('%kernel.debug%')] private readonly bool $debug,
     ) {
     }

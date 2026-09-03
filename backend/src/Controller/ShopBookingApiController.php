@@ -301,13 +301,16 @@ final class ShopBookingApiController
         if (!$product instanceof Product) {
             return 60;
         }
+        $legacyDuration = null;
         foreach ($product->getAttributes() as $attributeValue) {
-            if ($attributeValue->getCode() === 'momeo_duration') {
+            if ($attributeValue->getCode() === 'todatempo_duration') {
                 return max(15, min(480, (int) $attributeValue->getValue()));
             }
+            if ($attributeValue->getCode() === 'momeo_duration') {
+                $legacyDuration = (int) $attributeValue->getValue();
+            }
         }
-
-        return 60;
+        return $legacyDuration === null ? 60 : max(15, min(480, $legacyDuration));
     }
 
     /**

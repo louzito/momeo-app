@@ -12,7 +12,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-#[AsCommand(name: 'skybook:tenant:list', description: 'Liste les centres du registre (config/tenants.json)')]
+#[AsCommand(name: 'todatempo:tenant:list', description: 'Liste les centres du registre (config/tenants.json)', aliases: ['skybook:tenant:list'])]
 final class TenantListCommand extends Command
 {
     public function __construct(private readonly TenantRegistry $registry)

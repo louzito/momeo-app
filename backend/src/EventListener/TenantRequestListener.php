@@ -38,7 +38,13 @@ final class TenantRequestListener
         if (!$event->isMainRequest()) {
             return;
         }
-        $slug = $event->getRequest()->headers->get('X-Skybook-Tenant');
+        $request = $event->getRequest();
+        // New header wins when both are present. The old one is accepted only
+        // while proxies deployed before this migration still exist.
+        $slug = $request->headers->get('X-TodaTempo-Tenant');
+        if ($slug === null || trim($slug) === '') {
+            $slug = $request->headers->get('X-Skybook-Tenant');
+        }
         if ($slug === null || trim($slug) === '') {
             return;
         }
