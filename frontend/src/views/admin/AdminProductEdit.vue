@@ -40,6 +40,8 @@ const form = ref({
   requirementsText: '',
   image: '',
   popular: false,
+  paymentMode: 'full',
+  paymentValue: 0,
 })
 
 onMounted(async () => {
@@ -105,6 +107,20 @@ async function save() {
           <div>
             <label class="label">Nom de la prestation</label>
             <input v-model="form.name" class="input" placeholder="Soin visage éclat" required />
+          </div>
+          <div class="rounded-2xl border border-slate-200 p-4">
+            <label class="label">Paiement à la réservation</label>
+            <select v-model="form.paymentMode" class="input mt-1" required>
+              <option value="none">Aucun paiement</option>
+              <option value="fixed">Acompte fixe</option>
+              <option value="percentage">Acompte en pourcentage</option>
+              <option value="full">Paiement intégral</option>
+            </select>
+            <div v-if="form.paymentMode === 'fixed' || form.paymentMode === 'percentage'" class="mt-3">
+              <label class="label">{{ form.paymentMode === 'fixed' ? `Montant de l’acompte (${admin.currency})` : 'Pourcentage de l’acompte' }}</label>
+              <input v-model.number="form.paymentValue" type="number" min="1" :max="form.paymentMode === 'percentage' ? 100 : undefined" :step="form.paymentMode === 'fixed' ? '0.01' : '1'" class="input" required />
+            </div>
+            <p class="mt-2 text-xs text-slate-500">Le reste sera indiqué au client comme solde à régler sur place.</p>
           </div>
           <div>
             <label class="label">Résumé court</label>

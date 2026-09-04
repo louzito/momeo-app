@@ -21,6 +21,7 @@ use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
+use App\Payment\ServicePaymentTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -44,6 +45,7 @@ final class ShopBookingApiController
         private readonly PlanningProvider $planningProvider,
         private readonly AvailabilitySlotGenerator $slotGenerator,
         private readonly BookingSlotGuard $slotGuard,
+        private readonly ServicePaymentTerms $paymentTerms,
     ) {
     }
 
@@ -210,7 +212,23 @@ final class ShopBookingApiController
         $booking->setOrderNumber($order->getNumber());
         $booking->setVoucherCode($this->nullableText($payload['voucherCode'] ?? null, 32));
         $booking->setOptions(\is_array($payload['options'] ?? null) ? array_values($payload['options']) : []);
-        $booking->setAmount($order->getTotal());
+        $totalAmount = $order->getTotal();
+        foreach ($order->getAdjustments('todatempo_payment_terms') as $paymentTermsAdjustment) {
+            $totalAmount -= $paymentTermsAdjustment->getAmount();
+        }
+        try {
+            $terms = $this->paymentTerms->calculate($product, $totalAmount);
+        } catch (\DomainException $exception) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if ($order->getTotal() !== $terms['dueNow']) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => 'Le montant de la commande ne correspond pas à la règle de paiement de la prestation.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        $booking->setAmount($terms['dueNow']);
+        $booking->setTotalAmount($terms['totalAmount']);
+        $booking->setBalanceDue($terms['balanceDue']);
         $booking->setCurrencyCode($order->getCurrencyCode() ?? 'EUR');
         $booking->setPaymentState($order->getPaymentState());
 
@@ -513,6 +531,8 @@ final class ShopBookingApiController
             'paymentState' => $booking->getPaymentState(),
             'orderNumber' => $booking->getOrderNumber(),
             'amount' => $booking->getAmount(),
+            'totalAmount' => $booking->getTotalAmount(),
+            'balanceDue' => $booking->getBalanceDue(),
             'currencyCode' => $booking->getCurrencyCode(),
         ];
     }

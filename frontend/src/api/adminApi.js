@@ -193,6 +193,8 @@ const TODATEMPO_ATTRIBUTE_DEFS = [
   { field: 'durationMin', code: 'todatempo_duration', kind: 'integer', name: 'Duree de la prestation (min)' },
   { field: 'capacityPerSlot', code: 'todatempo_capacity', kind: 'integer', name: 'Capacite par creneau' },
   { field: 'requirements', code: 'todatempo_requirements', kind: 'textarea', name: 'Conditions de reservation' },
+  { field: 'paymentMode', code: 'todatempo_payment_mode', kind: 'text', name: 'Mode de paiement de la prestation' },
+  { field: 'paymentValue', code: 'todatempo_payment_value', kind: 'integer', name: 'Valeur de l’acompte (centimes ou pourcentage)' },
 ]
 const attributeIri = (code) => `/api/v2/admin/product-attributes/${code}`
 
@@ -225,6 +227,10 @@ async function setMomeoAttributes(code, values = {}) {
     { attribute: attributeIri('todatempo_duration'), value: Math.max(5, Math.round(Number(values.durationMin) || 60)) },
     { attribute: attributeIri('todatempo_capacity'), value: Math.max(1, Math.round(Number(values.capacityPerSlot) || 1)) },
     { attribute: attributeIri('todatempo_requirements'), value: JSON.stringify(requirements) },
+    { attribute: attributeIri('todatempo_payment_mode'), value: ['none', 'fixed', 'percentage', 'full'].includes(values.paymentMode) ? values.paymentMode : 'full' },
+    { attribute: attributeIri('todatempo_payment_value'), value: values.paymentMode === 'fixed'
+      ? Math.max(1, Math.round(Number(values.paymentValue) * 100))
+      : (values.paymentMode === 'percentage' ? Math.max(1, Math.min(100, Math.round(Number(values.paymentValue)))) : 0) },
   ]
   await request('PUT', `/admin/products/${code}`, { attributes })
 }

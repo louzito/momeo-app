@@ -329,6 +329,8 @@ const JUMP_ATTRIBUTE_FIELDS = {
   todatempo_duration: 'durationMin',
   todatempo_capacity: 'capacityPerSlot',
   todatempo_requirements: 'requirements',
+  todatempo_payment_mode: 'paymentMode',
+  todatempo_payment_value: 'paymentValue',
   momeo_duration: 'durationMin', // read-only compatibility
   momeo_capacity: 'capacityPerSlot',
   momeo_requirements: 'requirements',
@@ -353,6 +355,8 @@ async function fetchJumpAttributes(code) {
         } catch {
           out[field] = []
         }
+      } else if (av.code === 'todatempo_payment_mode') {
+        out[field] = String(av.value)
       } else {
         out[field] = BOOL_ATTRIBUTES.has(av.code) ? !!av.value : Number(av.value)
       }
@@ -399,6 +403,8 @@ function mapProductToJumpType(p, tenantId, attrs = {}) {
     popular: false,
     legacyEligibility: String(p.code || '').startsWith('jump_'),
     requirements: attrs.requirements || [],
+    paymentMode: attrs.paymentMode || 'full',
+    paymentValue: attrs.paymentMode === 'fixed' ? (attrs.paymentValue || 0) / 100 : (attrs.paymentValue || 0),
     eligibility: buildEligibility(attrs),
   }
 }
@@ -667,7 +673,7 @@ export const httpApi = {
     if (payload.kind === 'gift' && payload.paymentMethod === 'bank_transfer') {
       return this._createGiftOrder(payload)
     }
-    if (payload.kind !== 'direct' || !['bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
+    if (payload.kind !== 'direct' || !['none', 'bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
       throw new Error('Ce moyen de paiement ne permet pas de créer une réservation réelle.')
     }
 
@@ -707,7 +713,8 @@ export const httpApi = {
     // 4. Moyen de paiement : virement (gateway offline)
     const addressed = await apiGet(`/shop/orders/${t}`)
     const paymentId = addressed.payments?.[0]?.id
-    if (paymentId != null) {
+    const paymentTerms = await apiWrite('POST', `/shop/orders/${t}/payment-terms`, {})
+    if (paymentTerms.dueNow > 0 && paymentId != null) {
       await apiWrite('PATCH', `/shop/orders/${t}/payments/${paymentId}`, {
         paymentMethod: `/api/v2/shop/payment-methods/${payload.paymentMethod}`,
       })
@@ -749,6 +756,7 @@ export const httpApi = {
         paymentId,
         orderToken: completed.tokenValue,
         paymentInstructions,
+        paymentTerms,
         syliusState: completed.state,
       },
     }

@@ -15,6 +15,16 @@ const props = defineProps({
 const total = computed(
   () => (props.jumpType?.basePrice || 0) + props.options.reduce((s, o) => s + o.price, 0),
 )
+const dueNow = computed(() => {
+  const cents = Math.round(total.value * 100)
+  const mode = props.jumpType?.paymentMode || 'full'
+  const value = Number(props.jumpType?.paymentValue) || 0
+  if (mode === 'none') return 0
+  if (mode === 'fixed') return Math.min(cents, Math.round(value * 100)) / 100
+  if (mode === 'percentage') return Math.min(cents, Math.floor((cents * Math.round(value) + 50) / 100)) / 100
+  return cents / 100
+})
+const balanceDue = computed(() => (Math.round(total.value * 100) - Math.round(dueNow.value * 100)) / 100)
 </script>
 
 <template>
@@ -49,6 +59,14 @@ const total = computed(
     <div class="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
       <span class="font-semibold text-slate-900">Total</span>
       <span class="font-display text-2xl font-bold text-brand-700">{{ formatMoney(total, currency) }}</span>
+    </div>
+    <div v-if="kind === 'direct'" class="mt-3 space-y-2 rounded-xl bg-brand-50 p-3 text-sm">
+      <div class="flex justify-between font-semibold text-brand-800">
+        <span>Montant dû maintenant</span><span>{{ formatMoney(dueNow, currency) }}</span>
+      </div>
+      <div class="flex justify-between text-slate-600">
+        <span>Solde à régler sur place</span><span>{{ formatMoney(balanceDue, currency) }}</span>
+      </div>
     </div>
 
     <slot />

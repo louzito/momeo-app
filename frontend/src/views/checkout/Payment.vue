@@ -26,6 +26,7 @@ const stripeMethod = ref(null)
 const methodsLoaded = ref(false)
 const canBankTransfer = computed(() => !!bankMethod.value)
 const canStripe = computed(() => !!stripeMethod.value && !cart.isGift)
+const noOnlinePayment = computed(() => !cart.isGift && cart.dueNowCents === 0)
 const method = ref('bank_transfer')
 
 onMounted(async () => {
@@ -37,7 +38,8 @@ onMounted(async () => {
     bankMethod.value = null
   }
   methodsLoaded.value = true
-  if (canStripe.value) selectMethod('stripe_web_elements')
+  if (noOnlinePayment.value) selectMethod('none')
+  else if (canStripe.value) selectMethod('stripe_web_elements')
   else if (canBankTransfer.value) selectMethod('bank_transfer')
 })
 
@@ -52,7 +54,7 @@ function selectMethod(m) {
 // Sans moyen actif chez le centre : aucun moyen de creer une
 // vraie commande -> on bloque avant l'appel API plutot que de laisser passer
 // silencieusement un cheque cadeau mock.
-const blocked = computed(() => methodsLoaded.value && !canBankTransfer.value && !canStripe.value)
+const blocked = computed(() => methodsLoaded.value && !noOnlinePayment.value && !canBankTransfer.value && !canStripe.value)
 
 async function pay() {
   if (blocked.value) {
@@ -97,7 +99,10 @@ async function pay() {
   >
     <div class="max-w-lg">
       <!-- Choix du moyen de paiement -->
-      <div class="grid gap-3 sm:grid-cols-2">
+      <div v-if="noOnlinePayment" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
+        Aucun paiement n’est demandé maintenant. Votre réservation sera enregistrée et le solde de {{ formatMoney(cart.balanceDue, tenant?.currency) }} sera à régler sur place.
+      </div>
+      <div v-else class="grid gap-3 sm:grid-cols-2">
         <button
           v-if="canStripe"
           type="button"
@@ -153,9 +158,10 @@ async function pay() {
       <button class="btn-primary mt-6 w-full py-3 text-base" :disabled="processing || blocked" @click="pay">
         <template v-if="processing">Enregistrement…</template>
         <template v-else>
-          {{ method === 'stripe_web_elements'
-            ? `Payer ${formatMoney(cart.total, tenant?.currency)} par carte`
-            : `Commander ${formatMoney(cart.total, tenant?.currency)} (payer par virement)` }}
+          {{ noOnlinePayment ? 'Confirmer la réservation sans paiement'
+            : method === 'stripe_web_elements'
+              ? `Payer ${formatMoney(cart.dueNow, tenant?.currency)} par carte`
+              : `Commander ${formatMoney(cart.dueNow, tenant?.currency)} (payer par virement)` }}
         </template>
       </button>
       <p class="mt-3 flex items-center justify-center gap-1 text-xs text-slate-400">

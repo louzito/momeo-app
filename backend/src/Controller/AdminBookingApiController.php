@@ -323,6 +323,8 @@ final class AdminBookingApiController
             'voucherCode' => $booking->getVoucherCode(),
             'options' => $booking->getOptions(),
             'amount' => $booking->getAmount(),
+            'totalAmount' => $booking->getTotalAmount(),
+            'balanceDue' => $booking->getBalanceDue(),
             'currencyCode' => $booking->getCurrencyCode(),
             'paymentState' => $booking->getPaymentState(),
             'postponedReason' => $booking->getPostponedReason(),

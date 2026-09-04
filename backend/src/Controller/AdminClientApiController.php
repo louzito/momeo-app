@@ -150,6 +150,8 @@ final class AdminClientApiController
             'slotStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
             'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
             'amount' => $booking->getAmount(),
+            'totalAmount' => $booking->getTotalAmount(),
+            'balanceDue' => $booking->getBalanceDue(),
             'currencyCode' => $booking->getCurrencyCode(),
             'paymentState' => $booking->getPaymentState(),
         ];

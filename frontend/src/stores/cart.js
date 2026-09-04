@@ -52,6 +52,17 @@ export const useCartStore = defineStore('cart', {
     total() {
       return this.subtotal
     },
+    dueNowCents() {
+      const total = Math.round(this.subtotal * 100)
+      const mode = this.jumpType?.paymentMode || 'full'
+      const value = Number(this.jumpType?.paymentValue) || 0
+      if (mode === 'none') return 0
+      if (mode === 'fixed') return Math.min(total, Math.round(value * 100))
+      if (mode === 'percentage') return Math.min(total, Math.floor((total * Math.round(value) + 50) / 100))
+      return total
+    },
+    dueNow() { return this.dueNowCents / 100 },
+    balanceDue() { return (Math.round(this.subtotal * 100) - this.dueNowCents) / 100 },
     isGift: (s) => s.kind === 'gift',
     // Le tunnel direct exige un creneau ; le tunnel cadeau exige les
     // coordonnees de l'acheteur (email de commande Sylius) + du beneficiaire.

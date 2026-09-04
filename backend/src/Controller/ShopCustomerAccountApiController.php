@@ -96,6 +96,7 @@ final class ShopCustomerAccountApiController extends AbstractController
             'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
             'options' => $booking->getOptions(), 'paymentState' => $booking->getPaymentState(),
             'orderNumber' => $booking->getOrderNumber(), 'amount' => $booking->getAmount(),
+            'totalAmount' => $booking->getTotalAmount(), 'balanceDue' => $booking->getBalanceDue(),
             'currencyCode' => $booking->getCurrencyCode(), 'postponedReason' => $booking->getPostponedReason(),
         ];
     }

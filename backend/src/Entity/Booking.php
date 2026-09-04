@@ -97,6 +97,12 @@ class Booking
     #[ORM\Column(nullable: true)]
     private ?int $amount = null;
 
+    #[ORM\Column(name: 'total_amount', nullable: true)]
+    private ?int $totalAmount = null;
+
+    #[ORM\Column(name: 'balance_due', nullable: true)]
+    private ?int $balanceDue = null;
+
     #[ORM\Column(name: 'currency_code', length: 3)]
     private string $currencyCode = 'EUR';
 
@@ -161,6 +167,10 @@ class Booking
     public function setOptions(array $value): void { $this->options = $value; }
     public function getAmount(): ?int { return $this->amount; }
     public function setAmount(?int $value): void { $this->amount = $value; }
+    public function getTotalAmount(): ?int { return $this->totalAmount; }
+    public function setTotalAmount(?int $value): void { $this->totalAmount = $value; }
+    public function getBalanceDue(): ?int { return $this->balanceDue; }
+    public function setBalanceDue(?int $value): void { $this->balanceDue = $value; }
     public function getCurrencyCode(): string { return $this->currencyCode; }
     public function setCurrencyCode(string $value): void { $this->currencyCode = $value; }
     public function getPaymentState(): ?string { return $this->paymentState; }

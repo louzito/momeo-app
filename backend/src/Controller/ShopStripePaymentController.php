@@ -43,6 +43,9 @@ final class ShopStripePaymentController
         if (!$payment instanceof Payment || !$method instanceof PaymentMethod || $method->getCode() !== 'stripe_web_elements') {
             return new JsonResponse(['error' => 'Le paiement Stripe est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
+        if ($order->getTotal() <= 0 || $payment->getAmount() !== $order->getTotal() || $booking->getAmount() !== $order->getTotal()) {
+            return new JsonResponse(['error' => 'Le montant du paiement ne correspond pas à la réservation.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         try {
             $successUrl = $this->returnUrl($request, (string) ($data['successUrl'] ?? ''));
