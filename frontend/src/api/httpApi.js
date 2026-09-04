@@ -1047,8 +1047,12 @@ export const httpApi = {
     return sylius.getBookings()
   },
 
-  async getClients() {
-    return sylius.getClients()
+  async getClients(tenantId, search = '') {
+    return sylius.getClients(search)
+  },
+
+  async updateClient(tenantId, id, data) {
+    return sylius.updateClient(id, data)
   },
 
   async createManualBooking(tenantId, data) {

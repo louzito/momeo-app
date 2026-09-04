@@ -5,23 +5,38 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Booking;
+use App\Entity\ClientProfile;
 use App\Repository\BookingRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v2/admin/clients')]
+#[IsGranted('ROLE_API_ACCESS')]
 final class AdminClientApiController
 {
-    public function __construct(private readonly BookingRepository $bookingRepository)
-    {
-    }
+    private const CONSENT_TYPES = ['marketing', 'dataProcessing', 'medicalData'];
+
+    public function __construct(
+        private readonly BookingRepository $bookingRepository,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly Security $security,
+    ) {}
 
     #[Route('', name: 'momeo_api_admin_client_index', methods: ['GET'])]
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $now = new \DateTimeImmutable();
         $monthStart = $now->modify('first day of this month')->setTime(0, 0);
         $clients = [];
+
+        $profiles = [];
+        foreach ($this->entityManager->getRepository(ClientProfile::class)->findAll() as $profile) {
+            $profiles[$profile->getBookingEmail()] = $profile;
+        }
 
         foreach ($this->bookingRepository->findForAdministration() as $booking) {
             $email = mb_strtolower(trim($booking->getCustomerEmail()));
@@ -49,6 +64,7 @@ final class AdminClientApiController
                     'lastServiceName' => null,
                     'nextServiceName' => null,
                     'bookings' => [],
+                    'purchases' => [],
                 ];
             }
 
@@ -90,6 +106,16 @@ final class AdminClientApiController
             }
 
             $client['bookings'][] = $this->normalizeBooking($booking);
+            if ($booking->getOrderNumber() !== null) {
+                $client['purchases'][$booking->getOrderNumber()] = [
+                    'orderNumber' => $booking->getOrderNumber(),
+                    'purchasedAt' => $booking->getCreatedAt()->format(\DateTimeInterface::ATOM),
+                    'label' => $booking->getServiceName(),
+                    'amount' => $booking->getTotalAmount() ?? $booking->getAmount(),
+                    'currencyCode' => $booking->getCurrencyCode(),
+                    'paymentState' => $booking->getPaymentState(),
+                ];
+            }
             unset($client);
         }
 
@@ -97,6 +123,15 @@ final class AdminClientApiController
         $withUpcoming = 0;
         $recurring = 0;
         foreach ($clients as &$client) {
+            $profile = $profiles[$client['email']] ?? null;
+            if ($profile instanceof ClientProfile) {
+                $client = array_replace($client, $this->normalizeProfile($profile));
+                $client['displayName'] = trim($client['firstName'].' '.$client['lastName']);
+            } else {
+                $client += ['visibleNotes' => $client['notes'], 'internalNotes' => null, 'tags' => [], 'allergies' => null, 'contraindications' => null, 'consents' => [], 'consentHistory' => []];
+            }
+            unset($client['notes']);
+            $client['purchases'] = array_values($client['purchases']);
             usort($client['bookings'], static fn (array $left, array $right): int => strcmp($right['slotStart'], $left['slotStart']));
             if ($client['firstBookingAt'] >= $monthStart) {
                 $newThisMonth++;
@@ -114,6 +149,14 @@ final class AdminClientApiController
         unset($client);
 
         $clients = array_values($clients);
+        $needle = mb_strtolower(trim((string) $request->query->get('q', '')));
+        if ($needle !== '') {
+            $clients = array_values(array_filter($clients, static function (array $client) use ($needle): bool {
+                $haystack = implode(' ', array_filter([$client['displayName'], $client['email'], $client['phone'], implode(' ', $client['tags']), $client['lastServiceName'], $client['nextServiceName']]));
+
+                return str_contains(mb_strtolower($haystack), $needle);
+            }));
+        }
         usort($clients, static function (array $left, array $right): int {
             if ($left['nextBookingAt'] !== null && $right['nextBookingAt'] === null) {
                 return -1;
@@ -134,6 +177,79 @@ final class AdminClientApiController
                 'recurring' => $recurring,
             ],
         ]);
+    }
+
+    #[Route('/{id}', name: 'momeo_api_admin_client_update', methods: ['PUT'])]
+    public function update(string $id, Request $request): JsonResponse
+    {
+        $booking = $this->findBookingForClient($id);
+        if (!$booking instanceof Booking) {
+            return new JsonResponse(['message' => 'Client introuvable.'], 404);
+        }
+
+        try {
+            $data = $request->toArray();
+        } catch (\JsonException) {
+            return new JsonResponse(['message' => 'Corps JSON invalide.'], 400);
+        }
+
+        $email = mb_strtolower(trim($booking->getCustomerEmail()));
+        $profile = $this->entityManager->getRepository(ClientProfile::class)->findOneBy(['bookingEmail' => $email]) ?? new ClientProfile($email);
+        $firstName = trim((string) ($data['firstName'] ?? $booking->getCustomerFirstName()));
+        $lastName = trim((string) ($data['lastName'] ?? $booking->getCustomerLastName()));
+        $newEmail = mb_strtolower(trim((string) ($data['email'] ?? $email)));
+        if ($firstName === '' || $lastName === '' || !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+            return new JsonResponse(['message' => 'Nom, prénom et email valide sont obligatoires.'], 422);
+        }
+
+        $profile->setFirstName($firstName);
+        $profile->setLastName($lastName);
+        $profile->setEmail($newEmail);
+        $profile->setPhone(isset($data['phone']) ? (string) $data['phone'] : $booking->getCustomerPhone());
+        $profile->setVisibleNotes(isset($data['visibleNotes']) ? (string) $data['visibleNotes'] : $profile->getVisibleNotes());
+        $profile->setInternalNotes(isset($data['internalNotes']) ? (string) $data['internalNotes'] : $profile->getInternalNotes());
+        $profile->setAllergies(isset($data['allergies']) ? (string) $data['allergies'] : $profile->getAllergies());
+        $profile->setContraindications(isset($data['contraindications']) ? (string) $data['contraindications'] : $profile->getContraindications());
+        if (isset($data['tags']) && is_array($data['tags'])) {
+            $profile->setTags(array_slice(array_map('strval', $data['tags']), 0, 30));
+        }
+        if (isset($data['consents']) && is_array($data['consents'])) {
+            $actor = $this->security->getUser()?->getUserIdentifier() ?? 'admin';
+            foreach (self::CONSENT_TYPES as $type) {
+                if (array_key_exists($type, $data['consents']) && (!array_key_exists($type, $profile->getConsents()) || $profile->getConsents()[$type] !== (bool) $data['consents'][$type])) {
+                    $profile->recordConsent($type, (bool) $data['consents'][$type], $actor);
+                }
+            }
+        }
+
+        $this->entityManager->persist($profile);
+        $this->entityManager->flush();
+
+        return new JsonResponse($this->normalizeProfile($profile));
+    }
+
+    private function findBookingForClient(string $id): ?Booking
+    {
+        foreach ($this->bookingRepository->findForAdministration() as $booking) {
+            if (hash_equals(substr(hash('sha256', mb_strtolower(trim($booking->getCustomerEmail()))), 0, 16), $id)) {
+                return $booking;
+            }
+        }
+
+        return null;
+    }
+
+    /** @return array<string, mixed> */
+    private function normalizeProfile(ClientProfile $profile): array
+    {
+        return [
+            'firstName' => $profile->getFirstName(), 'lastName' => $profile->getLastName(),
+            'email' => $profile->getEmail(), 'phone' => $profile->getPhone(),
+            'visibleNotes' => $profile->getVisibleNotes(), 'internalNotes' => $profile->getInternalNotes(),
+            'tags' => $profile->getTags(), 'allergies' => $profile->getAllergies(),
+            'contraindications' => $profile->getContraindications(), 'consents' => $profile->getConsents(),
+            'consentHistory' => $profile->getConsentHistory(),
+        ];
     }
 
     /** @return array<string, mixed> */

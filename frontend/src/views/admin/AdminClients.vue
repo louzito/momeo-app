@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/api'
 import { useAdminStore } from '@/stores/admin'
 import Spinner from '@/components/ui/Spinner.vue'
@@ -14,6 +14,10 @@ const error = ref('')
 const search = ref('')
 const filter = ref('all')
 const selectedClient = ref(null)
+const draft = ref(null)
+const saving = ref(false)
+const saveError = ref('')
+let searchTimer
 
 const filters = [
   { key: 'all', label: 'Tous' },
@@ -37,7 +41,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const result = await api.getClients(admin.tenantId)
+    const result = await api.getClients(admin.tenantId, search.value)
     clients.value = result.clients
     stats.value = { ...stats.value, ...result.stats }
   } catch (exception) {
@@ -70,7 +74,34 @@ function sourceLabel(source) {
 
 function openClient(client) {
   selectedClient.value = client
+  draft.value = JSON.parse(JSON.stringify(client))
+  saveError.value = ''
 }
+
+function addTag(event) {
+  const value = event.target.value.trim()
+  if (value && !draft.value.tags.includes(value)) draft.value.tags.push(value)
+  event.target.value = ''
+}
+
+async function saveClient() {
+  saving.value = true
+  saveError.value = ''
+  try {
+    const updated = await api.updateClient(admin.tenantId, selectedClient.value.id, draft.value)
+    Object.assign(selectedClient.value, updated, { displayName: `${updated.firstName} ${updated.lastName}`.trim() })
+    draft.value = JSON.parse(JSON.stringify(selectedClient.value))
+  } catch (exception) {
+    saveError.value = exception.message || 'La fiche n’a pas pu être enregistrée.'
+  } finally {
+    saving.value = false
+  }
+}
+
+watch(search, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(load, 300)
+})
 
 function closeClient() {
   selectedClient.value = null
@@ -153,19 +184,44 @@ onMounted(load)
         </div>
 
         <div class="space-y-6 p-5 sm:p-6">
-          <section class="grid gap-3 sm:grid-cols-2">
-            <a :href="`mailto:${selectedClient.email}`" class="rounded-2xl border border-slate-200 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</p><p class="mt-1 break-all text-sm font-medium text-slate-800">{{ selectedClient.email }}</p></a>
-            <a v-if="selectedClient.phone" :href="`tel:${selectedClient.phone}`" class="rounded-2xl border border-slate-200 p-4 transition hover:border-brand-300 hover:bg-brand-50"><p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Téléphone</p><p class="mt-1 text-sm font-medium text-slate-800">{{ selectedClient.phone }}</p></a>
-            <div v-else class="rounded-2xl border border-slate-200 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Téléphone</p><p class="mt-1 text-sm text-slate-400">Non renseigné</p></div>
-          </section>
+          <form v-if="draft" class="space-y-5" @submit.prevent="saveClient">
+            <section class="rounded-2xl border border-sky-200 bg-sky-50/50 p-4">
+              <h3 class="font-display font-bold text-slate-900">Données visibles du client</h3>
+              <p class="mt-1 text-xs text-slate-500">Coordonnées et informations partagées avec le client.</p>
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <label class="text-xs font-semibold text-slate-600">Prénom<input v-model="draft.firstName" required maxlength="100" class="input mt-1 w-full" /></label>
+                <label class="text-xs font-semibold text-slate-600">Nom<input v-model="draft.lastName" required maxlength="100" class="input mt-1 w-full" /></label>
+                <label class="text-xs font-semibold text-slate-600">Email<input v-model="draft.email" required type="email" maxlength="180" class="input mt-1 w-full" /></label>
+                <label class="text-xs font-semibold text-slate-600">Téléphone<input v-model="draft.phone" maxlength="40" class="input mt-1 w-full" /></label>
+              </div>
+              <label class="mt-3 block text-xs font-semibold text-slate-600">Note visible<textarea v-model="draft.visibleNotes" rows="3" class="input mt-1 w-full" placeholder="Information communiquée au client…"></textarea></label>
+            </section>
+
+            <section class="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4">
+              <div class="flex items-center justify-between gap-3"><h3 class="font-display font-bold text-amber-950">Usage interne uniquement</h3><span class="rounded-full bg-amber-200 px-2 py-1 text-[10px] font-bold uppercase text-amber-900">Non visible par le client</span></div>
+              <label class="mt-4 block text-xs font-semibold text-amber-900">Notes internes<textarea v-model="draft.internalNotes" rows="4" class="input mt-1 w-full" placeholder="Suivi interne de l’équipe…"></textarea></label>
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <label class="text-xs font-semibold text-amber-900">Allergies<textarea v-model="draft.allergies" rows="2" class="input mt-1 w-full"></textarea></label>
+                <label class="text-xs font-semibold text-amber-900">Contre-indications<textarea v-model="draft.contraindications" rows="2" class="input mt-1 w-full"></textarea></label>
+              </div>
+              <div class="mt-3"><p class="text-xs font-semibold text-amber-900">Tags</p><div class="mt-2 flex flex-wrap gap-2"><button v-for="(tag, index) in draft.tags" :key="tag" type="button" class="chip bg-amber-200 text-amber-950" @click="draft.tags.splice(index, 1)">{{ tag }} ×</button></div><input class="input mt-2 w-full" maxlength="50" placeholder="Ajouter un tag puis Entrée" @keydown.enter.prevent="addTag" /></div>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 p-4">
+              <h3 class="font-display font-bold text-slate-900">Consentements</h3>
+              <div class="mt-3 space-y-2"><label class="flex gap-2 text-sm"><input v-model="draft.consents.dataProcessing" type="checkbox" /> Traitement des données</label><label class="flex gap-2 text-sm"><input v-model="draft.consents.medicalData" type="checkbox" /> Données de santé</label><label class="flex gap-2 text-sm"><input v-model="draft.consents.marketing" type="checkbox" /> Communications marketing</label></div>
+              <details v-if="draft.consentHistory.length" class="mt-4 text-xs text-slate-500"><summary class="cursor-pointer font-semibold">Journal ({{ draft.consentHistory.length }})</summary><ul class="mt-2 space-y-1"><li v-for="(entry, index) in [...draft.consentHistory].reverse()" :key="index">{{ formatDate(entry.recordedAt, true) }} · {{ entry.type }} · {{ entry.granted ? 'accordé' : 'retiré' }} · {{ entry.recordedBy }}</li></ul></details>
+            </section>
+
+            <p v-if="saveError" class="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{{ saveError }}</p>
+            <button type="submit" class="btn-primary w-full" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer la fiche' }}</button>
+          </form>
 
           <section class="grid grid-cols-3 gap-3">
             <div class="rounded-2xl bg-slate-50 p-3 text-center"><p class="font-display text-xl font-bold text-slate-900">{{ selectedClient.bookingCount }}</p><p class="text-[11px] text-slate-500">Rendez-vous</p></div>
             <div class="rounded-2xl bg-slate-50 p-3 text-center"><p class="font-display text-xl font-bold text-slate-900">{{ selectedClient.completedCount }}</p><p class="text-[11px] text-slate-500">Effectués</p></div>
             <div class="rounded-2xl bg-slate-50 p-3 text-center"><p class="font-display text-lg font-bold text-slate-900">{{ formatMoney(selectedClient.totalAmount, selectedClient.currencyCode) }}</p><p class="text-[11px] text-slate-500">Montant réservé</p></div>
           </section>
-
-          <section v-if="selectedClient.notes" class="rounded-2xl border border-amber-200 bg-amber-50 p-4"><p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Dernière note client</p><p class="mt-2 whitespace-pre-line text-sm text-amber-950">{{ selectedClient.notes }}</p></section>
 
           <section>
             <div class="flex items-center justify-between"><h3 class="font-display text-lg font-bold text-slate-900">Historique</h3><span class="text-xs text-slate-400">{{ selectedClient.bookings.length }} rendez-vous</span></div>
@@ -175,6 +231,12 @@ onMounted(load)
                 <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-400"><span>{{ sourceLabel(booking.source) }} · Réf. {{ booking.reference }}</span><span v-if="booking.amount != null" class="font-medium text-slate-600">{{ formatMoney(booking.amount, booking.currencyCode) }}</span></div>
               </article>
             </div>
+          </section>
+
+          <section>
+            <div class="flex items-center justify-between"><h3 class="font-display text-lg font-bold text-slate-900">Achats</h3><span class="text-xs text-slate-400">{{ selectedClient.purchases.length }} commande(s)</span></div>
+            <div v-if="selectedClient.purchases.length" class="mt-3 space-y-2"><article v-for="purchase in selectedClient.purchases" :key="purchase.orderNumber" class="rounded-2xl border border-slate-200 p-4"><div class="flex justify-between gap-3"><div><p class="font-semibold text-slate-900">{{ purchase.label }}</p><p class="text-xs text-slate-400">Commande {{ purchase.orderNumber }} · {{ formatDate(purchase.purchasedAt, true) }}</p></div><p class="font-medium text-slate-700">{{ formatMoney(purchase.amount, purchase.currencyCode) }}</p></div></article></div>
+            <p v-else class="mt-2 text-sm text-slate-400">Aucun achat lié.</p>
           </section>
         </div>
       </aside>

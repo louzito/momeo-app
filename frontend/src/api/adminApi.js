@@ -818,9 +818,14 @@ export async function cancelBooking(id) {
 }
 
 // --- Clients ---------------------------------------------------------------
-export async function getClients() {
-  const data = await request('GET', '/admin/clients')
+export async function getClients(search = '') {
+  const query = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ''
+  const data = await request('GET', `/admin/clients${query}`)
   return { clients: data.member || [], stats: data.stats || {} }
+}
+
+export async function updateClient(id, data) {
+  return request('PUT', `/admin/clients/${encodeURIComponent(id)}`, data, 'application/json')
 }
 
 // --- Indisponibilités de l'équipe -----------------------------------------
