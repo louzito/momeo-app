@@ -40,7 +40,11 @@ final class TenantRequestListener
         if (!$event->isMainRequest()) {
             return;
         }
-        $slug = $this->identifierResolver->fromRequest($event->getRequest());
+        $request = $event->getRequest();
+        $slug = $this->identifierResolver->fromRequest($request);
+        if ($slug === null) {
+            $slug = $this->registry->slugForVerifiedDomain($request->getHost());
+        }
         if ($slug === null) {
             return;
         }

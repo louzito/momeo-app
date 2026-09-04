@@ -8,9 +8,9 @@ use App\Availability\CenterTimeZoneProvider;
 use App\Entity\Booking;
 use App\Entity\Channel\Channel;
 use App\Tenant\TenantContext;
+use App\Tenant\TenantUrlGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Mailer\Sender\SenderInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final class BookingEmailDispatcher
 {
@@ -19,7 +19,7 @@ final class BookingEmailDispatcher
         private readonly EntityManagerInterface $entityManager,
         private readonly TenantContext $tenantContext,
         private readonly CenterTimeZoneProvider $timeZoneProvider,
-        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
+        private readonly TenantUrlGenerator $urlGenerator,
     ) {
     }
 
@@ -59,7 +59,7 @@ final class BookingEmailDispatcher
             'emailCode' => $type,
             'booking' => $booking,
             'channel' => $channel,
-            'bookingUrl' => sprintf('%s/%s/account/booking/%s', rtrim($this->publicBaseUrl, '/'), rawurlencode($this->tenantContext->getSlug()), rawurlencode($booking->getPublicToken())),
+            'bookingUrl' => $this->urlGenerator->url($this->tenantContext->getSlug(), 'account/booking/'.rawurlencode($booking->getPublicToken())),
             'centerTimezone' => $this->timeZoneProvider->get()->getName(),
         ]);
     }

@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Tenant\AdminLoginTicketStore;
 use App\Tenant\TenantContext;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\Tenant\TenantUrlGenerator;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,7 +20,7 @@ final class AdminSsoHandoffController
     public function __construct(
         private readonly AdminLoginTicketStore $ticketStore,
         private readonly TenantContext $tenantContext,
-        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
+        private readonly TenantUrlGenerator $urlGenerator,
     ) {}
 
     #[Route('/api/v2/admin/todatempo/sso/handoff', name: 'todatempo_api_admin_sso_handoff', methods: ['POST'])]
@@ -28,8 +28,7 @@ final class AdminSsoHandoffController
     public function __invoke(Request $request): RedirectResponse
     {
         $slug = $this->tenantContext->getSlug();
-        $baseUrl = rtrim($this->publicBaseUrl, '/');
-        $loginUrl = $baseUrl.'/'.$slug.'/admin/login';
+        $loginUrl = $this->urlGenerator->url($slug, 'admin/login');
 
         try {
             $ticket = $this->ticketStore->consume((string) $request->request->get('code', ''));
@@ -52,7 +51,7 @@ final class AdminSsoHandoffController
             ->withValue($value)
             ->withExpires($expires)
             ->withPath('/'.$slug.'/api/v2/admin/todatempo/sso/session')
-            ->withSecure(str_starts_with($this->publicBaseUrl, 'https://'))
+            ->withSecure(str_starts_with($this->urlGenerator->baseUrl($slug), 'https://'))
             ->withHttpOnly(true)
             ->withSameSite(Cookie::SAMESITE_LAX);
     }

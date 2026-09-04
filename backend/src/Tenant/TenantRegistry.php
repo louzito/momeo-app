@@ -24,7 +24,7 @@ final class TenantRegistry
     /** @var array<string, array<string, mixed>>|null */
     private ?array $tenants = null;
 
-    private int $loadedMtime = 0;
+    private string $loadedFingerprint = '';
 
     public function __construct(
         #[Autowire('%todatempo.tenants_file%')] private readonly string $file,
@@ -35,11 +35,11 @@ final class TenantRegistry
     /** @return array<string, array<string, mixed>> */
     public function all(): array
     {
-        $mtime = is_file($this->file) ? (int) filemtime($this->file) : 0;
-        if ($this->tenants === null || $mtime !== $this->loadedMtime) {
+        $fingerprint = is_file($this->file) ? (string) sha1_file($this->file) : '';
+        if ($this->tenants === null || $fingerprint !== $this->loadedFingerprint) {
             $data = is_file($this->file) ? json_decode((string) file_get_contents($this->file), true) : [];
             $this->tenants = \is_array($data) ? $data : [];
-            $this->loadedMtime = $mtime;
+            $this->loadedFingerprint = $fingerprint;
         }
 
         return $this->tenants;
@@ -73,5 +73,31 @@ final class TenantRegistry
         $db = $this->get($slug)['db'] ?? null;
 
         return \is_string($db) && $db !== '' ? $db : null;
+    }
+
+    public function verifiedDomainFor(string $slug): ?string
+    {
+        $domain = $this->get($slug)['customDomain'] ?? null;
+
+        return \is_array($domain)
+            && \is_string($domain['host'] ?? null)
+            && \is_string($domain['verifiedAt'] ?? null)
+            ? $domain['host'] : null;
+    }
+
+    public function slugForVerifiedDomain(string $host): ?string
+    {
+        try {
+            $host = DomainName::normalize($host);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+        foreach ($this->all() as $slug => $tenant) {
+            if ($this->isServable($slug) && $this->verifiedDomainFor($slug) === $host) {
+                return $slug;
+            }
+        }
+
+        return null;
     }
 }

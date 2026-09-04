@@ -27,6 +27,7 @@ final class CaddyConfigDumper
         private readonly TenantRegistry $registry,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
         #[Autowire('%todatempo.default_tenant%')] private readonly string $defaultTenant,
+        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
     ) {
     }
 
@@ -40,6 +41,16 @@ final class CaddyConfigDumper
             fn (string $slug): bool => $this->registry->isServable($slug),
         ));
         sort($slugs);
+        $fallbackHost = parse_url($this->publicBaseUrl, PHP_URL_HOST);
+        $knownHosts = \is_string($fallbackHost) && $fallbackHost !== '' ? [$fallbackHost] : ['localhost'];
+        $customDomains = [];
+        foreach ($slugs as $slug) {
+            $domain = $this->registry->verifiedDomainFor($slug);
+            if ($domain !== null) {
+                $knownHosts[] = $domain;
+                $customDomains[$domain] = $slug;
+            }
+        }
 
         $out = [];
         $out[] = '# ============================================================';
@@ -53,6 +64,34 @@ final class CaddyConfigDumper
         $out[] = '}';
         $out[] = '';
         $out[] = ':80 {';
+        $out[] = "\t@unknown_host not host ".implode(' ', array_unique($knownHosts));
+        $out[] = "\trespond @unknown_host \"Hôte non reconnu.\" 404";
+        $out[] = '';
+        foreach ($customDomains as $domain => $slug) {
+            $id = str_replace(['-', '.'], '_', $domain);
+            $out[] = "\t@{$id}_root {";
+            $out[] = "\t\thost {$domain}";
+            $out[] = "\t\tpath /";
+            $out[] = "\t}";
+            $out[] = "\tredir @{$id}_root /{$slug}/ 308";
+            $out[] = "\t@{$id}_api {";
+            $out[] = "\t\thost {$domain}";
+            $out[] = "\t\tpath /api/*";
+            $out[] = "\t}";
+            $out[] = "\thandle @{$id}_api {";
+            $out[] = "\t\treverse_proxy {$sylius} {";
+            $out[] = sprintf("\t\t\theader_up %s \"%s\"", TenantIdentifierResolver::HTTP_HEADER, $slug);
+            $out[] = "\t\t}";
+            $out[] = "\t}";
+            $out[] = "\t@{$id}_wrong_tenant {";
+            $out[] = "\t\thost {$domain}";
+            $out[] = "\t\tnot path /{$slug} /{$slug}/* /media/* /assets/* /build/* /bundles/* /payment-methods/* /src/* /@vite/* /@id/* /@fs/* /favicon* /vite.svg";
+            $out[] = "\t}";
+            $out[] = "\trespond @{$id}_wrong_tenant \"Centre inconnu.\" 404";
+        }
+        if ($customDomains !== []) {
+            $out[] = '';
+        }
         $out[] = "\t# Racine -> centre par defaut";
         $out[] = "\tredir / /{$this->defaultTenant}/ 302";
         $out[] = '';

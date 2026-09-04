@@ -10,10 +10,10 @@ use App\Entity\WaitlistNotification;
 use App\Entity\WaitlistRequest;
 use App\Repository\WaitlistRequestRepository;
 use App\Tenant\TenantContext;
+use App\Tenant\TenantUrlGenerator;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Mailer\Sender\SenderInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final class WaitlistNotifier
 {
@@ -23,7 +23,7 @@ final class WaitlistNotifier
         private readonly SenderInterface $sender,
         private readonly TenantContext $tenantContext,
         private readonly CenterTimeZoneProvider $timeZoneProvider,
-        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
+        private readonly TenantUrlGenerator $urlGenerator,
     ) {}
 
     /** Notify matching subscribers once for this exact slot. No booking is created. */
@@ -61,7 +61,7 @@ final class WaitlistNotifier
     {
         $channel = $this->entityManager->getRepository(Channel::class)->findOneBy(['code' => 'FASHION_WEB']);
         if (!$channel instanceof Channel) throw new \RuntimeException('Canal TodaTempo introuvable.');
-        $base = rtrim($this->publicBaseUrl, '/').'/'.rawurlencode($this->tenantContext->getSlug());
+        $base = $this->urlGenerator->baseUrl($this->tenantContext->getSlug());
         $this->sender->send('waitlist_availability', [$request->getCustomerEmail()], [
             'request' => $request, 'slotStart' => $start, 'slotEnd' => $end, 'channel' => $channel,
             'bookingUrl' => $base.'/services/'.rawurlencode($request->getServiceCode()),

@@ -135,3 +135,38 @@ date de déploiement :
 Les journaux peuvent mentionner le **nom** de l'alias déprécié et le slug
 normalisé, mais ne doivent jamais recopier d'autres en-têtes, variables
 d'environnement, DSN ou secrets.
+
+## Domaines personnalisés, DNS et TLS
+
+Un domaine est enregistré dans l'entrée du tenant sous `customDomain`. Une
+demande non vérifiée n'est jamais utilisée pour router une requête ou générer
+un lien. Le registre interdit qu'un même nom DNS soit réclamé par deux tenants,
+y compris pendant la phase de validation.
+
+1. Préparer la demande sans modifier le DNS ni déployer :
+   `bin/console todatempo:tenant:domain:request <tenant> booking.example.org`.
+2. Publier exactement le TXT affiché sous
+   `_todatempo-verification.booking.example.org`. Le jeton est secret jusqu'à
+   sa publication et doit être remplacé si la demande est recommencée.
+3. Attendre la propagation puis exécuter
+   `bin/console todatempo:tenant:domain:verify <tenant>`.
+4. Après succès seulement, faire pointer le domaine vers le frontal TodaTempo
+   avec le CNAME/A/AAAA choisi par l'exploitation.
+
+La vérification ne change que le registre et régénère le fichier de proxy :
+elle ne recharge aucun service et n'effectue aucun déploiement. Le proxy refuse
+avec `404` tout `Host` qui n'est ni l'hôte de `DEFAULT_URI`, ni un domaine
+vérifié. Les domaines en attente sont donc également refusés.
+
+En V1, les routes du front conservent le slug : l'URL canonique est
+`https://booking.example.org/<tenant>/...`; la racine du domaine effectue une
+redirection permanente vers `/<tenant>/`. Les liens transactionnels, QR codes,
+SSO et réponses de provisioning utilisent cette URL si le domaine est vérifié,
+sinon ils retombent sur `DEFAULT_URI/<tenant>/...`.
+
+TLS doit être terminé par le reverse proxy ou le load balancer de production.
+Avant d'activer le trafic, provisionner un certificat couvrant exactement le
+domaine, conserver la redirection HTTP vers HTTPS et vérifier son renouvellement
+automatique. Le Caddyfile local généré écoute volontairement en HTTP avec
+`auto_https off` : ce ticket prépare la résolution mais ne déploie ni certificat
+ni configuration d'infrastructure.

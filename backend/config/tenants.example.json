@@ -3,6 +3,11 @@
         "db": "app_demo",
         "name": "Centre de démonstration",
         "enabled": true,
-        "status": "active"
+        "status": "active",
+        "customDomain": {
+            "host": "reservations.example.org",
+            "verificationToken": "generated-secret-token",
+            "verifiedAt": "2026-09-04T12:00:00+00:00"
+        }
     }
 }

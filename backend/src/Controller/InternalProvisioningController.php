@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Tenant\TenantProvisioner;
+use App\Tenant\TenantUrlGenerator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,7 +16,7 @@ final class InternalProvisioningController
     public function __construct(
         private readonly TenantProvisioner $provisioner,
         #[Autowire('%todatempo.provisioning_secret%')] private readonly string $secret,
-        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
+        private readonly TenantUrlGenerator $urlGenerator,
     ) {}
 
     #[Route('/internal/todatempo/provisioning/instances', name: 'todatempo_internal_provision_instance', methods: ['POST'])]
@@ -46,14 +47,12 @@ final class InternalProvisioningController
             return new JsonResponse(['error' => 'provisioning_failed'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $baseUrl = rtrim($this->publicBaseUrl, '/');
-
         return new JsonResponse([
             'status' => 'ready',
             'externalId' => $tenant->externalId,
             'slug' => $tenant->slug,
-            'storefrontUrl' => $baseUrl.'/'.$tenant->slug.'/',
-            'adminUrl' => $baseUrl.'/'.$tenant->slug.'/admin/login',
+            'storefrontUrl' => $this->urlGenerator->url($tenant->slug),
+            'adminUrl' => $this->urlGenerator->url($tenant->slug, 'admin/login'),
             'remainingPool' => $tenant->remainingPool,
             'alreadyExisting' => $tenant->alreadyExisting,
         ], $tenant->alreadyExisting ? JsonResponse::HTTP_OK : JsonResponse::HTTP_CREATED);

@@ -60,6 +60,50 @@ final class TenantRegistryWriter
         $this->write($all);
     }
 
+    public function assignCustomDomain(string $slug, string $host, string $token): void
+    {
+        $lock = fopen($this->file.'.lock', 'c');
+        if ($lock === false || !flock($lock, LOCK_EX)) {
+            throw new \RuntimeException('Impossible de verrouiller le registre des tenants.');
+        }
+        try {
+            $all = $this->read();
+            if (!isset($all[$slug])) {
+                throw new \InvalidArgumentException('Tenant inconnu.');
+            }
+            foreach ($all as $owner => $entry) {
+                if ($owner !== $slug && strtolower((string) ($entry['customDomain']['host'] ?? '')) === $host) {
+                    throw new \DomainException('Ce domaine est déjà réclamé par un autre tenant.');
+                }
+            }
+            $all[$slug]['customDomain'] = ['host' => $host, 'verificationToken' => $token, 'verifiedAt' => null];
+            $this->write($all);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
+    public function markCustomDomainVerified(string $slug, string $host, string $token): void
+    {
+        $lock = fopen($this->file.'.lock', 'c');
+        if ($lock === false || !flock($lock, LOCK_EX)) {
+            throw new \RuntimeException('Impossible de verrouiller le registre des tenants.');
+        }
+        try {
+            $all = $this->read();
+            if (($all[$slug]['customDomain']['host'] ?? null) !== $host
+                || ($all[$slug]['customDomain']['verificationToken'] ?? null) !== $token) {
+                throw new \RuntimeException('La demande de domaine a changé pendant sa validation.');
+            }
+            $all[$slug]['customDomain']['verifiedAt'] = (new \DateTimeImmutable())->format(DATE_ATOM);
+            $this->write($all);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
     /** @param array<string, array<string, mixed>> $all */
     private function write(array $all): void
     {

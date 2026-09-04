@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\GiftVoucher;
 
 use App\Tenant\TenantContext;
+use App\Tenant\TenantUrlGenerator;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * QR code d'activation d'un cheque cadeau : encode l'URL
@@ -26,17 +26,15 @@ final class GiftVoucherQrCodeGenerator
 {
     public function __construct(
         private readonly TenantContext $tenantContext,
-        #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
+        private readonly TenantUrlGenerator $urlGenerator,
     ) {
     }
 
     public function activationUrl(string $code): string
     {
-        return sprintf(
-            '%s/%s/beneficiary/login?code=%s',
-            rtrim($this->publicBaseUrl, '/'),
+        return $this->urlGenerator->url(
             $this->tenantContext->getSlug(),
-            $code,
+            'beneficiary/login?code='.rawurlencode($code),
         );
     }
 
