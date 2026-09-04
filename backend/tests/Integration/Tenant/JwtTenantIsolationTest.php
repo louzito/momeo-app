@@ -50,4 +50,13 @@ final class JwtTenantIsolationTest extends TestCase
 
         self::assertTrue($event->isValid());
     }
+
+    public function testLegacyTokenWithoutTenantIsRejected(): void
+    {
+        $event = new JWTDecodedEvent(['username' => 'owner@example.test']);
+
+        $this->listener->onJwtDecoded($event);
+
+        self::assertFalse($event->isValid());
+    }
 }

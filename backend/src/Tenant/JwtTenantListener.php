@@ -13,7 +13,8 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
  * Isolation JWT par tenant : les cles lexik restent PARTAGEES entre centres,
  * mais chaque token emis porte une claim `tenant` et un token presente sur un
  * autre centre est rejete (marque invalide => 401).
- * Tokens historiques sans claim : consideres comme tenant par defaut (skyline).
+ * Les tokens sans claim sont rejetes : accepter implicitement le tenant par
+ * defaut permettrait a un ancien token de contourner la frontiere courante.
  */
 #[AsEventListener(event: Events::JWT_CREATED, method: 'onJwtCreated')]
 #[AsEventListener(event: Events::JWT_DECODED, method: 'onJwtDecoded')]
@@ -34,8 +35,7 @@ final class JwtTenantListener
     {
         $payload = $event->getPayload();
         $claim = $payload['tenant'] ?? null;
-        $tokenTenant = \is_string($claim) && $claim !== '' ? $claim : $this->tenantContext->getDefaultSlug();
-        if ($tokenTenant !== $this->tenantContext->getSlug()) {
+        if (!\is_string($claim) || $claim === '' || !hash_equals($this->tenantContext->getSlug(), $claim)) {
             $event->markAsInvalid();
         }
     }

@@ -126,4 +126,17 @@ final class ProductionConfigurationValidatorTest extends TestCase
 
         (new ProductionConfigurationValidator())->validate($this->projectDir);
     }
+
+    public function testItRejectsDebugModeInProduction(): void
+    {
+        $_SERVER['APP_DEBUG'] = '1';
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('APP_DEBUG doit etre desactive en production');
+            (new ProductionConfigurationValidator())->validate($this->projectDir);
+        } finally {
+            unset($_SERVER['APP_DEBUG']);
+        }
+    }
 }

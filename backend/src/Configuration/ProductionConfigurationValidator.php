@@ -39,6 +39,11 @@ final class ProductionConfigurationValidator
             }
         }
 
+        $debug = strtolower(trim($this->environmentValue('APP_DEBUG') ?? '0'));
+        if (\in_array($debug, ['1', 'true', 'yes', 'on'], true)) {
+            $errors[] = 'APP_DEBUG doit etre desactive en production';
+        }
+
         foreach (['JWT_SECRET_KEY', 'JWT_PUBLIC_KEY', 'SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH'] as $name) {
             $configuredPath = $values[$name] ?? '';
             if ($configuredPath === '') {
