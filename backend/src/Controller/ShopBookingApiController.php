@@ -9,6 +9,7 @@ use App\Availability\CenterTimeZoneProvider;
 use App\Availability\PlanningProvider;
 use App\Booking\BookingSlotGuard;
 use App\Booking\SlotUnavailable;
+use App\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\GiftVoucher;
 use App\Entity\Order\Order;
@@ -46,6 +47,7 @@ final class ShopBookingApiController
         private readonly AvailabilitySlotGenerator $slotGenerator,
         private readonly BookingSlotGuard $slotGuard,
         private readonly ServicePaymentTerms $paymentTerms,
+        private readonly BookingEmailDispatcher $emailDispatcher,
     ) {
     }
 
@@ -245,6 +247,7 @@ final class ShopBookingApiController
             return new JsonResponse(['error' => 'Ce créneau vient d’être réservé. Choisissez-en un autre.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         }
 
+        $this->emailDispatcher->confirmation($booking);
         return new JsonResponse($this->normalize($booking), Response::HTTP_CREATED);
     }
 
@@ -336,6 +339,7 @@ final class ShopBookingApiController
             return new JsonResponse(['error' => 'Ce créneau vient d’être réservé. Le chèque reste disponible.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         }
 
+        $this->emailDispatcher->confirmation($booking);
         return new JsonResponse([
             'booking' => $this->normalize($booking),
             'voucher' => [

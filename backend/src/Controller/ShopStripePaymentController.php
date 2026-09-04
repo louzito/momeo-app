@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\Order\Order;
 use App\Entity\Payment\Payment;
@@ -25,6 +26,7 @@ final class ShopStripePaymentController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly StripeCheckout $checkout,
+        private readonly BookingEmailDispatcher $emailDispatcher,
     ) {}
 
     #[Route('/checkout-session', name: 'todatempo_stripe_checkout_session', methods: ['POST'])]
@@ -107,9 +109,11 @@ final class ShopStripePaymentController
         $metadata = $object->metadata ?? null;
         $payment = $metadata ? $this->entityManager->find(Payment::class, (int) ($metadata->payment_id ?? 0)) : null;
         $booking = $metadata ? $this->entityManager->getRepository(Booking::class)->findOneBy(['publicToken' => (string) ($metadata->booking_token ?? '')]) : null;
+        $paymentCompleted = false;
         if ($payment instanceof Payment && $booking instanceof Booking) {
             if ($event->type === 'checkout.session.completed' && ($object->payment_status ?? null) === 'paid') {
                 $this->checkout->complete($payment, $booking);
+                $paymentCompleted = true;
             } elseif ($event->type === 'checkout.session.expired') {
                 $this->checkout->cancel($payment, $booking);
             } elseif ($event->type === 'checkout.session.async_payment_failed') {
@@ -123,6 +127,10 @@ final class ShopStripePaymentController
         } catch (\Throwable $exception) {
             $connection->rollBack();
             throw $exception;
+        }
+
+        if ($paymentCompleted && $booking instanceof Booking) {
+            $this->emailDispatcher->paymentConfirmation($booking);
         }
 
         return new JsonResponse(['received' => true]);

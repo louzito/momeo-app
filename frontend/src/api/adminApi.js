@@ -486,8 +486,13 @@ export async function getShopConfig() {
     shopOrder: Array.isArray(cfg.shopOrder) ? cfg.shopOrder : [],
     // Emails transactionnels : textes personnalises (vides = defauts du back).
     emails: {
+      booking_confirmation: { subject: '', intro: '', signature: '', ...(cfg.emails?.booking_confirmation || {}) },
+      payment_confirmation: { subject: '', intro: '', signature: '', ...(cfg.emails?.payment_confirmation || {}) },
+      booking_cancelled: { subject: '', intro: '', signature: '', ...(cfg.emails?.booking_cancelled || {}) },
+      booking_rescheduled: { subject: '', intro: '', signature: '', ...(cfg.emails?.booking_rescheduled || {}) },
       order_confirmation: { subject: '', intro: '', signature: '', ...(cfg.emails?.order_confirmation || {}) },
       invoice_generated: { subject: '', intro: '', signature: '', ...(cfg.emails?.invoice_generated || {}) },
+      gift_voucher: { subject: '', intro: '', signature: '', ...(cfg.emails?.gift_voucher || {}) },
     },
     // Cheques cadeaux : ACTIFS par defaut (absent != false).
     giftVouchersEnabled: cfg.giftVouchersEnabled !== false,

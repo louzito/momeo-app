@@ -7,6 +7,18 @@
 # manuel dans App\GiftVoucher\GiftVoucherMailer).
 sylius_mailer:
     emails:
+        booking_confirmation:
+            subject: todatempo.emails.booking_confirmation.subject
+            template: 'email/booking_transactional.html.twig'
+        payment_confirmation:
+            subject: todatempo.emails.payment_confirmation.subject
+            template: 'email/booking_transactional.html.twig'
+        booking_cancelled:
+            subject: todatempo.emails.booking_cancelled.subject
+            template: 'email/booking_transactional.html.twig'
+        booking_rescheduled:
+            subject: todatempo.emails.booking_rescheduled.subject
+            template: 'email/booking_transactional.html.twig'
         gift_voucher:
             subject: skybook.emails.gift_voucher.subject
             template: 'email/gift_voucher.html.twig'

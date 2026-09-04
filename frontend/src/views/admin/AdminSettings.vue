@@ -53,13 +53,37 @@ const COLOR_FIELDS = [
 
 const EMAIL_TYPES = [
   {
+    key: "booking_confirmation", label: "Confirmation de réservation",
+    desc: "Envoyé dès qu'une réservation est enregistrée.",
+    defaults: { subject: "Confirmation de votre réservation %reservation% — %centre%", intro: "Bonjour %prenom%,\n\nVotre réservation pour %prestation% est bien enregistrée le %date% à %heure%.", signature: "À bientôt,\nL'équipe %centre%" },
+    vars: "%prenom% %nom% %reservation% %commande% %prestation% %date% %heure% %centre% %total%",
+  },
+  {
+    key: "payment_confirmation", label: "Confirmation de paiement",
+    desc: "Envoyé lorsque le paiement est confirmé.",
+    defaults: { subject: "Confirmation de votre paiement — %centre%", intro: "Bonjour %prenom%,\n\nNous confirmons votre paiement de %total% pour la réservation %reservation%.", signature: "Merci de votre confiance,\nL'équipe %centre%" },
+    vars: "%prenom% %nom% %reservation% %commande% %prestation% %date% %heure% %centre% %total%",
+  },
+  {
+    key: "booking_cancelled", label: "Annulation",
+    desc: "Envoyé lorsqu'une réservation est annulée.",
+    defaults: { subject: "Annulation de votre réservation %reservation% — %centre%", intro: "Bonjour %prenom%,\n\nVotre réservation pour %prestation%, prévue le %date% à %heure%, a bien été annulée.", signature: "L'équipe %centre%" },
+    vars: "%prenom% %nom% %reservation% %prestation% %date% %heure% %centre%",
+  },
+  {
+    key: "booking_rescheduled", label: "Déplacement",
+    desc: "Envoyé lorsqu'une réservation change de créneau.",
+    defaults: { subject: "Nouvelle date pour votre réservation %reservation% — %centre%", intro: "Bonjour %prenom%,\n\nVotre réservation pour %prestation% a été déplacée au %date% à %heure%.", signature: "À bientôt,\nL'équipe %centre%" },
+    vars: "%prenom% %nom% %reservation% %prestation% %date% %heure% %centre%",
+  },
+  {
     key: "order_confirmation",
     label: "Confirmation de commande",
     desc: "Envoyé au client dès que sa commande est enregistrée (avant paiement pour un virement).",
     defaults: {
       subject: "Votre commande %commande% — %centre%",
       intro: "Bonjour %prenom%,\n\nMerci pour votre réservation chez %centre% !\nVotre commande %commande% (%total%) a bien été enregistrée.",
-      signature: "À très vite dans les airs,\nL'équipe %centre%",
+      signature: "À bientôt,\nL'équipe %centre%",
     },
     vars: "%prenom% %nom% %commande% %centre% %total%",
   },
@@ -73,6 +97,12 @@ const EMAIL_TYPES = [
       signature: "Merci de votre confiance,\nL'équipe %centre%",
     },
     vars: "%prenom% %nom% %commande% %centre% %total% %facture%",
+  },
+  {
+    key: "gift_voucher", label: "Chèque cadeau",
+    desc: "Envoyé au bénéficiaire et à l'acheteur après activation du cadeau.",
+    defaults: { subject: "Votre chèque cadeau %prestation% — %centre%", intro: "Bonjour,\n\nVoici votre chèque cadeau %prestation% chez %centre%.", signature: "À bientôt,\nL'équipe %centre%" },
+    vars: "%prenom_beneficiaire% %code% %prestation% %centre% %expire% %montant%",
   },
 ]
 
@@ -498,7 +528,7 @@ async function save() {
               ? 'Article 1 — Objet\nLes présentes conditions générales régissent…'
               : 'Éditeur du site\nRaison sociale, adresse, SIRET…\n\nHébergement\n…'"
           />
-          <p class="mt-2 text-xs text-slate-400">Texte simple — les sauts de ligne sont conservés à l'affichage.</p>
+          <p class="mt-2 text-xs text-slate-400">Texte simple — les retours à la ligne sont conservés à l'affichage.</p>
         </section>
       </template>
 

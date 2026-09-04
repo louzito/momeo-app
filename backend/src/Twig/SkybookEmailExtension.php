@@ -24,6 +24,26 @@ use Twig\TwigFunction;
 final class SkybookEmailExtension extends AbstractExtension
 {
     private const DEFAULTS = [
+        'booking_confirmation' => [
+            'subject' => 'Confirmation de votre réservation %reservation% — %etablissement%',
+            'intro' => "Bonjour %prenom%,\n\nVotre réservation pour %prestation% est bien enregistrée le %date% à %heure%.",
+            'signature' => "À bientôt,\nL'équipe %etablissement%",
+        ],
+        'payment_confirmation' => [
+            'subject' => 'Confirmation de votre paiement — %etablissement%',
+            'intro' => "Bonjour %prenom%,\n\nNous confirmons votre paiement de %total% pour la réservation %reservation%.",
+            'signature' => "Merci de votre confiance,\nL'équipe %etablissement%",
+        ],
+        'booking_cancelled' => [
+            'subject' => 'Annulation de votre réservation %reservation% — %etablissement%',
+            'intro' => "Bonjour %prenom%,\n\nVotre réservation pour %prestation%, prévue le %date% à %heure%, a bien été annulée.",
+            'signature' => "L'équipe %etablissement%",
+        ],
+        'booking_rescheduled' => [
+            'subject' => 'Nouvelle date pour votre réservation %reservation% — %etablissement%',
+            'intro' => "Bonjour %prenom%,\n\nVotre réservation pour %prestation% a été déplacée au %date% à %heure%.",
+            'signature' => "À bientôt,\nL'équipe %etablissement%",
+        ],
         'order_confirmation' => [
             'subject' => 'Votre commande %commande% — %etablissement%',
             'intro' => "Bonjour %prenom%,\n\nMerci pour votre réservation chez %etablissement% !\nVotre commande %commande% (%total%) a bien été enregistrée.",

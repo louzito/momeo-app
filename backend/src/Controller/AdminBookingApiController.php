@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Booking\BookingSlotGuard;
 use App\Booking\SlotUnavailable;
+use App\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\Planning;
 use App\Entity\Product\Product;
@@ -31,6 +32,7 @@ final class AdminBookingApiController
         private readonly StaffTimeOffRepository $timeOffRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly BookingSlotGuard $slotGuard,
+        private readonly BookingEmailDispatcher $emailDispatcher,
     ) {
     }
 
@@ -121,6 +123,7 @@ final class AdminBookingApiController
             return new JsonResponse(['error' => 'Le rendez-vous n’a pas pu être enregistré.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         }
 
+        $this->emailDispatcher->confirmation($booking);
         return new JsonResponse($this->normalize($booking), Response::HTTP_CREATED);
     }
 
@@ -182,6 +185,7 @@ final class AdminBookingApiController
             return new JsonResponse(['error' => 'Ce créneau vient d’être réservé.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         }
 
+        $this->emailDispatcher->rescheduled($booking);
         return new JsonResponse($this->normalize($booking));
     }
 
@@ -220,6 +224,7 @@ final class AdminBookingApiController
         }
         $booking->setStatus(Booking::STATUS_CANCELLED);
         $this->entityManager->flush();
+        $this->emailDispatcher->cancellation($booking);
 
         return new JsonResponse($this->normalize($booking));
     }
