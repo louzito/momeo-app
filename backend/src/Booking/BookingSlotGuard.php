@@ -11,7 +11,7 @@ use Doctrine\DBAL\Types\Types;
 /** Serialises every scarce dimension before checking it inside the caller's transaction. */
 final class BookingSlotGuard
 {
-    public function __construct(private readonly Connection $connection)
+    public function __construct(private readonly Connection $connection, private readonly ?BookingRules $bookingRules = null)
     {
     }
 
@@ -38,8 +38,9 @@ final class BookingSlotGuard
             $this->connection->fetchOne('SELECT lock_key FROM momeo_booking_lock WHERE lock_key = ? FOR UPDATE', [$key]);
         }
 
-        $start = $booking->getSlotStart();
-        $end = $booking->getSlotEnd();
+        $rules = $this->bookingRules?->get() ?? BookingRules::DEFAULTS;
+        $start = $booking->getSlotStart()->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
+        $end = $booking->getSlotEnd()->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
         if ($booking->getPlanningCode() !== null && $this->countOverlap('planning_code', $booking->getPlanningCode(), $start, $end, $ignored) >= max(1, $capacity)) {
             throw new SlotUnavailable('La capacité de ce créneau vient d’être atteinte.');
         }

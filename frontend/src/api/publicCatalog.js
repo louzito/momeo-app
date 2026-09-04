@@ -28,6 +28,7 @@ export async function fetchPublicCatalog(api, slug) {
     highlights: config?.home?.highlights || [],
     giftVouchersEnabled: config?.giftVouchersEnabled !== false,
     legal: config?.legal || null,
+    bookingRules: config?.bookingRules || null,
     bannerUrl: config?.bannerUrl || '',
     bannerMobileUrl: config?.bannerMobileUrl || '',
     tagline: '',

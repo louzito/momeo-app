@@ -10,7 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class CustomerBookingChangePolicy
 {
-    public function __construct(private readonly EntityManagerInterface $entityManager)
+    public function __construct(private readonly EntityManagerInterface $entityManager, private readonly BookingRules $bookingRules)
     {
     }
 
@@ -23,7 +23,7 @@ final class CustomerBookingChangePolicy
             if (\is_array($config)) {
                 $rules = \is_array($config['bookingChanges'] ?? null) ? $config['bookingChanges'] : [];
                 return [
-                    'cancelHours' => $this->hours($rules['cancelHours'] ?? 24),
+                    'cancelHours' => $this->bookingRules->get()['cancellationNoticeHours'],
                     'rescheduleHours' => $this->hours($rules['rescheduleHours'] ?? 24),
                 ];
             }

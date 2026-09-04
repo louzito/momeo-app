@@ -67,7 +67,10 @@ async function verify() {
       : 'Ces informations permettront a l etablissement de confirmer et preparer votre rendez-vous.'"
   >
     <EligibilityForm v-if="isLegacyService" v-model="jumper" :rule="cart.jumpType.eligibility" />
-    <CustomerDetailsForm v-else v-model="jumper" :requirements="requirements" />
+    <CustomerDetailsForm v-else v-model="jumper" :requirements="requirements" :booking-policy="tenant?.bookingRules?.customerPolicy || ''" />
+    <p v-if="isLegacyService && tenant?.bookingRules?.customerPolicy" class="mt-5 whitespace-pre-line rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+      {{ tenant.bookingRules.customerPolicy }}
+    </p>
 
     <!-- Blocage si regle non respectee -->
     <div

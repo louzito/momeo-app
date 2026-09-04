@@ -5,6 +5,7 @@ const model = defineModel({ type: Object, required: true })
 
 defineProps({
   requirements: { type: Array, default: () => [] },
+  bookingPolicy: { type: String, default: '' },
 })
 </script>
 
@@ -62,7 +63,10 @@ defineProps({
           type="checkbox"
           class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
         />
-        <span class="text-sm text-slate-700">J'accepte les conditions de reservation et la politique d'annulation de l'etablissement.</span>
+        <span class="text-sm text-slate-700">
+          J'accepte les conditions de réservation et la politique d'annulation de l'établissement.
+          <span v-if="bookingPolicy" class="mt-2 block whitespace-pre-line rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{{ bookingPolicy }}</span>
+        </span>
       </label>
       <label class="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4">
         <input

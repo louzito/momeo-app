@@ -500,6 +500,14 @@ export async function getShopConfig() {
       cancelHours: Math.max(0, Number(cfg.bookingChanges?.cancelHours ?? 24)),
       rescheduleHours: Math.max(0, Number(cfg.bookingChanges?.rescheduleHours ?? 24)),
     },
+    bookingRules: {
+      minimumNoticeHours: Math.max(0, Number(cfg.bookingRules?.minimumNoticeHours ?? 0)),
+      maximumAdvanceDays: Math.max(1, Number(cfg.bookingRules?.maximumAdvanceDays ?? 365)),
+      cancellationNoticeHours: Math.max(0, Number(cfg.bookingRules?.cancellationNoticeHours ?? cfg.bookingChanges?.cancelHours ?? 24)),
+      bufferBeforeMinutes: Math.max(0, Number(cfg.bookingRules?.bufferBeforeMinutes ?? 0)),
+      bufferAfterMinutes: Math.max(0, Number(cfg.bookingRules?.bufferAfterMinutes ?? 0)),
+      customerPolicy: String(cfg.bookingRules?.customerPolicy ?? ''),
+    },
     // Pages legales activables (affichees dans le footer si enabled).
     legal: {
       terms: { enabled: false, content: '', ...(cfg.legal?.terms || {}) },
@@ -540,6 +548,7 @@ export async function saveShopConfig(cfg) {
           emails: cfg.emails || {},
           giftVouchersEnabled: cfg.giftVouchersEnabled !== false,
           bookingChanges: cfg.bookingChanges || { cancelHours: 24, rescheduleHours: 24 },
+          bookingRules: cfg.bookingRules,
           legal: cfg.legal || { terms: { enabled: false, content: '' }, mentions: { enabled: false, content: '' } },
         }),
       },

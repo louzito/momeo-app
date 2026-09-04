@@ -8,6 +8,7 @@ use App\Availability\AvailabilitySlotGenerator;
 use App\Availability\CenterTimeZoneProvider;
 use App\Availability\PlanningProvider;
 use App\Booking\BookingSlotGuard;
+use App\Booking\BookingRules;
 use App\Booking\SlotUnavailable;
 use App\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
@@ -46,6 +47,7 @@ final class ShopBookingApiController
         private readonly PlanningProvider $planningProvider,
         private readonly AvailabilitySlotGenerator $slotGenerator,
         private readonly BookingSlotGuard $slotGuard,
+        private readonly BookingRules $bookingRules,
         private readonly ServicePaymentTerms $paymentTerms,
         private readonly BookingEmailDispatcher $emailDispatcher,
     ) {
@@ -80,8 +82,9 @@ final class ShopBookingApiController
             static fn (StaffMember $member): bool => \in_array($serviceCode, $member->getServiceCodes(), true),
         ));
 
-        $rangeStart = $from->setTimezone(new \DateTimeZone('UTC'));
-        $rangeEnd = $to->modify('+1 day')->setTimezone(new \DateTimeZone('UTC'));
+        $rules = $this->bookingRules->get();
+        $rangeStart = $from->setTimezone(new \DateTimeZone('UTC'))->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
+        $rangeEnd = $to->modify('+1 day')->setTimezone(new \DateTimeZone('UTC'))->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
         $blocking = $this->bookingRepository->findBlockingBetween($rangeStart, $rangeEnd);
         $timeOffs = $this->timeOffRepository->findBetween($rangeStart, $rangeEnd);
         $slots = [];
@@ -93,6 +96,11 @@ final class ShopBookingApiController
         }
 
         foreach ($plannedSlots as $plannedSlot) {
+            try {
+                $this->bookingRules->assertBookableAt($plannedSlot['start'], $now);
+            } catch (\DomainException) {
+                continue;
+            }
             $capacity = $planningCapacity[$plannedSlot['planningCode']] ?? 1;
             $booked = $this->bookedOnPlanning($blocking, $plannedSlot['planningCode'], $plannedSlot['start'], $plannedSlot['end']);
             if ($booked >= $capacity) {
@@ -155,6 +163,11 @@ final class ShopBookingApiController
         }
         if ($end <= $start || $start <= new \DateTimeImmutable()) {
             return new JsonResponse(['error' => 'Ce créneau n’est plus disponible.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+        }
+        try {
+            $this->bookingRules->assertBookableAt($start);
+        } catch (\DomainException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage(), 'code' => 'booking_rule_violation'], Response::HTTP_CONFLICT);
         }
 
         $serviceCode = mb_substr(trim((string) ($payload['serviceCode'] ?? '')), 0, 255);
@@ -396,6 +409,9 @@ final class ShopBookingApiController
      */
     private function isBlocked(StaffMember $staff, \DateTimeImmutable $start, \DateTimeImmutable $end, array $blocking, array $timeOffs): bool
     {
+        $rules = $this->bookingRules->get();
+        $start = $start->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
+        $end = $end->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
         foreach ($blocking as $booking) {
             if ($booking->getStaffMember()?->getId() === $staff->getId() && $booking->getSlotStart() < $end && $booking->getSlotEnd() > $start) {
                 return true;
@@ -414,6 +430,9 @@ final class ShopBookingApiController
     /** @param list<Booking> $blocking */
     private function bookedOnPlanning(array $blocking, string $planningCode, \DateTimeImmutable $start, \DateTimeImmutable $end): int
     {
+        $rules = $this->bookingRules->get();
+        $start = $start->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
+        $end = $end->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
         return count(array_filter($blocking, static fn (Booking $booking): bool => $booking->getPlanningCode() === $planningCode && $booking->getSlotStart() < $end && $booking->getSlotEnd() > $start));
     }
 

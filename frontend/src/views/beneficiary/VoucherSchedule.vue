@@ -147,7 +147,10 @@ async function confirm() {
       <button class="mb-4 text-sm text-brand-600 hover:underline" @click="step = 'slot'">← Changer de creneau</button>
       <h2 class="mb-4 text-lg font-semibold text-slate-800">2. Vos informations</h2>
       <EligibilityForm v-if="isLegacyService" v-model="jumper" :rule="jumpType.eligibility" />
-      <CustomerDetailsForm v-else v-model="jumper" :requirements="requirements" />
+      <CustomerDetailsForm v-else v-model="jumper" :requirements="requirements" :booking-policy="tenant?.bookingRules?.customerPolicy || ''" />
+      <p v-if="isLegacyService && tenant?.bookingRules?.customerPolicy" class="whitespace-pre-line rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        {{ tenant.bookingRules.customerPolicy }}
+      </p>
 
       <div v-if="violations.length" class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-5">
         <p class="font-semibold text-rose-700">⚠️ {{ isLegacyService ? 'Conditions de securite non respectees' : 'Informations incompletes' }}</p>

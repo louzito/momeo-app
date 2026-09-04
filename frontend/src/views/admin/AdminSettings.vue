@@ -140,6 +140,19 @@ function resetColors() {
   cfg.value.colors = { ...SHOP_DEFAULT_COLORS }
 }
 
+function validateBookingRules(rules) {
+  const fields = [
+    ['minimumNoticeHours', 0, 8760], ['maximumAdvanceDays', 1, 1095],
+    ['cancellationNoticeHours', 0, 8760], ['bufferBeforeMinutes', 0, 1440],
+    ['bufferAfterMinutes', 0, 1440],
+  ]
+  for (const [key, min, max] of fields) {
+    const value = Number(rules?.[key])
+    if (!Number.isInteger(value) || value < min || value > max) return false
+  }
+  return String(rules?.customerPolicy || '').length <= 5000
+}
+
 // --- Points forts (max 6) ---
 function addHighlight() {
   if ((cfg.value.home.highlights || []).length < MAX_HIGHLIGHTS) cfg.value.home.highlights.push('')
@@ -186,6 +199,8 @@ function moveShop(i, dir) {
 
 async function save() {
   if (!cfg.value.name?.trim()) { error.value = 'Le nom de la boutique est requis.'; tab.value = 'general'; return }
+  if (!validateBookingRules(cfg.value.bookingRules)) { error.value = 'Les règles de réservation contiennent une valeur invalide.'; tab.value = 'general'; return }
+  cfg.value.bookingChanges.cancelHours = cfg.value.bookingRules.cancellationNoticeHours
   try {
     new Intl.DateTimeFormat('fr-FR', { timeZone: cfg.value.timezone }).format()
   } catch {
@@ -286,9 +301,30 @@ async function save() {
             </span>
           </label>
           <div class="mt-4 grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
+            <h3 class="font-medium text-slate-800 sm:col-span-2">Règles de réservation</h3>
+            <div>
+              <label class="label">Délai minimum avant réservation (heures)</label>
+              <input v-model.number="cfg.bookingRules.minimumNoticeHours" type="number" min="0" max="8760" step="1" class="input" />
+            </div>
+            <div>
+              <label class="label">Horizon maximum (jours)</label>
+              <input v-model.number="cfg.bookingRules.maximumAdvanceDays" type="number" min="1" max="1095" step="1" class="input" />
+            </div>
             <div>
               <label class="label">Annulation client jusqu’à (heures avant)</label>
-              <input v-model.number="cfg.bookingChanges.cancelHours" type="number" min="0" max="8760" class="input" />
+              <input v-model.number="cfg.bookingRules.cancellationNoticeHours" type="number" min="0" max="8760" step="1" class="input" />
+            </div>
+            <div>
+              <label class="label">Temps tampon avant (minutes)</label>
+              <input v-model.number="cfg.bookingRules.bufferBeforeMinutes" type="number" min="0" max="1440" step="1" class="input" />
+            </div>
+            <div>
+              <label class="label">Temps tampon après (minutes)</label>
+              <input v-model.number="cfg.bookingRules.bufferAfterMinutes" type="number" min="0" max="1440" step="1" class="input" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="label">Politique visible par le client</label>
+              <textarea v-model="cfg.bookingRules.customerPolicy" rows="4" maxlength="5000" class="input" placeholder="Conditions de réservation et d’annulation…" />
             </div>
             <div>
               <label class="label">Déplacement client jusqu’à (heures avant)</label>
