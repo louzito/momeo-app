@@ -1,9 +1,8 @@
 // =============================================================================
 // VRAIE API — client HTTP vers Sylius (API Platform / Shop API v2)
 // -----------------------------------------------------------------------------
-// Pattern "strangler" pour les fonctions encore en migration. Le catalogue
-// public (canal, configuration, produits et options) est toutefois strictement
-// branche sur Sylius : aucune fixture ne peut prendre le relais en cas d'echec.
+// Tous les parcours V1 sont strictement branches sur Sylius : aucune fixture ne
+// peut prendre le relais en cas d'echec.
 //
 // Branche pour l'instant : le CATALOGUE. Les "types de saut" du front sont, a ce
 // stade, les PRODUITS Sylius (boutique de demo). Mapping cale sur la forme reelle
@@ -12,11 +11,8 @@
 //   - defaultVariantData.price  -> prix en CENTIMES
 //   - images[].path             -> URL absolue deja prete (filtre LiipImagine)
 //
-// Le reste (creneaux, cheques cadeaux, back-office) reste en mock tant que les
-// endpoints metier sur mesure (plugin Sylius) n'existent pas.
 // =============================================================================
 
-import { mockApi } from '@/mocks/mockApi'
 import { API_BASE, TENANT_SLUG, displayImageUrl, isServiceProductCode, tenantHeaders } from './config'
 import * as sylius from './adminApi'
 import { customerRequest } from './customerAuth'
@@ -455,11 +451,8 @@ async function buildAdminSession(identity = {}) {
   }
 }
 
-// --- API reelle (strangler sur mockApi) ------------------------------------
+// --- API reelle -------------------------------------------------------------
 export const httpApi = {
-  // Tout le reste (tenants, creneaux, cheques, commandes, admin...) reste en mock.
-  ...mockApi,
-
   async register({ email, password, firstName, lastName, phone }) {
     return customerRequest('POST', '/shop/customers', {
       email: String(email || '').trim(), plainPassword: password,

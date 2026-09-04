@@ -3,23 +3,23 @@
 // -----------------------------------------------------------------------------
 // Tous les composants / stores importent l'API DEPUIS ICI :  import api from '@/api'
 //
-// La source est choisie dans src/api/config.js (USE_REAL_API) :
-//   - false -> fausse API mockee (src/mocks/mockApi.js)
-//   - true  -> vraie API Sylius (src/api/httpApi.js), via le proxy Vite
-//
-// httpApi remplace le mock methode par methode (pattern "strangler") : tant qu'une
-// methode n'est pas encore branchee sur le vrai back, elle retombe sur le mock.
+// V1 utilise exclusivement la vraie API Sylius. Les fixtures de tests ne sont
+// jamais importees par ce graphe de modules et ne peuvent donc pas se retrouver
+// dans un bundle de production.
 // =============================================================================
 
-import { mockApi } from '@/mocks/mockApi'
 import { httpApi } from './httpApi'
 import { USE_REAL_API } from './config'
 
-const api = USE_REAL_API ? httpApi : mockApi
+// V1 is deliberately fail-closed: production code must never silently serve
+// fixture data when the tenant API is unavailable. Mocks belong to tests only.
+if (!USE_REAL_API) throw new Error('The mock API is not available in the application runtime.')
+
+const api = httpApi
 
 if (typeof window !== 'undefined') {
   // eslint-disable-next-line no-console
-  console.info(`[TodaTempo] API source : ${USE_REAL_API ? 'Sylius (réelle)' : 'mock'}`)
+  console.info('[TodaTempo] API source : Sylius (réelle)')
 }
 
 export default api
