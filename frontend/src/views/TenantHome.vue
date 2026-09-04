@@ -5,8 +5,12 @@ import { useTenantContext } from '@/composables/useTenantContext'
 import { orderJumpTypes } from '@/utils/catalog'
 import JumpTypeCard from '@/components/JumpTypeCard.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import CatalogError from '@/components/ui/CatalogError.vue'
 
-const { tenant, jumpTypes, loading, slug } = useTenantContext()
+const { tenantStore, tenant, jumpTypes, loading, error, slug } = useTenantContext()
+
+const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
 
 // Points forts : configures dans l'espace centre, sinon defauts generiques.
 const DEFAULT_HIGHLIGHTS = ['Réservation en ligne', 'Professionnels à votre écoute', 'Paiement sécurisé']
@@ -37,7 +41,9 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
 </script>
 
 <template>
-  <Spinner v-if="loading || !tenant" label="Chargement du centre…" />
+  <Spinner v-if="loading" label="Chargement du centre…" />
+
+  <CatalogError v-else-if="error" :message="error" @retry="retry" />
 
   <div v-else>
     <!-- Hero brande (banniere configurable, variante mobile optionnelle) -->
@@ -81,7 +87,7 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
         </div>
         <RouterLink v-if="hasMore" :to="{ name: 'shop' }" class="btn-outline px-5 py-2 text-sm">Voir toute la boutique →</RouterLink>
       </div>
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div v-if="featuredJumps.length" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <JumpTypeCard
           v-for="jt in featuredJumps"
           :key="jt.id"
@@ -90,6 +96,12 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
           :slug="slug"
         />
       </div>
+      <EmptyState
+        v-else
+        icon="📋"
+        title="Aucune prestation disponible"
+        message="Le catalogue de cet établissement est actuellement vide."
+      />
     </section>
 
     <!-- Bandeau cadeau (masque si les cheques cadeaux sont desactives) -->

@@ -5,11 +5,13 @@ import { useTenantContext } from '@/composables/useTenantContext'
 import { useCartStore } from '@/stores/cart'
 import { formatMoney } from '@/utils/format'
 import Spinner from '@/components/ui/Spinner.vue'
+import CatalogError from '@/components/ui/CatalogError.vue'
 
 const route = useRoute()
 const router = useRouter()
 const cart = useCartStore()
-const { tenant, jumpTypes, options, loading, slug } = useTenantContext()
+const { tenantStore, tenant, jumpTypes, options, loading, error, slug } = useTenantContext()
+const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
 
 const jumpType = computed(() =>
   jumpTypes.value.find((j) => j.id === route.params.jumpTypeId) || null,
@@ -37,7 +39,9 @@ function book() {
 </script>
 
 <template>
-  <Spinner v-if="loading || !tenant" />
+  <Spinner v-if="loading" />
+
+  <CatalogError v-else-if="error" :message="error" @retry="retry" />
 
   <div v-else-if="!jumpType" class="section py-20 text-center">
     <p class="text-lg text-slate-600">Cette prestation n'existe pas.</p>
@@ -53,7 +57,8 @@ function book() {
       <!-- Media -->
       <div>
         <div class="overflow-hidden rounded-3xl shadow-soft">
-          <img :src="jumpType.image" :alt="jumpType.name" class="aspect-[4/3] w-full object-cover" />
+          <img v-if="jumpType.image" :src="jumpType.image" :alt="jumpType.name" class="aspect-[4/3] w-full object-cover" />
+          <div v-else class="flex aspect-[4/3] items-center justify-center bg-slate-100 text-5xl text-slate-300" aria-hidden="true">✦</div>
         </div>
       </div>
 

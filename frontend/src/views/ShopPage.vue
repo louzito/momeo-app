@@ -7,14 +7,19 @@ import { useTenantContext } from '@/composables/useTenantContext'
 import { orderJumpTypes } from '@/utils/catalog'
 import JumpTypeCard from '@/components/JumpTypeCard.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import CatalogError from '@/components/ui/CatalogError.vue'
 
-const { tenant, jumpTypes, loading, slug } = useTenantContext()
+const { tenantStore, tenant, jumpTypes, loading, error, slug } = useTenantContext()
 
 const products = computed(() => orderJumpTypes(jumpTypes.value || [], tenant.value?.shopOrder))
+const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
 </script>
 
 <template>
-  <Spinner v-if="loading || !tenant" label="Chargement de la boutique…" />
+  <Spinner v-if="loading" label="Chargement de la boutique…" />
+
+  <CatalogError v-else-if="error" :message="error" @retry="retry" />
 
   <div v-else class="section py-14">
     <div class="mb-10">
@@ -31,8 +36,11 @@ const products = computed(() => orderJumpTypes(jumpTypes.value || [], tenant.val
         :slug="slug"
       />
     </div>
-    <div v-else class="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500">
-      Aucun produit pour le moment — revenez bientôt !
-    </div>
+    <EmptyState
+      v-else
+      icon="📋"
+      title="Aucune prestation disponible"
+      message="Le catalogue de cet établissement est actuellement vide."
+    />
   </div>
 </template>
