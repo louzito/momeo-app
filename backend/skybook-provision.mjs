@@ -83,35 +83,14 @@ const PRODUCT_ATTRIBUTES = [
   { code: 'jump_waiver', type: 'checkbox', name: 'Decharge de responsabilite requise' },
 ]
 
-// 3) Taxons techniques SkyBook : racine des PLANNINGS + un planning par defaut.
-//    Un planning = taxon code planning_* sous skybook_plannings, config JSON
-//    dans la description (openDays 0=dim..6=sam, times, capacity, jumpCodes).
-//    Edite ensuite depuis l'espace centre du front (onglet Plannings).
+// 3) Taxon technique de configuration. Les plannings sont désormais des
+//    ressources métier créées depuis l'espace centre, jamais des taxons.
 const TAXONS = [
-  {
-    code: 'todatempo_plannings',
-    name: 'TodaTempo Plannings',
-    slug: 'todatempo-plannings',
-    description: 'Conteneur technique TodaTempo — plannings de creneaux. Ne pas supprimer.',
-  },
   {
     code: 'todatempo_config',
     name: 'TodaTempo Config',
     slug: 'todatempo-config',
     description: '{}', // rempli depuis l'espace centre (Configuration boutique)
-  },
-  {
-    code: 'planning_standard',
-    parent: 'skybook_plannings',
-    name: 'Planning standard',
-    slug: 'planning-standard',
-    description: JSON.stringify({
-      name: 'Planning standard',
-      openDays: [0, 1, 3, 4, 5, 6],
-      times: ['09:00', '11:30', '14:00', '16:30'],
-      capacity: 8,
-      jumpCodes: [],
-    }),
   },
 ]
 
