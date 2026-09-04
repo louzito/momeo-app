@@ -12,6 +12,8 @@ const orders = ref([])
 const loading = ref(true)
 const error = ref('')
 const payingId = ref(null)
+const refundingId = ref(null)
+const refunds = ref({})
 const filter = ref('all') // all | awaiting | paid
 
 // --- Detail d'une commande (depliable) ---------------------------------------
@@ -28,6 +30,11 @@ async function toggleDetail(o) {
     loadingDetail.value = o.id
     try {
       orderDetails.value[o.id] = await api.getSyliusOrder(o.id)
+      if (o.paymentId && ['paid', 'partially_refunded', 'refunded'].includes(o.paymentState)) {
+        const history = await api.getPaymentRefunds(o.paymentId)
+        refunds.value[o.id] = history.member || []
+        o.refundedAmount = Math.max(0, o.total - (history.refundableAmount || 0) / 100)
+      }
     } catch (e) {
       error.value = e?.message || 'Impossible de charger le detail.'
       expandedId.value = null
@@ -61,6 +68,7 @@ function payBadge(o) {
     case 'awaiting_payment': return { label: 'En attente de virement', cls: 'bg-amber-100 text-amber-700' }
     case 'paid': return { label: 'Payée', cls: 'bg-emerald-100 text-emerald-700' }
     case 'refunded': return { label: 'Remboursée', cls: 'bg-slate-200 text-slate-600' }
+    case 'partially_refunded': return { label: 'Partiellement remboursée', cls: 'bg-sky-100 text-sky-700' }
     case 'cancelled': return { label: 'Annulée', cls: 'bg-rose-100 text-rose-700' }
     default: return { label: o.paymentState, cls: 'bg-slate-100 text-slate-500' }
   }
@@ -96,6 +104,25 @@ async function markPaid(order) {
   } finally {
     payingId.value = null
   }
+}
+
+async function refund(order) {
+  const maximum = Math.max(0, Math.round((order.total - (order.refundedAmount || 0)) * 100))
+  const value = window.prompt(`Montant à rembourser en euros (maximum ${(maximum / 100).toFixed(2)})`, (maximum / 100).toFixed(2))
+  if (value === null) return
+  const amount = Math.round(Number(String(value).replace(',', '.')) * 100)
+  if (!Number.isInteger(amount) || amount <= 0 || amount > maximum) { error.value = 'Montant de remboursement invalide.'; return }
+  const reason = window.prompt('Motif du remboursement (facultatif)', '')
+  if (reason === null) return
+  refundingId.value = order.id; error.value = ''
+  try {
+    const key = `admin-${order.paymentId}-${Date.now()}-${crypto.randomUUID()}`
+    const operation = await api.refundPayment(order.paymentId, amount, reason, key)
+    order.refundedAmount = (order.refundedAmount || 0) + amount / 100
+    order.paymentState = order.refundedAmount >= order.total ? 'refunded' : 'partially_refunded'
+    refunds.value[order.id] = [operation, ...(refunds.value[order.id] || [])]
+  } catch (e) { error.value = e?.message || 'Échec du remboursement.' }
+  finally { refundingId.value = null }
 }
 </script>
 
@@ -167,6 +194,14 @@ async function markPaid(order) {
             >
               {{ payingId === o.id ? 'Encaissement…' : '✓ Virement reçu' }}
             </button>
+            <button
+              v-if="['paid','partially_refunded'].includes(o.paymentState) && o.paymentId"
+              class="btn-outline px-4 py-1.5 text-sm text-rose-700"
+              :disabled="refundingId === o.id"
+              @click.stop="refund(o)"
+            >
+              {{ refundingId === o.id ? 'Remboursement…' : 'Rembourser' }}
+            </button>
           </div>
         </div>
 
@@ -216,6 +251,16 @@ async function markPaid(order) {
               >
                 🧾 Voir la facture
               </RouterLink>
+              <p v-if="o.refundedAmount" class="text-xs text-slate-500">
+                Remboursé : {{ formatMoney(o.refundedAmount, o.currency) }}
+                <template v-if="refunds[o.id]?.[0]?.creditNoteNumber"> · Avoir {{ refunds[o.id][0].creditNoteNumber }}</template>
+              </p>
+              <ul v-if="refunds[o.id]?.length" class="space-y-1 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                <li v-for="operation in refunds[o.id]" :key="operation.idempotencyKey">
+                  {{ formatDate(operation.createdAt, { short: true }) }} · {{ formatMoney(operation.amount / 100, operation.currency) }}
+                  · {{ operation.provider }} · {{ operation.creditNoteNumber }}
+                </li>
+              </ul>
             </div>
           </div>
         </div>

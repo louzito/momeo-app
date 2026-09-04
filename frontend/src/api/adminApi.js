@@ -717,6 +717,7 @@ function mapOrder(o) {
     createdAt: o.checkoutCompletedAt || o.createdAt || null,
     notes: o.notes || '',
     paymentId: codeFromIri(firstPayment?.['@id'] || firstPayment),
+    refundedAmount: (firstPayment?.refundedAmount ?? 0) / 100,
     fulfillmentMode: o.fulfillmentMode || null,
     preparationState: o.preparationState || null,
   }
@@ -732,6 +733,18 @@ export async function getOrders({ paymentState = null, limit = 50 } = {}) {
 export async function completePayment(paymentId) {
   await request('PATCH', `/admin/payments/${paymentId}/complete`, {}, 'application/merge-patch+json')
   return { ok: true }
+}
+
+export async function refundPayment(paymentId, amount, reason, idempotencyKey) {
+  return request('POST', `/admin/payments/${paymentId}/refunds`, {
+    amount,
+    reason,
+    idempotencyKey,
+  }, 'application/json')
+}
+
+export async function getPaymentRefunds(paymentId) {
+  return request('GET', `/admin/payments/${paymentId}/refunds`)
 }
 
 export async function updatePreparationState(tokenValue, state) {

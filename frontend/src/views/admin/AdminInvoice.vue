@@ -27,6 +27,7 @@ const admin = useAdminStore()
 const order = ref(null)
 const loading = ref(true)
 const error = ref('')
+const creditNotes = ref([])
 
 // Facture officielle Sylius + son PDF charge en blob (affichage iframe).
 const syliusInvoice = ref(null)
@@ -74,12 +75,17 @@ const PAY_LABELS = {
   awaiting_payment: 'En attente de paiement',
   paid: 'Payée',
   refunded: 'Remboursée',
+  partially_refunded: 'Partiellement remboursée',
   cancelled: 'Annulée',
 }
 
 onMounted(async () => {
   try {
     order.value = await api.getSyliusOrder(route.params.token)
+    if (order.value?.paymentId) {
+      const history = await api.getPaymentRefunds(order.value.paymentId)
+      creditNotes.value = (history.member || []).filter((operation) => operation.status === 'completed')
+    }
     if (order.value?.number) {
       await tryLoadSyliusInvoice(order.value.number)
       if (syliusInvoice.value) await loadPdfPreview()
@@ -123,6 +129,15 @@ function printInvoice() {
     <Spinner v-if="loading" />
     <div v-else-if="error && !order" class="mx-auto max-w-3xl px-4">
       <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">⚠️ {{ error }}</div>
+    </div>
+
+    <div v-if="creditNotes.length" class="mx-auto mb-4 max-w-3xl space-y-2 px-4">
+      <div v-for="credit in creditNotes" :key="credit.idempotencyKey" class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+        Avoir <span class="font-mono font-semibold">{{ credit.creditNoteNumber }}</span>
+        · {{ formatMoney(credit.amount / 100, credit.currency) }}
+        · émis le {{ formatDate(credit.completedAt, { short: true }) }}
+        <span class="text-sky-600"> · référence {{ credit.providerReference }}</span>
+      </div>
     </div>
 
     <!-- ===================== FACTURE OFFICIELLE SYLIUS (PDF) ===================== -->

@@ -632,6 +632,12 @@ export const httpApi = {
   async markOrderPaid(paymentId) {
     return sylius.completePayment(paymentId)
   },
+  async refundPayment(paymentId, amount, reason, idempotencyKey) {
+    return sylius.refundPayment(paymentId, amount, reason, idempotencyKey)
+  },
+  async getPaymentRefunds(paymentId) {
+    return sylius.getPaymentRefunds(paymentId)
+  },
   async updatePreparationState(tokenValue, state) { return sylius.updatePreparationState(tokenValue, state) },
 
   // Cheques cadeaux REELS vus par le centre (Phase 3) — liste + stats pour

@@ -50,6 +50,7 @@ services:
             - '../src/Kernel.php'
 
     App\Tenant\TenantDoctorInterface: '@App\Tenant\TenantDoctor'
+    App\Payment\RefundProvider: '@App\Payment\ConfiguredRefundProvider'
 
     # Controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class

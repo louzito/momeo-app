@@ -112,6 +112,9 @@ final class ShopStripePaymentController
         $paymentCompleted = false;
         if ($payment instanceof Payment && $booking instanceof Booking) {
             if ($event->type === 'checkout.session.completed' && ($object->payment_status ?? null) === 'paid') {
+                $details = $payment->getDetails();
+                $details['stripe_payment_intent'] = (string) ($object->payment_intent ?? '');
+                $payment->setDetails($details);
                 $this->checkout->complete($payment, $booking);
                 $paymentCompleted = true;
             } elseif ($event->type === 'checkout.session.expired') {
