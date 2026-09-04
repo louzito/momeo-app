@@ -15,6 +15,7 @@ use App\Entity\Order\Order;
 use App\Entity\Planning;
 use App\Entity\Product\Product;
 use App\Entity\StaffMember;
+use App\Entity\User\ShopUser;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
@@ -26,6 +27,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v2/shop')]
 final class ShopBookingApiController
@@ -335,10 +338,11 @@ final class ShopBookingApiController
     }
 
     #[Route('/bookings/{publicToken<[0-9a-f]{32}>}', name: 'momeo_api_shop_booking_show', methods: ['GET'])]
-    public function show(string $publicToken): JsonResponse
+    #[IsGranted('ROLE_USER')]
+    public function show(string $publicToken, #[CurrentUser] ShopUser $user): JsonResponse
     {
         $booking = $this->bookingRepository->findOneBy(['publicToken' => $publicToken]);
-        if (!$booking instanceof Booking) {
+        if (!$booking instanceof Booking || 0 !== strcasecmp($booking->getCustomerEmail(), (string) $user->getEmail())) {
             return new JsonResponse(['error' => 'Réservation introuvable.'], Response::HTTP_NOT_FOUND);
         }
 

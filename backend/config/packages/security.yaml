@@ -130,6 +130,8 @@ security:
         - { path: "%sylius.security.api_admin_regex%/.*", role: ROLE_API_ACCESS }
         - { path: "%sylius.security.api_admin_route%/administrators/token", role: PUBLIC_ACCESS }
         - { path: "%sylius.security.api_shop_account_regex%/.*", role: ROLE_USER }
+        - { path: ^/api/v2/shop/account(?:/.*)?$, role: ROLE_USER }
+        - { path: ^/api/v2/shop/bookings/[0-9a-f]{32}$, role: ROLE_USER }
         - { path: "%sylius.security.api_shop_route%/customers/token", role: PUBLIC_ACCESS }
         - { path: "%sylius.security.api_shop_regex%/.*", role: PUBLIC_ACCESS }
 

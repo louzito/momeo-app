@@ -7,7 +7,7 @@ const router = useRouter()
 const route = useRoute()
 const session = useSessionStore()
 
-const mode = ref('login') // 'login' | 'register'
+const mode = ref('login') // 'login' | 'register' | 'forgot' | 'forgot-sent'
 const form = ref({ email: '', password: '', firstName: '', lastName: '', phone: '' })
 const error = ref('')
 const loading = ref(false)
@@ -29,10 +29,17 @@ async function submit() {
   }
 }
 
-function fillDemo() {
-  mode.value = 'login'
-  form.value.email = 'client@todatempo.test'
-  form.value.password = 'todatempo2026'
+async function requestPasswordReset() {
+  error.value = ''
+  loading.value = true
+  try {
+    await session.requestPasswordReset(form.value.email)
+    mode.value = 'forgot-sent'
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -44,12 +51,6 @@ function fillDemo() {
       <p class="mt-3 text-lg text-slate-500">
         Retrouvez l'historique de vos commandes, vos reservations a venir et leurs confirmations.
       </p>
-      <div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm">
-        <p class="font-semibold text-slate-700">🔎 Compte de demonstration</p>
-        <button class="mt-2 w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50" @click="fillDemo">
-          <span class="font-mono font-semibold">client@todatempo.test</span> · mot de passe <span class="font-mono">todatempo2026</span>
-        </button>
-      </div>
     </div>
 
     <div class="card mx-auto w-full max-w-md p-8">
@@ -66,7 +67,8 @@ function fillDemo() {
         >Inscription</button>
       </div>
 
-      <form @submit.prevent="submit" class="space-y-4">
+      <p v-if="mode === 'forgot-sent'" class="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700">Si un compte correspond à cette adresse, un email de réinitialisation vient d'être envoyé.</p>
+      <form v-else @submit.prevent="mode === 'forgot' ? requestPasswordReset() : submit()" class="space-y-4">
         <div v-if="mode === 'register'" class="grid grid-cols-2 gap-3">
           <div>
             <label class="label">Prenom</label>
@@ -79,11 +81,11 @@ function fillDemo() {
         </div>
         <div>
           <label class="label">Email</label>
-          <input v-model="form.email" type="email" class="input" placeholder="vous@example.com" />
+          <input v-model="form.email" required type="email" class="input" placeholder="vous@example.com" />
         </div>
-        <div>
+        <div v-if="mode !== 'forgot'">
           <label class="label">Mot de passe</label>
-          <input v-model="form.password" type="password" class="input" placeholder="••••••" />
+          <input v-model="form.password" required type="password" class="input" placeholder="••••••" />
         </div>
         <div v-if="mode === 'register'">
           <label class="label">Telephone (optionnel)</label>
@@ -91,8 +93,10 @@ function fillDemo() {
         </div>
         <p v-if="error" class="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-600">{{ error }}</p>
         <button class="btn-primary w-full py-3" :disabled="loading">
-          {{ loading ? 'Veuillez patienter…' : mode === 'login' ? 'Se connecter' : "Creer mon compte" }}
+          {{ loading ? 'Veuillez patienter…' : mode === 'login' ? 'Se connecter' : mode === 'forgot' ? 'Envoyer le lien' : "Creer mon compte" }}
         </button>
+        <button v-if="mode === 'login'" type="button" class="w-full text-sm text-brand-600 underline" @click="mode = 'forgot'">Mot de passe oublié ?</button>
+        <button v-if="mode === 'forgot'" type="button" class="w-full text-sm text-brand-600 underline" @click="mode = 'login'">Retour à la connexion</button>
       </form>
 
       <p class="mt-4 text-center text-sm text-slate-400">

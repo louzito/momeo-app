@@ -92,7 +92,7 @@ const tenantRoutes = [
     path: '/checkout/confirmation/:bookingId',
     name: 'checkout-confirmation',
     component: () => import('@/views/checkout/OrderConfirmation.vue'),
-    meta: { title: 'Commande confirmee' },
+    meta: { title: 'Commande confirmee', requiresCustomer: true },
   },
   {
     path: '/checkout/gift-confirmation',
@@ -162,7 +162,7 @@ const tenantRoutes = [
     path: '/boarding-pass/:bookingId',
     name: 'boarding-pass',
     component: () => import('@/views/account/BoardingPassView.vue'),
-    meta: { title: 'Confirmation de rendez-vous' },
+    meta: { title: 'Confirmation de rendez-vous', requiresCustomer: true },
   },
 
   // --- Espace professionnel TodaTempo --------------------------------------
@@ -269,7 +269,7 @@ const router = createRouter({
   },
 })
 
-// Garde de navigation (mock) : protege les espaces beneficiaire / client.
+// La garde améliore l'UX ; l'autorisation réelle reste appliquée par l'API.
 router.beforeEach(async (to) => {
   document.title = to.meta?.title ? `${to.meta.title} · TodaTempo` : 'TodaTempo'
 
@@ -283,6 +283,7 @@ router.beforeEach(async (to) => {
   if (to.meta?.requiresCustomer) {
     const { useSessionStore } = await import('@/stores/session')
     const store = useSessionStore()
+    await store.restore()
     if (!store.isLoggedIn) {
       return { name: 'account-login', query: { redirect: to.fullPath } }
     }

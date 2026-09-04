@@ -19,6 +19,7 @@
 import { mockApi } from '@/mocks/mockApi'
 import { API_BASE, TENANT_SLUG, displayImageUrl, isServiceProductCode, tenantHeaders } from './config'
 import * as sylius from './adminApi'
+import { customerRequest } from './customerAuth'
 
 // --- client HTTP minimal ---------------------------------------------------
 async function apiGet(path, params = {}) {
@@ -427,6 +428,28 @@ async function buildAdminSession(identity = {}) {
 export const httpApi = {
   // Tout le reste (tenants, creneaux, cheques, commandes, admin...) reste en mock.
   ...mockApi,
+
+  async register({ email, password, firstName, lastName, phone }) {
+    return customerRequest('POST', '/shop/customers', {
+      email: String(email || '').trim(), plainPassword: password,
+      firstName: String(firstName || '').trim(), lastName: String(lastName || '').trim(),
+      phoneNumber: String(phone || '').trim() || null,
+    }, { auth: false })
+  },
+
+  async requestPasswordReset(email) {
+    return customerRequest('POST', '/shop/customers/password-reset-requests', { email: String(email || '').trim() }, { auth: false })
+  },
+
+  async getCustomerOrders() {
+    const data = await customerRequest('GET', '/shop/account/orders')
+    return data.member || []
+  },
+
+  async getCustomerBookings() {
+    const data = await customerRequest('GET', '/shop/account/bookings')
+    return data.member || []
+  },
 
   // --- CATALOGUE : branche sur Sylius ---
   async getJumpTypes(tenantId) {
@@ -883,12 +906,12 @@ export const httpApi = {
   },
 
   async getBooking(bookingId) {
-    const booking = await apiGet(`/shop/bookings/${encodeURIComponent(bookingId)}`)
+    const booking = await customerRequest('GET', `/shop/account/bookings/${encodeURIComponent(bookingId)}`)
     return { ...booking, boardingPassId: booking.id }
   },
 
   async getBoardingPass(bookingId) {
-    const booking = await apiGet(`/shop/bookings/${encodeURIComponent(bookingId)}`)
+    const booking = await customerRequest('GET', `/shop/account/bookings/${encodeURIComponent(bookingId)}`)
     return {
         id: booking.id,
         bookingId: booking.id,

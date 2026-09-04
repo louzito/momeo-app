@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import api from '@/api'
 import BookingCard from '@/components/BookingCard.vue'
@@ -10,9 +10,15 @@ import Spinner from '@/components/ui/Spinner.vue'
 import { formatDate, formatMoney } from '@/utils/format'
 
 const session = useSessionStore()
+const router = useRouter()
 const orders = ref([])
 const bookings = ref([])
 const loading = ref(true)
+
+function logout() {
+  session.logout()
+  router.replace({ name: 'account-login' })
+}
 
 const upcoming = computed(() =>
   bookings.value
@@ -26,10 +32,9 @@ const past = computed(() =>
 )
 
 onMounted(async () => {
-  const id = session.customer.id
   ;[orders.value, bookings.value] = await Promise.all([
-    api.getCustomerOrders(id),
-    api.getCustomerBookings(id),
+    api.getCustomerOrders(),
+    api.getCustomerBookings(),
   ])
   loading.value = false
 })
@@ -42,7 +47,7 @@ onMounted(async () => {
         <h1 class="font-display text-3xl font-bold text-slate-900">Bonjour {{ session.customer.firstName }} 👋</h1>
         <p class="mt-1 text-slate-500">{{ session.customer.email }}</p>
       </div>
-      <button class="btn-ghost" @click="session.logout()">Se deconnecter</button>
+      <button class="btn-ghost" @click="logout">Se deconnecter</button>
     </div>
 
     <Spinner v-if="loading" />
