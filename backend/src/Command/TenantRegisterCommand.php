@@ -12,7 +12,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[AsCommand(name: 'skybook:tenant:register', description: 'Enregistre (ou met a jour) un centre dans le registre')]
+#[AsCommand(name: 'todatempo:tenant:register', description: 'Enregistre (ou met a jour) un centre dans le registre', aliases: ['skybook:tenant:register'])]
 final class TenantRegisterCommand extends Command
 {
     public function __construct(private readonly TenantRegistryWriter $writer)

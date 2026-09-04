@@ -26,14 +26,14 @@ final class CaddyConfigDumper
     public function __construct(
         private readonly TenantRegistry $registry,
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
-        #[Autowire('%skybook.default_tenant%')] private readonly string $defaultTenant,
+        #[Autowire('%todatempo.default_tenant%')] private readonly string $defaultTenant,
     ) {
     }
 
     public function dump(): string
     {
-        $front = $_SERVER['SKYBOOK_PROXY_FRONT'] ?? 'host.docker.internal:5173';
-        $sylius = $_SERVER['SKYBOOK_PROXY_SYLIUS'] ?? 'nginx:80';
+        $front = $_SERVER['TODATEMPO_PROXY_FRONT'] ?? $_SERVER['SKYBOOK_PROXY_FRONT'] ?? 'host.docker.internal:5173';
+        $sylius = $_SERVER['TODATEMPO_PROXY_SYLIUS'] ?? $_SERVER['SKYBOOK_PROXY_SYLIUS'] ?? 'nginx:80';
 
         $slugs = array_values(array_filter(
             array_keys($this->registry->all()),
@@ -70,7 +70,7 @@ final class CaddyConfigDumper
             $out[] = "\thandle @{$id}_api {";
             $out[] = "\t\turi strip_prefix /{$slug}";
             $out[] = "\t\treverse_proxy {$sylius} {";
-            $out[] = "\t\t\theader_up X-Skybook-Tenant \"{$slug}\"";
+            $out[] = "\t\t\theader_up X-TodaTempo-Tenant \"{$slug}\"";
             $out[] = "\t\t}";
             $out[] = "\t}";
             $out[] = "\tredir /{$slug} /{$slug}/ 302";

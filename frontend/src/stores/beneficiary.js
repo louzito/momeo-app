@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import api from '@/api'
+import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
 
 // Session beneficiaire de cheque cadeau (connexion par code + email).
-const STORAGE_KEY = 'skybook.beneficiary'
+const STORAGE_KEY = 'todatempo.beneficiary'
 
 function loadPersisted() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = migrateLocalStorageKey(STORAGE_KEY, ['skybook.beneficiary'])
     return raw ? JSON.parse(raw) : null
   } catch {
     return null

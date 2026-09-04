@@ -13,7 +13,7 @@ if [ -z "$SLUG" ] || [ -z "$NAME" ]; then
   echo "Usage : new-center.sh <slug> \"<Nom>\" [email-admin]" >&2
   exit 1
 fi
-POOL=$(bin/console skybook:tenant:list --status=pool --count)
+POOL=$(bin/console todatempo:tenant:list --status=pool --count)
 if [ "$POOL" -eq 0 ]; then
   echo "Pool vide -> fabrication d'un centre blanc (secours)…"
   sh scripts/pool-refill.sh 1

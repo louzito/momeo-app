@@ -24,7 +24,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * La logique réutilisable vit dans TenantProvisioner ; cette commande reste le
  * point d'entrée pratique pour les attributions manuelles.
  */
-#[AsCommand(name: 'skybook:tenant:claim', description: 'Attribue instantanement un centre du pool a un slug definitif')]
+#[AsCommand(name: 'todatempo:tenant:claim', description: 'Attribue instantanement un centre du pool a un slug definitif', aliases: ['skybook:tenant:claim'])]
 final class TenantClaimCommand extends Command
 {
     public function __construct(

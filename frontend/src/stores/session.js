@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
 import api from '@/api'
+import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
 
 // Session client (espace "mon compte"). Persistee en localStorage pour survivre
 // a un rechargement de page (le compte reste dans les fixtures). Mock uniquement.
-const STORAGE_KEY = 'skybook.session'
+const STORAGE_KEY = 'todatempo.session'
 
 function loadPersisted() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = migrateLocalStorageKey(STORAGE_KEY, ['skybook.session'])
     return raw ? JSON.parse(raw) : null
   } catch {
     return null

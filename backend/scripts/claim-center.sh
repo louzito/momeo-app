@@ -18,9 +18,9 @@ if [ -z "$SLUG" ] || [ -z "$NAME" ]; then
 fi
 
 if [ -n "$EMAIL" ]; then
-  bin/console skybook:tenant:claim "$SLUG" "$NAME" --email "$EMAIL"
+  bin/console todatempo:tenant:claim "$SLUG" "$NAME" --email "$EMAIL"
 else
-  bin/console skybook:tenant:claim "$SLUG" "$NAME"
+  bin/console todatempo:tenant:claim "$SLUG" "$NAME"
 fi
 
 # Smoke-test : d'abord via le PROXY caddy (equivalent localhost/{slug}/),
@@ -35,7 +35,7 @@ if ($try("http://caddy/$slug/api/v2/shop/products?itemsPerPage=1", ["Accept: app
     echo "Smoke-test OK via le proxy : localhost/$slug/api repond.\n";
     exit(0);
 }
-if ($try("http://nginx/api/v2/shop/products?itemsPerPage=1", ["X-Skybook-Tenant: $slug", "Accept: application/ld+json"])) {
+if ($try("http://nginx/api/v2/shop/products?itemsPerPage=1", ["X-TodaTempo-Tenant: $slug", "Accept: application/ld+json"])) {
     echo "Smoke-test OK (nginx direct — caddy injoignable, verifie docker compose up -d caddy).\n";
     exit(0);
 }

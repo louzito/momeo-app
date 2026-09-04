@@ -11,7 +11,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-SLUGS=$(bin/console skybook:tenant:list --json | php -r '
+SLUGS=$(bin/console todatempo:tenant:list --json | php -r '
     $data = json_decode(stream_get_contents(STDIN), true) ?: [];
     foreach (array_keys($data) as $slug) {
         echo $slug . "\n";
@@ -21,7 +21,7 @@ SLUGS=$(bin/console skybook:tenant:list --json | php -r '
 FAILED=""
 for slug in $SLUGS; do
   echo "== $slug =="
-  if ! SKYBOOK_TENANT="$slug" bin/console doctrine:migrations:migrate -n --allow-no-migration; then
+  if ! TODATEMPO_TENANT="$slug" bin/console doctrine:migrations:migrate -n --allow-no-migration; then
     FAILED="$FAILED $slug"
   fi
 done

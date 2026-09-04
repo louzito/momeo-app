@@ -126,7 +126,7 @@ security:
         - { path: "%sylius.security.shop_regex%/account", role: ROLE_USER }
 
         - { path: "%sylius.security.api_admin_route%/administrators/reset-password", role: PUBLIC_ACCESS }
-        - { path: ^/api/v2/admin/momeo/sso/(handoff|session)$, role: PUBLIC_ACCESS }
+        - { path: ^/api/v2/admin/(todatempo|momeo)/sso/(handoff|session)$, role: PUBLIC_ACCESS }
         - { path: "%sylius.security.api_admin_regex%/.*", role: ROLE_API_ACCESS }
         - { path: "%sylius.security.api_admin_route%/administrators/token", role: PUBLIC_ACCESS }
         - { path: "%sylius.security.api_shop_account_regex%/.*", role: ROLE_USER }

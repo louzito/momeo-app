@@ -32,7 +32,7 @@ const skybookTenantRewrite = () => ({
     server.middlewares.use((req, res, next) => {
       const m = (req.url || '').match(/^\/([a-z0-9][a-z0-9-]{0,62})\/api\/(.*)$/)
       if (m && knownSlugs().has(m[1])) {
-        req.headers['x-skybook-tenant'] = m[1]
+        req.headers['x-todatempo-tenant'] = m[1]
         req.url = '/api/' + m[2]
       }
       next()

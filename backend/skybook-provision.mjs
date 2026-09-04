@@ -35,12 +35,12 @@
  * =============================================================================
  */
 
-const API = (process.env.SKYBOOK_API || 'http://localhost:8080/api/v2').replace(/\/+$/, '')
-const ADMIN_EMAIL = process.env.SKYBOOK_ADMIN_EMAIL || 'sylius@example.com'
-const ADMIN_PASSWORD = process.env.SKYBOOK_ADMIN_PASSWORD || 'sylius'
+const API = (process.env.TODATEMPO_API || process.env.SKYBOOK_API || 'http://localhost:8080/api/v2').replace(/\/+$/, '')
+const ADMIN_EMAIL = process.env.TODATEMPO_ADMIN_EMAIL || process.env.SKYBOOK_ADMIN_EMAIL || 'sylius@example.com'
+const ADMIN_PASSWORD = process.env.TODATEMPO_ADMIN_PASSWORD || process.env.SKYBOOK_ADMIN_PASSWORD || 'sylius'
 // Multi-centres : cible un tenant precis (en-tete X-Skybook-Tenant sur chaque
 // appel API). Ex. : SKYBOOK_TENANT=template node skybook-provision.mjs
-const TENANT = process.env.SKYBOOK_TENANT || ''
+const TENANT = process.env.TODATEMPO_TENANT || process.env.SKYBOOK_TENANT || ''
 
 // =============================================================================
 // MANIFEST  —  la SEULE chose a editer quand on ajoute une perso Sylius
@@ -49,7 +49,7 @@ const TENANT = process.env.SKYBOOK_TENANT || ''
 // 1) Types d'association de produits (relient des produits entre eux).
 const PRODUCT_ASSOCIATION_TYPES = [
   {
-    code: 'skybook_jumps',
+    code: 'todatempo_services',
     name: 'Sauts concernes',
     // Porte le lien "option PER_JUMP -> sauts precis" (upsell cible).
     // owner = produit option (opt_pj_*), associatedProducts = produits saut (jump_*).
@@ -61,9 +61,9 @@ const PRODUCT_ASSOCIATION_TYPES = [
 //    Types Sylius : text, textarea, integer, percent, checkbox, date, datetime, select.
 const PRODUCT_ATTRIBUTES = [
   // Attributs generiques Momeo pour toutes les nouvelles prestations.
-  { code: 'momeo_duration', type: 'integer', name: 'Duree de la prestation (min)' },
-  { code: 'momeo_capacity', type: 'integer', name: 'Capacite par creneau' },
-  { code: 'momeo_requirements', type: 'textarea', name: 'Conditions de reservation' },
+  { code: 'todatempo_duration', type: 'integer', name: 'Duree de la prestation (min)' },
+  { code: 'todatempo_capacity', type: 'integer', name: 'Capacite par creneau' },
+  { code: 'todatempo_requirements', type: 'textarea', name: 'Conditions de reservation' },
   // Attributs "type de saut" (valeurs portees par les produits jump_*, non
   // traduisibles -> localeCode null). Le front les lit via
   // GET /shop/products/{code}/attributes et les ecrit via PUT /admin/products/{code}.
@@ -86,15 +86,15 @@ const PRODUCT_ATTRIBUTES = [
 //    Edite ensuite depuis l'espace centre du front (onglet Plannings).
 const TAXONS = [
   {
-    code: 'skybook_plannings',
-    name: 'SkyBook Plannings',
-    slug: 'skybook-plannings',
-    description: 'Conteneur technique SkyBook — plannings de creneaux. Ne pas supprimer.',
+    code: 'todatempo_plannings',
+    name: 'TodaTempo Plannings',
+    slug: 'todatempo-plannings',
+    description: 'Conteneur technique TodaTempo — plannings de creneaux. Ne pas supprimer.',
   },
   {
-    code: 'skybook_config',
-    name: 'SkyBook Config',
-    slug: 'skybook-config',
+    code: 'todatempo_config',
+    name: 'TodaTempo Config',
+    slug: 'todatempo-config',
     description: '{}', // rempli depuis l'espace centre (Configuration boutique)
   },
   {
@@ -164,7 +164,7 @@ async function apiFetch(method, path, body, contentType = 'application/ld+json')
     method,
     headers: {
       Accept: 'application/ld+json',
-      ...(TENANT ? { 'X-Skybook-Tenant': TENANT } : {}),
+      ...(TENANT ? { 'X-TodaTempo-Tenant': TENANT } : {}),
       ...(body ? { 'Content-Type': contentType } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
@@ -186,7 +186,7 @@ async function login(maxTries = 20) {
     try {
       const res = await fetch(`${API}/admin/administrators/token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(TENANT ? { 'X-Skybook-Tenant': TENANT } : {}) },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(TENANT ? { 'X-TodaTempo-Tenant': TENANT } : {}) },
         body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
       })
       if (res.ok) {
@@ -233,7 +233,7 @@ async function main() {
 
   // Multi-centres : le code du channel n'est pas forcement FASHION_WEB —
   // on resout le premier channel de la BDD cible (surchargable via SKYBOOK_CHANNEL).
-  let channelCode = process.env.SKYBOOK_CHANNEL || null
+  let channelCode = process.env.TODATEMPO_CHANNEL || process.env.SKYBOOK_CHANNEL || null
   if (!channelCode) {
     const ch = await apiFetch('GET', '/admin/channels?itemsPerPage=1')
     channelCode = ch.data?.['hydra:member']?.[0]?.code || 'FASHION_WEB'

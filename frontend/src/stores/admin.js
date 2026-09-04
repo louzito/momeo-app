@@ -1,13 +1,15 @@
 import { defineStore } from 'pinia'
 import api from '@/api'
 import { TENANT_SLUG } from '@/api/config'
+import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
 
 // Session du back-office TodaTempo, isolée par établissement.
-const STORAGE_KEY = `momeo.admin.${TENANT_SLUG}`
+const STORAGE_KEY = `todatempo.admin.${TENANT_SLUG}`
+const LEGACY_STORAGE_KEYS = [`momeo.admin.${TENANT_SLUG}`]
 
 function loadPersisted() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = migrateLocalStorageKey(STORAGE_KEY, LEGACY_STORAGE_KEYS)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null

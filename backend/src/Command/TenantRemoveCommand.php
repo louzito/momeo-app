@@ -13,7 +13,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[AsCommand(name: 'skybook:tenant:remove', description: 'Retire un centre du registre (et optionnellement supprime sa BDD)')]
+#[AsCommand(name: 'todatempo:tenant:remove', description: 'Retire un centre du registre (et optionnellement supprime sa BDD)', aliases: ['skybook:tenant:remove'])]
 final class TenantRemoveCommand extends Command
 {
     public function __construct(

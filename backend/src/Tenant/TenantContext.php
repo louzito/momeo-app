@@ -19,7 +19,7 @@ final class TenantContext
 
     public function __construct(
         private readonly TenantRegistry $registry,
-        #[Autowire('%skybook.default_tenant%')] private readonly string $defaultTenant,
+        #[Autowire('%todatempo.default_tenant%')] private readonly string $defaultTenant,
     ) {
     }
 
@@ -33,7 +33,12 @@ final class TenantContext
         if ($this->slug !== null) {
             return $this->slug;
         }
-        $env = $_SERVER['SKYBOOK_TENANT'] ?? $_ENV['SKYBOOK_TENANT'] ?? getenv('SKYBOOK_TENANT');
+        // TODATEMPO_TENANT is canonical. The legacy variable remains read-only
+        // compatibility and deliberately has lower priority.
+        $env = $_SERVER['TODATEMPO_TENANT'] ?? $_ENV['TODATEMPO_TENANT'] ?? getenv('TODATEMPO_TENANT');
+        if (!\is_string($env) || $env === '') {
+            $env = $_SERVER['SKYBOOK_TENANT'] ?? $_ENV['SKYBOOK_TENANT'] ?? getenv('SKYBOOK_TENANT');
+        }
         if (\is_string($env) && $env !== '') {
             return $env;
         }

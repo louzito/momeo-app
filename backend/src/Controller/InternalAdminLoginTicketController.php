@@ -14,13 +14,15 @@ final class InternalAdminLoginTicketController
 {
     public function __construct(
         private readonly AdminLoginTicketStore $ticketStore,
-        #[Autowire('%momeo.provisioning_secret%')] private readonly string $secret,
+        #[Autowire('%todatempo.provisioning_secret%')] private readonly string $secret,
     ) {}
 
-    #[Route('/internal/momeo/admin-login-tickets', name: 'momeo_internal_admin_login_ticket', methods: ['POST'])]
+    #[Route('/internal/todatempo/admin-login-tickets', name: 'todatempo_internal_admin_login_ticket', methods: ['POST'])]
+    #[Route('/internal/momeo/admin-login-tickets', name: 'momeo_internal_admin_login_ticket_legacy', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $providedSecret = (string) $request->headers->get('X-Momeo-Provisioning-Key', '');
+        $providedSecret = (string) ($request->headers->get('X-TodaTempo-Provisioning-Key')
+            ?? $request->headers->get('X-Momeo-Provisioning-Key', ''));
         if ($this->secret === '' || !hash_equals($this->secret, $providedSecret)) {
             return new JsonResponse(['error' => 'unauthorized'], JsonResponse::HTTP_UNAUTHORIZED);
         }

@@ -21,7 +21,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * verifier que la table skybook_gift_voucher existe et est utilisable sans
  * passer par le tunnel d'achat (pas encore branche a ce stade).
  */
-#[AsCommand(name: 'skybook:voucher:create', description: 'Smoke-test : cree un cheque cadeau factice (chantier cheques cadeaux)')]
+#[AsCommand(name: 'todatempo:voucher:create', description: 'Smoke-test : cree un cheque cadeau factice (chantier cheques cadeaux)', aliases: ['skybook:voucher:create'])]
 final class VoucherCreateCommand extends Command
 {
     public function __construct(

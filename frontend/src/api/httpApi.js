@@ -154,10 +154,10 @@ function defaultEligibility() {
 }
 
 // Type d'association Sylius portant le lien option -> sauts precis.
-const JUMP_ASSOC_TYPE = 'skybook_jumps'
+const JUMP_ASSOC_TYPES = new Set(['todatempo_services', 'skybook_jumps'])
 
 // --- Plannings publics (taxons Sylius, lisibles sans auth) -------------------
-const PLANNINGS_ROOT = 'skybook_plannings'
+const PLANNINGS_ROOTS = ['todatempo_plannings', 'skybook_plannings']
 
 function parsePublicPlanningTaxon(t) {
   let cfg = {}
@@ -183,7 +183,11 @@ function parsePublicPlanningTaxon(t) {
 // plannings ACTIFS produisent des creneaux.
 async function fetchPublicPlannings() {
   try {
-    const root = await apiGet(`/shop/taxons/${PLANNINGS_ROOT}`)
+    let root = null
+    for (const code of PLANNINGS_ROOTS) {
+      try { root = await apiGet(`/shop/taxons/${code}`); break } catch { /* compatibility fallback */ }
+    }
+    if (!root) return []
     const codes = (root.children || []).map((iri) => String(iri).split('/').pop())
     const taxons = await Promise.all(
       codes.map((c) => apiGet(`/shop/taxons/${encodeURIComponent(c)}`).catch(() => null)),
@@ -278,7 +282,7 @@ async function resolveOptionLinks(products) {
       jobs.push(
         apiGet(`/shop/product-associations/${id}`)
           .then((a) => {
-            if (String(a?.type).split('/').pop() !== JUMP_ASSOC_TYPE) return
+            if (!JUMP_ASSOC_TYPES.has(String(a?.type).split('/').pop())) return
             const codes = (a.associatedProducts || []).map((x) => String(x).split('/').pop())
             map.set(p.code, [...(map.get(p.code) || []), ...codes])
           })
@@ -324,7 +328,10 @@ const JUMP_ATTRIBUTE_FIELDS = {
   jump_bmi_max: 'bmiMax',
   jump_medical_cert: 'medicalCertificateRequired',
   jump_waiver: 'waiverRequired',
-  momeo_duration: 'durationMin',
+  todatempo_duration: 'durationMin',
+  todatempo_capacity: 'capacityPerSlot',
+  todatempo_requirements: 'requirements',
+  momeo_duration: 'durationMin', // read-only compatibility
   momeo_capacity: 'capacityPerSlot',
   momeo_requirements: 'requirements',
 }
@@ -334,10 +341,14 @@ async function fetchJumpAttributes(code) {
   try {
     const data = await apiGet(`/shop/products/${encodeURIComponent(code)}/attributes`)
     const out = {}
-    for (const av of membersOf(data)) {
+    const values = membersOf(data)
+    // Legacy first, canonical second: the TodaTempo value always wins even if
+    // the API changes collection ordering.
+    values.sort((a, b) => Number(String(a.code).startsWith('todatempo_')) - Number(String(b.code).startsWith('todatempo_')))
+    for (const av of values) {
       const field = JUMP_ATTRIBUTE_FIELDS[av.code]
       if (!field || av.value == null) continue
-      if (av.code === 'momeo_requirements') {
+      if (av.code === 'todatempo_requirements' || av.code === 'momeo_requirements') {
         try {
           const parsed = JSON.parse(String(av.value || '[]'))
           out[field] = Array.isArray(parsed) ? parsed.filter((item) => item?.key && item?.label) : []
@@ -604,7 +615,9 @@ export const httpApi = {
 
   async getPublicShopConfig() {
     try {
-      const t = await apiGet(`/shop/taxons/skybook_config`)
+      let t
+      try { t = await apiGet('/shop/taxons/todatempo_config') }
+      catch { t = await apiGet('/shop/taxons/skybook_config') }
       let cfg = {}
       try {
         cfg = JSON.parse(t.description || '{}')

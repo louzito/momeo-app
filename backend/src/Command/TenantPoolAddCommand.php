@@ -18,7 +18,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * status=pool. Rapide (quelques secondes) : l'installation lente a ete faite
  * une fois pour toutes dans la template (scripts/template-init.sh).
  */
-#[AsCommand(name: 'skybook:tenant:pool-add', description: 'Ajoute un centre blanc au pool (clone de la BDD template)')]
+#[AsCommand(name: 'todatempo:tenant:pool-add', description: 'Ajoute un centre blanc au pool (clone de la BDD template)', aliases: ['skybook:tenant:pool-add'])]
 final class TenantPoolAddCommand extends Command
 {
     public function __construct(
