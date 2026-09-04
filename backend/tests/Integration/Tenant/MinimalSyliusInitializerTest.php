@@ -53,6 +53,7 @@ final class MinimalSyliusInitializerTest extends KernelTestCase
         self::assertSame(1, $this->entityCount(Zone::class, ['code' => 'FR']));
         self::assertSame(1, $this->entityCount(Channel::class, ['code' => 'FASHION_WEB']));
         self::assertSame(1, $this->entityCount(PaymentMethod::class, ['code' => 'bank_transfer']));
+        self::assertSame(1, $this->entityCount(PaymentMethod::class, ['code' => 'stripe_web_elements', 'enabled' => false]));
         self::assertSame(1, $this->entityCount(ShippingMethod::class, ['code' => 'standard']));
         self::assertSame(1, $this->entityCount(AdminUser::class, ['email' => $email]));
     }

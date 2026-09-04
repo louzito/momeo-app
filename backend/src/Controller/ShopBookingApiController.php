@@ -186,7 +186,8 @@ final class ShopBookingApiController
         $booking = new Booking();
         $booking->setReference($this->newReference());
         $booking->setPublicToken(bin2hex(random_bytes(16)));
-        $booking->setStatus(Booking::STATUS_CONFIRMED);
+        $cardPayment = $order->getLastPayment()?->getMethod()?->getCode() === 'stripe_web_elements';
+        $booking->setStatus($cardPayment ? Booking::STATUS_AWAITING_PAYMENT : Booking::STATUS_CONFIRMED);
         $booking->setSource(\in_array($payload['source'] ?? '', ['direct', 'voucher'], true) ? $payload['source'] : 'direct');
         $booking->setServiceCode($serviceCode);
         $booking->setServiceName(mb_substr($serviceName, 0, 255));

@@ -53,9 +53,9 @@ final class BookingSlotGuard
 
     private function countOverlap(string $column, string|int $value, \DateTimeImmutable $start, \DateTimeImmutable $end, ?Booking $ignored): int
     {
-        $sql = sprintf('SELECT COUNT(*) FROM momeo_booking WHERE %s = ? AND status = ? AND slot_start < ? AND slot_end > ?', $column);
-        $parameters = [$value, Booking::STATUS_CONFIRMED, $end, $start];
-        $types = [is_int($value) ? Types::INTEGER : Types::STRING, Types::STRING, Types::DATETIME_IMMUTABLE, Types::DATETIME_IMMUTABLE];
+        $sql = sprintf('SELECT COUNT(*) FROM momeo_booking WHERE %s = ? AND status IN (?, ?) AND slot_start < ? AND slot_end > ?', $column);
+        $parameters = [$value, Booking::STATUS_CONFIRMED, Booking::STATUS_AWAITING_PAYMENT, $end, $start];
+        $types = [is_int($value) ? Types::INTEGER : Types::STRING, Types::STRING, Types::STRING, Types::DATETIME_IMMUTABLE, Types::DATETIME_IMMUTABLE];
         if ($ignored?->getId() !== null) {
             $sql .= ' AND id != ?';
             $parameters[] = $ignored->getId();

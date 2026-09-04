@@ -36,8 +36,7 @@ export const useCartStore = defineStore('cart', {
     // qui recoit le cheque cadeau. Necessaires depuis le passage au vrai tunnel
     // d'achat (email + adresse de facturation Sylius).
     gift: { name: '', email: '', message: '', purchaserName: '', purchaserEmail: '' },
-    // 'bank_transfer' -> VRAIE commande Sylius (paymentState awaiting_payment)
-    // 'card_demo'     -> paiement carte simule (tunnel mock, comme avant)
+    // Moyens réels Sylius : virement ou Stripe Checkout.
     paymentMethod: 'bank_transfer',
     eligibilityChecked: false,
     lastResult: null, // { order, booking, voucher }

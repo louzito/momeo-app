@@ -16,10 +16,21 @@ final class TenantIdentifierResolver
 
     public function fromRequest(Request $request): ?string
     {
-        return $this->resolve(
+        $header = $this->resolve(
             $request->headers->get(self::HTTP_HEADER),
             $request->headers->get(self::LEGACY_HTTP_HEADER),
         );
+        if ($header !== null) {
+            return $header;
+        }
+
+        // Stripe cannot attach our tenant header. The slug is therefore part of
+        // this one webhook URL and is resolved before Symfony routing runs.
+        if (preg_match('#^/api/v2/shop/payments/stripe/webhook/([a-z0-9][a-z0-9-]{0,62})$#', $request->getPathInfo(), $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     public function fromEnvironment(): ?string

@@ -30,6 +30,7 @@ final class MinimalSyliusInitializer
         $zone = $this->zone($country);
         $channel = $this->channel($tenantName, $adminEmail, $currency, $locale);
         $this->paymentMethod($channel);
+        $this->stripePaymentMethod($channel);
         $this->shippingMethod($channel, $zone);
         $password = $this->admin($adminEmail, $adminPassword);
 
@@ -140,6 +141,29 @@ final class MinimalSyliusInitializer
             $this->entityManager->persist($method);
         }
         $method->setEnabled(true);
+        $method->addChannel($channel);
+    }
+
+    private function stripePaymentMethod(Channel $channel): void
+    {
+        $method = $this->entityManager->getRepository(PaymentMethod::class)->findOneBy(['code' => 'stripe_web_elements']);
+        if (!$method instanceof PaymentMethod) {
+            $gateway = new GatewayConfig();
+            $gateway->setGatewayName('stripe_web_elements');
+            $gateway->setFactoryName('stripe_web_elements');
+            // Secrets are entered in the administration and encrypted by Sylius.
+            $gateway->setConfig([]);
+
+            $method = new PaymentMethod();
+            $method->setCode('stripe_web_elements');
+            $method->setGatewayConfig($gateway);
+            $method->setCurrentLocale('fr_FR');
+            $method->setFallbackLocale('fr_FR');
+            $method->setName('Carte bancaire');
+            $method->setEnabled(false);
+            $this->entityManager->persist($gateway);
+            $this->entityManager->persist($method);
+        }
         $method->addChannel($channel);
     }
 

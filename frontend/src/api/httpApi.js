@@ -667,7 +667,7 @@ export const httpApi = {
     if (payload.kind === 'gift' && payload.paymentMethod === 'bank_transfer') {
       return this._createGiftOrder(payload)
     }
-    if (payload.kind !== 'direct' || payload.paymentMethod !== 'bank_transfer') {
+    if (payload.kind !== 'direct' || !['bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
       throw new Error('Ce moyen de paiement ne permet pas de créer une réservation réelle.')
     }
 
@@ -709,7 +709,7 @@ export const httpApi = {
     const paymentId = addressed.payments?.[0]?.id
     if (paymentId != null) {
       await apiWrite('PATCH', `/shop/orders/${t}/payments/${paymentId}`, {
-        paymentMethod: '/api/v2/shop/payment-methods/bank_transfer',
+        paymentMethod: `/api/v2/shop/payment-methods/${payload.paymentMethod}`,
       })
     }
 
@@ -745,11 +745,23 @@ export const httpApi = {
         total: (completed.total ?? 0) / 100,
         currency: completed.currencyCode,
         status: completed.paymentState || 'awaiting_payment',
-        paymentMethod: 'bank_transfer',
+        paymentMethod: payload.paymentMethod,
+        paymentId,
+        orderToken: completed.tokenValue,
         paymentInstructions,
         syliusState: completed.state,
       },
     }
+  },
+
+  async createStripeCheckoutSession({ orderToken, paymentId, bookingToken, successUrl, cancelUrl }) {
+    return apiWrite('POST', '/shop/payments/stripe/checkout-session', {
+      orderToken, paymentId, bookingToken, successUrl, cancelUrl,
+    })
+  },
+
+  async cancelStripePayment(bookingToken) {
+    return apiWrite('POST', `/shop/payments/stripe/cancel/${bookingToken}`, {})
   },
 
   // --- CHEQUE CADEAU REEL : vraie commande Sylius -> GiftVoucher backend -----

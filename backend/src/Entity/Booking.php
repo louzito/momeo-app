@@ -22,6 +22,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class Booking
 {
+    public const STATUS_AWAITING_PAYMENT = 'awaiting_payment';
     public const STATUS_CONFIRMED = 'confirmed';
     public const STATUS_POSTPONED = 'postponed';
     public const STATUS_COMPLETED = 'completed';

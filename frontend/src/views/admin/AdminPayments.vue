@@ -7,7 +7,7 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 import api from '@/api'
-import { MEDIA_BASE } from '@/api/config'
+import { MEDIA_BASE, TENANT_SLUG } from '@/api/config'
 import Spinner from '@/components/ui/Spinner.vue'
 
 const admin = useAdminStore()
@@ -29,13 +29,13 @@ function subtitle(code) {
 
 // --- Passerelles (plugins Sylius Stripe / PayPal, installes cote back) ------
 // Les cles sont stockees dans le gatewayConfig Sylius de la methode. L'URL de
-// webhook Stripe est celle de la route `sylius_payment_method_notify` du back :
-//   <URL publique du back>/payment-methods/<code de la methode>
+// Le slug dans l'URL permet de sélectionner la bonne base tenant, car Stripe
+// ne peut pas transmettre l'en-tête TodaTempo des appels du navigateur.
 const GATEWAYS = {
   stripe_web_elements: {
     icon: '💳',
-    title: 'Stripe — Carte bancaire (Web Elements)',
-    subtitle: 'Formulaire carte integre a la page (Payment Element, 3-D Secure inclus).',
+    title: 'Stripe — Carte bancaire',
+    subtitle: 'Paiement hébergé Stripe Checkout (3-D Secure inclus).',
     fields: [
       { key: 'publishable_key', label: 'Cle publiable (pk_test_… / pk_live_…)', type: 'text' },
       { key: 'secret_key', label: 'Cle secrete ou restreinte (sk_… / rk_…)', type: 'password' },
@@ -59,7 +59,7 @@ const GATEWAYS = {
 const gatewayMethods = computed(() => methods.value.filter((m) => GATEWAYS[m.gateway]))
 const offlineMethods = computed(() => methods.value.filter((m) => !GATEWAYS[m.gateway]))
 
-const stripeWebhookUrl = computed(() => `${MEDIA_BASE}/payment-methods/stripe_web_elements`)
+const stripeWebhookUrl = computed(() => `${MEDIA_BASE}/api/v2/shop/payments/stripe/webhook/${TENANT_SLUG}`)
 
 function missingKeys(pm) {
   const req = GATEWAYS[pm.gateway]?.required || []
@@ -207,8 +207,9 @@ async function save(pm) {
                 </span>
               </li>
               <li>
-                Evenements a selectionner : <code class="font-mono text-xs">payment_intent.succeeded</code> et
-                <code class="font-mono text-xs">payment_intent.canceled</code>.
+                Evenements a selectionner : <code class="font-mono text-xs">checkout.session.completed</code>,
+                <code class="font-mono text-xs">checkout.session.expired</code> et
+                <code class="font-mono text-xs">checkout.session.async_payment_failed</code>.
               </li>
               <li>
                 Copiez le <strong>secret de signature</strong> (<code class="font-mono text-xs">whsec_…</code>) affiche par Stripe
@@ -217,7 +218,7 @@ async function save(pm) {
             </ol>
             <p class="mt-2 rounded-lg bg-white/70 p-2 font-mono text-[11px] text-slate-600">
               # Test en local (Stripe CLI) :<br />
-              stripe listen --events payment_intent.succeeded,payment_intent.canceled --forward-to localhost:8080/payment-methods/stripe_web_elements
+              stripe listen --events checkout.session.completed,checkout.session.expired,checkout.session.async_payment_failed --forward-to localhost:8081/api/v2/shop/payments/stripe/webhook/{{ TENANT_SLUG }}
             </p>
           </div>
 

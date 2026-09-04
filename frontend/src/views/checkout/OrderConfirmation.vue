@@ -21,11 +21,21 @@ const order = computed(() => booking.value ? {
   paymentInstructions: paymentInstructions.value,
 } : null)
 // Commande reelle Sylius payee par virement : en attente de reception.
-const awaitingTransfer = computed(() => order.value?.status === 'awaiting_payment')
+const awaitingTransfer = computed(() => order.value?.status === 'awaiting_payment' && !route.query.payment)
+const awaitingCardWebhook = computed(() => order.value?.status === 'awaiting_payment' && route.query.payment === 'success')
+const cancelled = computed(() => ['cancelled', 'failed'].includes(order.value?.status))
 
 onMounted(async () => {
   try {
+    if (route.query.payment === 'cancelled') {
+      await api.cancelStripePayment(route.params.bookingId)
+    }
     booking.value = await api.getBooking(route.params.bookingId)
+    // Stripe may redirect a fraction of a second before its signed webhook.
+    for (let attempt = 0; route.query.payment === 'success' && booking.value?.paymentState === 'awaiting_payment' && attempt < 5; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      booking.value = await api.getBooking(route.params.bookingId)
+    }
     if (!booking.value?.orderNumber) throw new Error('Cette réservation n’est associée à aucune commande.')
   } catch (e) {
     error.value = e?.message || 'La réservation est introuvable.'
@@ -53,16 +63,22 @@ onMounted(async () => {
     <div class="mx-auto max-w-2xl text-center">
       <div
         class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-3xl"
-        :class="awaitingTransfer ? 'bg-amber-100' : 'bg-emerald-100'"
+        :class="(awaitingTransfer || awaitingCardWebhook || cancelled) ? 'bg-amber-100' : 'bg-emerald-100'"
       >
-        {{ awaitingTransfer ? '🏦' : '✓' }}
+        {{ awaitingTransfer ? '🏦' : (cancelled ? '×' : (awaitingCardWebhook ? '…' : '✓')) }}
       </div>
       <h1 class="font-display text-3xl font-extrabold text-slate-900">
-        {{ awaitingTransfer ? 'Commande enregistree !' : 'Reservation confirmee !' }}
+        {{ cancelled ? 'Paiement abandonné' : ((awaitingTransfer || awaitingCardWebhook) ? 'Commande enregistrée !' : 'Réservation confirmée !') }}
       </h1>
       <p class="mt-2 text-slate-500">
         <template v-if="awaitingTransfer">
           Votre creneau est garde — il ne reste qu'a effectuer le virement.
+        </template>
+        <template v-else-if="awaitingCardWebhook">
+          Paiement reçu, confirmation sécurisée en cours. Actualisez dans quelques secondes.
+        </template>
+        <template v-else-if="cancelled">
+          La réservation n’est pas confirmée et le créneau a été libéré.
         </template>
         <template v-else>
           Votre rendez-vous est enregistré.
@@ -128,7 +144,7 @@ onMounted(async () => {
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row">
-        <RouterLink :to="{ name: 'boarding-pass', params: { bookingId: booking.id } }" class="btn-primary flex-1">
+        <RouterLink v-if="booking.status === 'confirmed'" :to="{ name: 'boarding-pass', params: { bookingId: booking.id } }" class="btn-primary flex-1">
           Voir ma confirmation
         </RouterLink>
         <RouterLink :to="{ name: 'account-dashboard' }" class="btn-outline flex-1">Mon compte</RouterLink>

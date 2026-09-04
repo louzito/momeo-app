@@ -27,10 +27,10 @@ final class BookingRepository extends ServiceEntityRepository
     public function findBlockingBetween(\DateTimeImmutable $from, \DateTimeImmutable $to): array
     {
         return $this->createQueryBuilder('booking')
-            ->andWhere('booking.status = :status')
+            ->andWhere('booking.status IN (:statuses)')
             ->andWhere('booking.slotStart < :to')
             ->andWhere('booking.slotEnd > :from')
-            ->setParameter('status', Booking::STATUS_CONFIRMED)
+            ->setParameter('statuses', [Booking::STATUS_CONFIRMED, Booking::STATUS_AWAITING_PAYMENT])
             ->setParameter('from', $from)
             ->setParameter('to', $to)
             ->getQuery()
@@ -42,11 +42,11 @@ final class BookingRepository extends ServiceEntityRepository
         $builder = $this->createQueryBuilder('booking')
             ->select('COUNT(booking.id)')
             ->andWhere('booking.staffMember = :staff')
-            ->andWhere('booking.status = :status')
+            ->andWhere('booking.status IN (:statuses)')
             ->andWhere('booking.slotStart < :end')
             ->andWhere('booking.slotEnd > :start')
             ->setParameter('staff', $staffMember)
-            ->setParameter('status', Booking::STATUS_CONFIRMED)
+            ->setParameter('statuses', [Booking::STATUS_CONFIRMED, Booking::STATUS_AWAITING_PAYMENT])
             ->setParameter('start', $start)
             ->setParameter('end', $end);
 
