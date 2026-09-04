@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { mockApi } from '@/mocks/mockApi'
-import { API_BASE, MEDIA_BASE, TENANT_SLUG, displayImageUrl, isServiceProductCode } from './config'
+import { API_BASE, TENANT_SLUG, displayImageUrl, isServiceProductCode, tenantHeaders } from './config'
 import * as sylius from './adminApi'
 
 const FALLBACK_IMAGE =
@@ -30,7 +30,7 @@ async function apiGet(path, params = {}) {
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null) url.searchParams.set(k, v)
   })
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/ld+json' } })
+  const res = await fetch(url.toString(), { headers: tenantHeaders({ Accept: 'application/ld+json' }) })
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
   if (!res.ok) {
@@ -48,7 +48,7 @@ async function apiWrite(method, path, body = {}) {
   const contentType = method === 'PATCH' ? 'application/merge-patch+json' : 'application/ld+json'
   const res = await fetch(API_BASE + path, {
     method,
-    headers: { Accept: 'application/ld+json', 'Content-Type': contentType },
+    headers: tenantHeaders({ Accept: 'application/ld+json', 'Content-Type': contentType }),
     body: JSON.stringify(body),
   })
   const text = await res.text()

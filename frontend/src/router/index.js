@@ -1,25 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { TENANT_SLUG, DEFAULT_SLUG } from '@/api/config'
+import { TENANT_SLUG, TENANT_ERROR } from '@/api/config'
 
 // MULTI-CENTRES : le premier segment de l'URL est le slug du centre
-// (localhost:5173/{slug}/...). Les anciennes URLs sans slug (racine ou
-// segments applicatifs connus) sont redirigees vers le centre par defaut.
-const LEGACY_FIRST_SEGMENTS = ['', 'jump', 'calendar', 'checkout', 'beneficiary', 'account', 'boarding-pass', 'admin', 'status', 'accueil', 't']
-if (typeof window !== 'undefined') {
-  const seg = window.location.pathname.split('/')[1] ?? ''
-  if (LEGACY_FIRST_SEGMENTS.includes(seg)) {
-    window.location.replace(`/${DEFAULT_SLUG}${window.location.pathname}${window.location.search}`)
-  }
-}
+// (localhost:5173/{slug}/...). Il n'existe volontairement aucun fallback vers
+// un centre par defaut : cela risquerait d'exposer les donnees d'un autre centre.
 
 // Lazy-loading de toutes les vues pour garder un bundle leger.
 //
-// MONO-CENTRE : un deploiement du front = UN centre (sa propre base Sylius).
-// Plus de selection de centre ni de prefixe /t/:slug — l'accueil est la vitrine
-// du centre. Les noms de routes historiques sont conserves (tenant-home, ...),
-// et les anciens liens passant `params: { slug }` restent inoffensifs (les
-// params inconnus sont ignores par Vue Router).
-const routes = [
+// Chaque instance de l'application vit sous la base /{slug}/. Les noms de
+// routes historiques sont conserves et leurs chemins restent relatifs a cette
+// base, y compris lors d'un acces direct ou d'un refresh.
+const tenantRoutes = [
   // --- Vitrine du centre ----------------------------------------------------
   {
     path: '/',
@@ -260,11 +251,19 @@ const routes = [
   },
 ]
 
+const invalidTenantRoutes = [{
+  path: '/:pathMatch(.*)*',
+  name: 'invalid-tenant',
+  component: () => import('@/views/errors/InvalidTenant.vue'),
+  props: { message: TENANT_ERROR },
+  meta: { title: 'Centre invalide' },
+}]
+
 const router = createRouter({
   // Base multi-centres : toutes les routes vivent sous /{slug}/ (les noms de
   // routes et les paths relatifs ci-dessus ne changent pas).
-  history: createWebHistory(`/${TENANT_SLUG}/`),
-  routes,
+  history: createWebHistory(TENANT_SLUG ? `/${TENANT_SLUG}/` : '/'),
+  routes: TENANT_SLUG ? tenantRoutes : invalidTenantRoutes,
   scrollBehavior() {
     return { top: 0 }
   },
