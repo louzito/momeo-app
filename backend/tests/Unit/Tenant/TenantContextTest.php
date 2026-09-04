@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Tenant;
 
 use App\Tenant\TenantContext;
+use App\Tenant\TenantIdentifierResolver;
 use App\Tenant\TenantRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -37,6 +38,6 @@ final class TenantContextTest extends TestCase
 
     private function context(): TenantContext
     {
-        return new TenantContext(new TenantRegistry('/nonexistent/tenants.json', false), 'default');
+        return new TenantContext(new TenantRegistry('/nonexistent/tenants.json', false), new TenantIdentifierResolver(), 'default');
     }
 }

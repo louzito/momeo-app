@@ -64,7 +64,7 @@ final class TenantWorkerGuardTest extends TestCase
     private function guardAndContext(): array
     {
         $registry = new TenantRegistry($this->registryFile, false);
-        $context = new TenantContext($registry, 'skyline');
+        $context = new TenantContext($registry, new \App\Tenant\TenantIdentifierResolver(), 'skyline');
 
         return [new TenantWorkerGuard($context, $registry), $context];
     }

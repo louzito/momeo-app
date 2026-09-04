@@ -49,9 +49,7 @@ final class TenantContext
             return $this->slug;
         }
 
-        $env = $_SERVER['SKYBOOK_TENANT'] ?? $_ENV['SKYBOOK_TENANT'] ?? getenv('SKYBOOK_TENANT');
-
-        return \is_string($env) && trim($env) !== '' ? trim($env) : null;
+        return $this->identifierResolver->fromEnvironment();
     }
 
     public function isDefaultTenant(): bool
