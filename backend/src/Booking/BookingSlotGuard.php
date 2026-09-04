@@ -47,8 +47,11 @@ final class BookingSlotGuard
         if ($booking->getStaffMember()?->getId() !== null && $this->countOverlap('staff_member_id', $booking->getStaffMember()->getId(), $start, $end, $ignored) > 0) {
             throw new SlotUnavailable('Ce collaborateur vient d’être réservé sur ce créneau.');
         }
-        if ($booking->getResourceCode() !== null && $this->countOverlap('resource_code', $booking->getResourceCode(), $start, $end, $ignored) > 0) {
-            throw new SlotUnavailable('La ressource de ce créneau vient d’être réservée.');
+        if ($booking->getResourceCode() !== null) {
+            $resourceCapacity = (int) $this->connection->fetchOne('SELECT capacity FROM todatempo_bookable_resource WHERE code = ? AND active = 1', [$booking->getResourceCode()]);
+            if ($resourceCapacity < 1 || $this->countOverlap('resource_code', $booking->getResourceCode(), $start, $end, $ignored) >= $resourceCapacity) {
+                throw new SlotUnavailable('La capacité de la ressource de ce créneau vient d’être atteinte.');
+            }
         }
     }
 

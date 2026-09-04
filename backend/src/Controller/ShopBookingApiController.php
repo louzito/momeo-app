@@ -24,6 +24,7 @@ use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
 use App\Payment\ServicePaymentTerms;
+use App\Resource\ResourceAvailability;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -50,6 +51,7 @@ final class ShopBookingApiController
         private readonly BookingRules $bookingRules,
         private readonly ServicePaymentTerms $paymentTerms,
         private readonly BookingEmailDispatcher $emailDispatcher,
+        private readonly ResourceAvailability $resourceAvailability,
     ) {
     }
 
@@ -106,6 +108,11 @@ final class ShopBookingApiController
             if ($booked >= $capacity) {
                 continue;
             }
+            try {
+                $resource = $this->resourceAvailability->choose($product, $plannedSlot['start'], $plannedSlot['end'], $blocking);
+            } catch (\DomainException) {
+                continue;
+            }
             $dayKey = strtolower($plannedSlot['localStart']->format('l'));
             foreach ($eligibleStaff as $staff) {
                 $hours = $staff->getWorkingHours()[$dayKey] ?? null;
@@ -128,6 +135,10 @@ final class ShopBookingApiController
                             'capacity' => $capacity,
                             'booked' => $booked,
                             'remaining' => $capacity - $booked,
+                            'resourceCode' => $resource?->getCode(),
+                            'resourceName' => $resource?->getName(),
+                            'resourceRequired' => $product->isBookableResourceRequired(),
+                            'availableResourceCodes' => $this->resourceAvailability->availableCodes($product, $startUtc, $endUtc, $blocking),
                             'compatibleJumpTypeIds' => [$serviceCode],
                             'serviceCode' => $serviceCode,
                             'staffMemberId' => $staff->getId(),
@@ -214,7 +225,13 @@ final class ShopBookingApiController
             return new JsonResponse(['error' => 'Ce créneau ne correspond plus à un planning disponible.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         }
         $booking->setPlanningCode($planning->getCode());
-        $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null, 255));
+        try {
+            $resource = $this->resourceAvailability->choose($product, $start, $end, $this->bookingRepository->findBlockingBetween($start, $end), $this->nullableText($payload['resourceCode'] ?? null, 100));
+        } catch (\DomainException $exception) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => $exception->getMessage(), 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+        }
+        $booking->setResourceCode($resource?->getCode());
         $booking->setStaffMember($staff);
         $booking->setStaffName($staff ? trim($staff->getFirstName().' '.$staff->getLastName()) : null);
         $booking->setCustomerFirstName($firstName);
@@ -318,7 +335,10 @@ final class ShopBookingApiController
                 throw new SlotUnavailable('Ce créneau ne correspond plus à un planning disponible.');
             }
             $booking->setPlanningCode($planning->getCode());
-            $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null, 255));
+            $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $serviceCode]);
+            if (!$product instanceof Product) throw new \DomainException('Cette prestation n’est plus disponible.');
+            $resource = $this->resourceAvailability->choose($product, $start, $end, $this->bookingRepository->findBlockingBetween($start, $end), $this->nullableText($payload['resourceCode'] ?? null, 100));
+            $booking->setResourceCode($resource?->getCode());
             $booking->setStaffMember($staff);
             $booking->setStaffName($staff ? trim($staff->getFirstName().' '.$staff->getLastName()) : null);
             $booking->setCustomerFirstName($firstName);

@@ -16,6 +16,7 @@ const nav = [
   { name: 'admin-dashboard', label: 'Tableau de bord', icon: '📊' },
   { name: 'admin-products', label: 'Prestations', icon: '✦' },
   { name: 'admin-staff', label: 'Équipe', icon: '👥' },
+  { name: 'admin-resources', label: 'Ressources', icon: '◫' },
   { name: 'admin-options', label: 'Options & suppléments', icon: '＋' },
   { name: 'admin-agenda', label: 'Agenda', icon: '🗓️' },
   { name: 'admin-bookings', label: 'Réservations', icon: '📋' },

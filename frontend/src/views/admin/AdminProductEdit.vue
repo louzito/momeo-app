@@ -14,6 +14,7 @@ const isLegacyService = computed(() => String(route.params.id || '').startsWith(
 const loading = ref(!isNew.value)
 const saving = ref(false)
 const error = ref('')
+const resources = ref([])
 
 // --- Image du produit (upload reel vers Sylius) -------------------------------
 const imageFile = ref(null) // fichier choisi, uploade a l'enregistrement
@@ -42,15 +43,23 @@ const form = ref({
   popular: false,
   paymentMode: 'full',
   paymentValue: 0,
+  resourceCodes: [],
+  resourceRequired: false,
 })
 
 onMounted(async () => {
+  resources.value = await api.getBookableResources?.() || []
   if (!isNew.value) {
-    const jt = await api.getJumpType(admin.tenantId, route.params.id)
+    const [jt, resourceConfig] = await Promise.all([
+      api.getJumpType(admin.tenantId, route.params.id),
+      api.getServiceBookableResources?.(route.params.id) || { codes: [], required: false },
+    ])
     form.value = {
       ...form.value,
       ...jt,
       requirementsText: (jt.requirements || []).map((item) => item.label).join('\n'),
+      resourceCodes: resourceConfig.codes || [],
+      resourceRequired: !!resourceConfig.required,
     }
     loading.value = false
   }
@@ -76,6 +85,9 @@ async function save() {
     // Upload de l'image apres le produit (remplace l'ancienne image "main").
     if (imageFile.value && api.uploadJumpImage) {
       await api.uploadJumpImage(admin.tenantId, code, imageFile.value)
+    }
+    if (api.setServiceBookableResources) {
+      await api.setServiceBookableResources(code, { codes: form.value.resourceCodes, required: form.value.resourceRequired })
     }
     router.push({ name: 'admin-products' })
   } catch (e) {
@@ -179,6 +191,21 @@ async function save() {
             <input v-model="form.popular" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600" />
             <span class="text-sm text-slate-700">Mettre en avant (badge « Populaire »)</span>
           </label>
+          <div class="rounded-2xl border border-slate-200 p-4">
+            <label class="label">Ressources compatibles</label>
+            <p class="mb-3 text-xs text-slate-500">La réservation utilisera une ressource disponible parmi la sélection.</p>
+            <div v-if="resources.length" class="grid gap-2 sm:grid-cols-2">
+              <label v-for="resource in resources" :key="resource.code" class="flex items-center gap-2 text-sm text-slate-700">
+                <input v-model="form.resourceCodes" type="checkbox" :value="resource.code" class="h-4 w-4 rounded border-slate-300 text-brand-600" />
+                {{ resource.name }} · capacité {{ resource.capacity }}
+              </label>
+            </div>
+            <p v-else class="text-sm text-slate-400">Aucune ressource créée.</p>
+            <label class="mt-4 flex items-center gap-2">
+              <input v-model="form.resourceRequired" type="checkbox" :disabled="!form.resourceCodes.length" class="h-4 w-4 rounded border-slate-300 text-brand-600" />
+              <span class="text-sm font-medium text-slate-700">Ressource obligatoire pour cette prestation</span>
+            </label>
+          </div>
         </div>
       </section>
 

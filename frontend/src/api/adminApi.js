@@ -419,6 +419,33 @@ export async function deletePlanning(code) {
   return { ok: true }
 }
 
+// --- Ressources réservables -------------------------------------------------
+export async function getBookableResources() {
+  const data = await request('GET', '/admin/bookable-resources')
+  return data.member || []
+}
+
+export async function createBookableResource(data) {
+  return request('POST', '/admin/bookable-resources', data, 'application/json')
+}
+
+export async function updateBookableResource(code, data) {
+  return request('PUT', `/admin/bookable-resources/${encodeURIComponent(code)}`, data, 'application/json')
+}
+
+export async function deleteBookableResource(code) {
+  await request('DELETE', `/admin/bookable-resources/${encodeURIComponent(code)}`)
+  return { ok: true }
+}
+
+export async function getServiceBookableResources(code) {
+  return request('GET', `/admin/services/${encodeURIComponent(code)}/bookable-resources`)
+}
+
+export async function setServiceBookableResources(code, data) {
+  return request('PUT', `/admin/services/${encodeURIComponent(code)}/bookable-resources`, data, 'application/json')
+}
+
 // --- Configuration boutique -----------------------------------------------------
 // Repartition Sylius-first :
 //   - nom / email / telephone -> CHANNEL Sylius (name, contactEmail,

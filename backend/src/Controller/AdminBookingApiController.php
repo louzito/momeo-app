@@ -15,6 +15,7 @@ use App\Repository\BookingRepository;
 use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
+use App\Resource\ResourceAvailability;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -33,6 +34,7 @@ final class AdminBookingApiController
         private readonly EntityManagerInterface $entityManager,
         private readonly BookingSlotGuard $slotGuard,
         private readonly BookingEmailDispatcher $emailDispatcher,
+        private readonly ResourceAvailability $resourceAvailability,
     ) {
     }
 
@@ -95,7 +97,8 @@ final class AdminBookingApiController
             $booking->setServiceName(mb_substr(trim((string) $product->getName()) ?: $serviceCode, 0, 255));
             $planning = $this->planning($payload, $serviceCode, $start, $end);
             $booking->setPlanningCode($planning?->getCode());
-            $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null, 255));
+            $resource = $this->resourceAvailability->choose($product, $start, $end, $this->bookingRepository->findBlockingBetween($start, $end), $this->nullableText($payload['resourceCode'] ?? null, 100));
+            $booking->setResourceCode($resource?->getCode());
             $booking->setStaffMember($staff);
             $booking->setStaffName(trim($staff->getFirstName().' '.$staff->getLastName()));
             $booking->setCustomerFirstName($firstName);
@@ -168,7 +171,18 @@ final class AdminBookingApiController
         $booking->setStaffName($staff ? trim($staff->getFirstName().' '.$staff->getLastName()) : null);
         $planning = $this->planning($payload, $booking->getServiceCode(), $start, $end);
         $booking->setPlanningCode($planning?->getCode());
-        $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null, 255));
+        $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $booking->getServiceCode()]);
+        if (!$product instanceof Product) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => 'Cette prestation n’est plus disponible.'], Response::HTTP_CONFLICT);
+        }
+        try {
+            $resource = $this->resourceAvailability->choose($product, $start, $end, $this->bookingRepository->findBlockingBetween($start, $end), $this->nullableText($payload['resourceCode'] ?? null, 100), $booking);
+        } catch (\DomainException $exception) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => $exception->getMessage(), 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+        }
+        $booking->setResourceCode($resource?->getCode());
         $booking->setSlotStart($start);
         $booking->setSlotEnd($end);
         $booking->setStatus(Booking::STATUS_CONFIRMED);

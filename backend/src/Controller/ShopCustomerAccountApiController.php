@@ -10,6 +10,7 @@ use App\Booking\SlotUnavailable;
 use App\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\Planning;
+use App\Entity\Product\Product;
 use App\Entity\StaffMember;
 use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
@@ -18,6 +19,7 @@ use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
+use App\Resource\ResourceAvailability;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
@@ -46,6 +48,7 @@ final class ShopCustomerAccountApiController extends AbstractController
         private readonly BookingSlotGuard $slotGuard,
         private readonly CustomerBookingChangePolicy $changePolicy,
         private readonly BookingEmailDispatcher $emailDispatcher,
+        private readonly ResourceAvailability $resourceAvailability,
         #[Autowire(service: 'sylius_invoicing.repository.invoice')]
         private readonly InvoiceRepositoryInterface $invoiceRepository,
         #[Autowire(service: 'sylius_invoicing.provider.invoice_file')]
@@ -161,7 +164,10 @@ final class ShopCustomerAccountApiController extends AbstractController
             $booking->setPlanningCode($planning->getCode());
             $booking->setStaffMember($staff);
             $booking->setStaffName(trim($staff->getFirstName().' '.$staff->getLastName()));
-            $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null));
+            $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $booking->getServiceCode()]);
+            if (!$product instanceof Product) throw new SlotUnavailable('Cette prestation n’est plus disponible.');
+            $resource = $this->resourceAvailability->choose($product, $start, $end, $this->bookingRepository->findBlockingBetween($start, $end), $this->nullableText($payload['resourceCode'] ?? null), $booking);
+            $booking->setResourceCode($resource?->getCode());
             $booking->setSlotStart($start);
             $booking->setSlotEnd($end);
             $this->slotGuard->assertAvailable($booking, $planning->getCapacity(), $booking);
@@ -294,6 +300,7 @@ final class ShopCustomerAccountApiController extends AbstractController
             'status' => $booking->getStatus(), 'source' => $booking->getSource(),
             'jumpTypeId' => $booking->getServiceCode(), 'jumpTypeName' => $booking->getServiceName(),
             'jumperName' => $name, 'customerName' => $name, 'staffName' => $booking->getStaffName(),
+            'resourceCode' => $booking->getResourceCode(),
             'slotStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
             'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
             'options' => $booking->getOptions(), 'paymentState' => $booking->getPaymentState(),

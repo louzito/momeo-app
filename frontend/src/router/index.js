@@ -186,6 +186,7 @@ const tenantRoutes = [
       { path: 'options/new', name: 'admin-option-new', component: () => import('@/views/admin/AdminOptionEdit.vue'), meta: { title: 'Nouvelle option', layout: 'admin', requiresAdmin: true } },
       { path: 'options/:id', name: 'admin-option-edit', component: () => import('@/views/admin/AdminOptionEdit.vue'), meta: { title: 'Modifier l\'option', layout: 'admin', requiresAdmin: true } },
       { path: 'plannings', name: 'admin-plannings', component: () => import('@/views/admin/AdminPlannings.vue'), meta: { title: 'Plannings', layout: 'admin', requiresAdmin: true } },
+      { path: 'resources', name: 'admin-resources', component: () => import('@/views/admin/AdminResources.vue'), meta: { title: 'Ressources', layout: 'admin', requiresAdmin: true } },
       { path: 'agenda', name: 'admin-agenda', component: () => import('@/views/admin/AdminAgenda.vue'), meta: { title: 'Agenda', layout: 'admin', requiresAdmin: true } },
       // Ancienne URL "Horaires" -> redirige vers les plannings.
       { path: 'schedule', redirect: { name: 'admin-agenda' } },

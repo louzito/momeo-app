@@ -570,6 +570,25 @@ export const httpApi = {
     return sylius.deletePlanning(code)
   },
 
+  async getBookableResources() {
+    return sylius.getBookableResources()
+  },
+  async createBookableResource(data) {
+    return sylius.createBookableResource(data)
+  },
+  async updateBookableResource(code, data) {
+    return sylius.updateBookableResource(code, data)
+  },
+  async deleteBookableResource(code) {
+    return sylius.deleteBookableResource(code)
+  },
+  async getServiceBookableResources(code) {
+    return sylius.getServiceBookableResources(code)
+  },
+  async setServiceBookableResources(code, data) {
+    return sylius.setServiceBookableResources(code, data)
+  },
+
   // Commandes Sylius vues par le centre (espace admin front). Sert notamment a
   // encaisser les virements : getSyliusOrders({paymentState:'awaiting_payment'})
   // puis markOrderPaid(paymentId) quand le virement arrive sur le compte.
