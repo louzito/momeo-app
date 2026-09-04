@@ -8,6 +8,7 @@ use App\Entity\Booking;
 use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
 use App\Repository\BookingRepository;
+use App\Repository\GiftVoucherRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,6 +22,7 @@ final class ShopCustomerAccountApiController extends AbstractController
 {
     public function __construct(
         private readonly BookingRepository $bookingRepository,
+        private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -68,7 +70,7 @@ final class ShopCustomerAccountApiController extends AbstractController
         $customer = $user->getCustomer();
         $orders = null === $customer ? [] : $this->entityManager->getRepository(Order::class)->findBy(['customer' => $customer], ['createdAt' => 'DESC']);
 
-        return $this->json(['member' => array_map(static fn (Order $order): array => [
+        return $this->json(['member' => array_map(fn (Order $order): array => [
             'id' => $order->getTokenValue(),
             'number' => $order->getNumber(),
             'status' => $order->getState(),
@@ -76,7 +78,7 @@ final class ShopCustomerAccountApiController extends AbstractController
             'total' => $order->getTotal() / 100,
             'currency' => $order->getCurrencyCode(),
             'createdAt' => $order->getCreatedAt()?->format(\DateTimeInterface::ATOM),
-            'kind' => 'direct',
+            'kind' => null !== $this->giftVoucherRepository->findOneBy(['purchaseOrderNumber' => $order->getNumber()]) ? 'gift' : 'direct',
         ], $orders)]);
     }
 
@@ -94,7 +96,7 @@ final class ShopCustomerAccountApiController extends AbstractController
             'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
             'options' => $booking->getOptions(), 'paymentState' => $booking->getPaymentState(),
             'orderNumber' => $booking->getOrderNumber(), 'amount' => $booking->getAmount(),
-            'currencyCode' => $booking->getCurrencyCode(),
+            'currencyCode' => $booking->getCurrencyCode(), 'postponedReason' => $booking->getPostponedReason(),
         ];
     }
 }

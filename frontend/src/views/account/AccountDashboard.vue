@@ -8,36 +8,40 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import { formatDate, formatMoney } from '@/utils/format'
+import { splitCustomerBookings } from '@/utils/customerBookings'
 
 const session = useSessionStore()
 const router = useRouter()
 const orders = ref([])
 const bookings = ref([])
 const loading = ref(true)
+const error = ref('')
 
 function logout() {
   session.logout()
   router.replace({ name: 'account-login' })
 }
 
-const upcoming = computed(() =>
-  bookings.value
-    .filter((b) => ['confirmed', 'postponed'].includes(b.status) && new Date(b.slotStart) >= new Date(Date.now() - 864e5))
-    .sort((a, b) => new Date(a.slotStart) - new Date(b.slotStart)),
-)
-const past = computed(() =>
-  bookings.value
-    .filter((b) => b.status === 'completed' || new Date(b.slotStart) < new Date(Date.now() - 864e5))
-    .sort((a, b) => new Date(b.slotStart) - new Date(a.slotStart)),
-)
+const splitBookings = computed(() => splitCustomerBookings(bookings.value))
+const upcoming = computed(() => splitBookings.value.upcoming)
+const past = computed(() => splitBookings.value.past)
 
-onMounted(async () => {
-  ;[orders.value, bookings.value] = await Promise.all([
-    api.getCustomerOrders(),
-    api.getCustomerBookings(),
-  ])
-  loading.value = false
-})
+async function loadAccount() {
+  loading.value = true
+  error.value = ''
+  try {
+    ;[orders.value, bookings.value] = await Promise.all([
+      api.getCustomerOrders(),
+      api.getCustomerBookings(),
+    ])
+  } catch (e) {
+    error.value = e?.message || 'Impossible de charger votre espace client.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadAccount)
 </script>
 
 <template>
@@ -52,6 +56,11 @@ onMounted(async () => {
 
     <Spinner v-if="loading" />
 
+    <div v-else-if="error" class="mt-8 rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700">
+      <p>{{ error }}</p>
+      <button class="btn-outline mt-4" @click="loadAccount">Réessayer</button>
+    </div>
+
     <template v-else>
       <!-- Reservations a venir -->
       <section class="mt-8">
@@ -65,17 +74,18 @@ onMounted(async () => {
       </section>
 
       <!-- Historique des reservations -->
-      <section v-if="past.length" class="mt-10">
+      <section class="mt-10">
         <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Rendez-vous passes</h2>
-        <div class="grid gap-3">
+        <div v-if="past.length" class="grid gap-3">
           <BookingCard v-for="b in past" :key="b.id" :booking="b" />
         </div>
+        <EmptyState v-else icon="📋" title="Aucun rendez-vous passé" message="Votre historique apparaîtra ici." />
       </section>
 
       <!-- Commandes -->
       <section class="mt-10">
         <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Historique des commandes</h2>
-        <div class="card divide-y divide-slate-100">
+        <div v-if="orders.length" class="card divide-y divide-slate-100">
           <div v-for="o in orders" :key="o.id" class="flex flex-wrap items-center justify-between gap-3 p-4">
             <div>
               <p class="font-mono font-semibold text-slate-800">{{ o.number }}</p>
@@ -90,6 +100,7 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+        <EmptyState v-else icon="🧾" title="Aucune commande" message="Vos commandes apparaîtront ici." />
       </section>
     </template>
   </div>

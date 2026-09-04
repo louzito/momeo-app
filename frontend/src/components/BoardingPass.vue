@@ -60,7 +60,7 @@ const props = defineProps({
     </div>
 
     <div class="border-t border-dashed border-slate-200 bg-slate-50 px-6 py-3 text-center text-xs text-slate-400">
-      Confirmation generee automatiquement · QR code factice (maquette)
+      Confirmation générée à partir de votre rendez-vous
     </div>
   </div>
 </template>

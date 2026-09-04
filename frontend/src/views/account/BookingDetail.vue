@@ -1,18 +1,23 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
+import { useTenantContext } from '@/composables/useTenantContext'
 import api from '@/api'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import { formatDate, formatTime, formatMoney } from '@/utils/format'
 
 const route = useRoute()
+const { tenant } = useTenantContext()
 const booking = ref(null)
 const loading = ref(true)
+const error = ref('')
 
 onMounted(async () => {
   try {
     booking.value = await api.getBooking(route.params.bookingId)
+  } catch (e) {
+    error.value = e?.message || 'La réservation est introuvable.'
   } finally {
     loading.value = false
   }
@@ -22,13 +27,20 @@ onMounted(async () => {
 <template>
   <Spinner v-if="loading" />
 
+  <div v-else-if="error" class="section py-10">
+    <div class="mx-auto max-w-md rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700">
+      <p>{{ error }}</p>
+      <RouterLink :to="{ name: 'account-dashboard' }" class="btn-outline mt-4">Retour à mon compte</RouterLink>
+    </div>
+  </div>
+
   <div v-else-if="booking" class="section py-10">
     <RouterLink :to="{ name: 'account-dashboard' }" class="text-sm text-slate-400 hover:text-brand-600">← Mon compte</RouterLink>
 
     <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="font-display text-3xl font-bold text-slate-900">{{ booking.jumpTypeName }}</h1>
-        <p class="mt-1 text-slate-500">{{ booking.tenantName }} · Ref. {{ booking.reference }}</p>
+        <p class="mt-1 text-slate-500">{{ tenant?.name }} · Réf. {{ booking.reference }}</p>
       </div>
       <StatusBadge :status="booking.status" />
     </div>
@@ -52,10 +64,6 @@ onMounted(async () => {
             <dt class="text-slate-400">Client</dt>
             <dd class="font-semibold text-slate-800">{{ booking.jumperName }}</dd>
           </div>
-          <div v-if="booking.weightDeclaredKg">
-            <dt class="text-slate-400">Poids declare</dt>
-            <dd class="font-semibold text-slate-800">{{ booking.weightDeclaredKg }} kg</dd>
-          </div>
           <div>
             <dt class="text-slate-400">Date</dt>
             <dd class="font-semibold capitalize text-slate-800">{{ formatDate(booking.slotStart, { weekday: true, short: true }) }}</dd>
@@ -75,7 +83,7 @@ onMounted(async () => {
           <ul class="space-y-1 text-sm">
             <li v-for="o in booking.options" :key="o.name" class="flex justify-between">
               <span class="text-slate-600">{{ o.name }}</span>
-              <span class="text-slate-700">{{ formatMoney(o.price, 'USD') }}</span>
+              <span class="text-slate-700">{{ formatMoney(o.price, booking.currencyCode) }}</span>
             </li>
           </ul>
         </div>

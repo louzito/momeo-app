@@ -2,6 +2,9 @@
 import { RouterLink } from 'vue-router'
 import StatusBadge from './ui/StatusBadge.vue'
 import { formatDate, formatTime } from '@/utils/format'
+import { useTenantContext } from '@/composables/useTenantContext'
+
+const { tenant } = useTenantContext()
 
 defineProps({
   booking: { type: Object, required: true },
@@ -23,7 +26,7 @@ defineProps({
         <StatusBadge :status="booking.status" />
       </div>
       <p class="truncate text-sm text-slate-500">
-        {{ booking.tenantName }} · {{ formatDate(booking.slotStart, { short: true }) }} a {{ formatTime(booking.slotStart) }}
+        {{ tenant?.name }} · {{ formatDate(booking.slotStart, { short: true }) }} à {{ formatTime(booking.slotStart) }}
       </p>
       <p class="text-xs text-slate-400">Ref. {{ booking.reference }}</p>
     </div>

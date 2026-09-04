@@ -920,8 +920,6 @@ export const httpApi = {
         jumpTypeName: booking.jumpTypeName,
         slotStart: booking.slotStart,
         options: (booking.options || []).map((option) => option.name || option),
-        waiverSigned: true,
-        checkedInAt: booking.status === 'completed' ? booking.slotEnd : null,
     }
   },
 

@@ -4,8 +4,10 @@ import { useRoute, RouterLink } from 'vue-router'
 import api from '@/api'
 import BoardingPass from '@/components/BoardingPass.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import { useTenantContext } from '@/composables/useTenantContext'
 
 const route = useRoute()
+const { tenant } = useTenantContext()
 const pass = ref(null)
 const booking = ref(null)
 const loading = ref(true)
@@ -37,7 +39,7 @@ onMounted(async () => {
         <RouterLink :to="{ name: 'booking-detail', params: { bookingId: booking.id } }" class="text-sm text-slate-400 hover:text-brand-600">← Reservation</RouterLink>
         <button class="btn-outline" @click="() => window.print()">⬇️ Imprimer / PDF</button>
       </div>
-      <BoardingPass :pass="pass" :tenant-name="booking?.tenantName" />
+      <BoardingPass :pass="pass" :tenant-name="tenant?.name" />
     </template>
   </div>
 </template>
