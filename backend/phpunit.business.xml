@@ -28,6 +28,7 @@
             <file>tests/Integration/GiftVoucher/GiftVoucherConcurrentRedemptionTest.php</file>
             <file>tests/Integration/Security/TeamPermissionsMatrixTest.php</file>
             <file>tests/Controller/InvoiceSecurityContractTest.php</file>
+            <file>tests/Smoke/V1EndToEndSmokeTest.php</file>
         </testsuite>
     </testsuites>
     <source ignoreSuppressionOfDeprecations="true" restrictNotices="true" restrictWarnings="true">
