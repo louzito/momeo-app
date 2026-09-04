@@ -25,6 +25,7 @@ use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
 use App\Payment\ServicePaymentTerms;
 use App\Resource\ResourceAvailability;
+use App\Staff\StaffEligibility;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -79,10 +80,7 @@ final class ShopBookingApiController
             $this->staffRepository->findBy(['active' => true], ['position' => 'ASC']),
             static fn (StaffMember $member): bool => $member->isBookable(),
         ));
-        $eligibleStaff = array_values(array_filter(
-            $activeStaff,
-            static fn (StaffMember $member): bool => \in_array($serviceCode, $member->getServiceCodes(), true),
-        ));
+        $eligibleStaff = StaffEligibility::forService($activeStaff, $serviceCode);
 
         $rules = $this->bookingRules->get();
         $rangeStart = $from->setTimezone(new \DateTimeZone('UTC'))->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
@@ -114,6 +112,7 @@ final class ShopBookingApiController
                 continue;
             }
             $dayKey = strtolower($plannedSlot['localStart']->format('l'));
+            $matchedStaffCount = 0;
             foreach ($eligibleStaff as $staff) {
                 $hours = $staff->getWorkingHours()[$dayKey] ?? null;
                 if (!\is_array($hours) || !($hours['enabled'] ?? false)) {
@@ -127,6 +126,7 @@ final class ShopBookingApiController
                     $startUtc = $plannedSlot['start'];
                     $endUtc = $plannedSlot['end'];
                     if (!$this->isBlocked($staff, $startUtc, $endUtc, $blocking, $timeOffs)) {
+                        ++$matchedStaffCount;
                         $slots[] = [
                             'id' => sprintf('staff_%d_%s_%s', $staff->getId(), $startUtc->format('Ymd_Hi'), $serviceCode),
                             'planningCode' => $plannedSlot['planningCode'],
@@ -147,6 +147,28 @@ final class ShopBookingApiController
                         ];
                     }
                 }
+            }
+            if ($matchedStaffCount > 0) {
+                $startUtc = $plannedSlot['start'];
+                $endUtc = $plannedSlot['end'];
+                $slots[] = [
+                    'id' => sprintf('staff_none_%s_%s_%s', $plannedSlot['planningCode'], $startUtc->format('Ymd_Hi'), $serviceCode),
+                    'planningCode' => $plannedSlot['planningCode'],
+                    'start' => $startUtc->format(\DateTimeInterface::ATOM),
+                    'end' => $endUtc->format(\DateTimeInterface::ATOM),
+                    'capacity' => $capacity,
+                    'booked' => $booked,
+                    'remaining' => $capacity - $booked,
+                    'resourceCode' => $resource?->getCode(),
+                    'resourceName' => $resource?->getName(),
+                    'resourceRequired' => $product->isBookableResourceRequired(),
+                    'availableResourceCodes' => $this->resourceAvailability->availableCodes($product, $startUtc, $endUtc, $blocking),
+                    'compatibleJumpTypeIds' => [$serviceCode],
+                    'serviceCode' => $serviceCode,
+                    'staffMemberId' => null,
+                    'staffName' => null,
+                    'instructor' => 'Sans préférence',
+                ];
             }
         }
 
@@ -202,13 +224,21 @@ final class ShopBookingApiController
 
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
-        $staff = null;
         $staffId = (int) ($payload['staffMemberId'] ?? 0);
-        $staff = $staffId > 0 ? $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE) : null;
-        $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end, (string) ($payload['planningCode'] ?? ''));
-        if ($error !== null) {
-            $connection->rollBack();
-            return new JsonResponse(['error' => $error, 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+        $planningCodeInput = (string) ($payload['planningCode'] ?? '');
+        if ($staffId > 0) {
+            $staff = $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE);
+            $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCodeInput);
+            if ($error !== null) {
+                $connection->rollBack();
+                return new JsonResponse(['error' => $error, 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+            }
+        } else {
+            $staff = $this->chooseAutoStaff($serviceCode, $start, $end, $planningCodeInput);
+            if ($staff === null) {
+                $connection->rollBack();
+                return new JsonResponse(['error' => 'Aucun collaborateur compatible n’est disponible sur ce créneau.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+            }
         }
 
         $booking = new Booking();
@@ -315,12 +345,19 @@ final class ShopBookingApiController
                 throw new \DomainException('Cet email ne correspond pas au bénéficiaire du chèque.');
             }
 
-            $staff = null;
             $staffId = (int) ($payload['staffMemberId'] ?? 0);
-            $staff = $staffId > 0 ? $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE) : null;
-            $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end, (string) ($payload['planningCode'] ?? ''));
-            if ($error !== null) {
-                throw new SlotUnavailable($error);
+            $planningCodeInput = (string) ($payload['planningCode'] ?? '');
+            if ($staffId > 0) {
+                $staff = $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE);
+                $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCodeInput);
+                if ($error !== null) {
+                    throw new SlotUnavailable($error);
+                }
+            } else {
+                $staff = $this->chooseAutoStaff($serviceCode, $start, $end, $planningCodeInput);
+                if ($staff === null) {
+                    throw new SlotUnavailable('Aucun collaborateur compatible n’est disponible sur ce créneau.');
+                }
             }
 
             $booking = new Booking();
@@ -454,6 +491,23 @@ final class ShopBookingApiController
         $start = $start->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
         $end = $end->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
         return count(array_filter($blocking, static fn (Booking $booking): bool => $booking->getPlanningCode() === $planningCode && $booking->getSlotStart() < $end && $booking->getSlotEnd() > $start));
+    }
+
+    /**
+     * "Sans préférence" : choisit de manière déterministe le premier collaborateur actif,
+     * réservable, compétent pour la prestation et réellement disponible sur ce créneau.
+     */
+    private function chooseAutoStaff(string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $end, string $planningCode): ?StaffMember
+    {
+        $candidates = StaffEligibility::forService($this->staffRepository->findBy(['active' => true]), $serviceCode);
+        foreach ($candidates as $candidate) {
+            $staff = $this->entityManager->find(StaffMember::class, $candidate->getId(), LockMode::PESSIMISTIC_WRITE);
+            if ($staff instanceof StaffMember && $this->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCode) === null) {
+                return $staff;
+            }
+        }
+
+        return null;
     }
 
     private function validateStaffSlot(?StaffMember $staff, string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $end, string $planningCode): ?string
