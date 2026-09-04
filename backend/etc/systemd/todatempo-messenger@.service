@@ -1,0 +1,20 @@
+[Unit]
+Description=TodaTempo Messenger worker (%i)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/todatempo/backend
+Environment=APP_ENV=prod
+Environment=SKYBOOK_TENANT=%i
+# Contient notamment DATABASE_URL et MESSENGER_TRANSPORT_DSN ; ne pas y mettre le tenant.
+EnvironmentFile=/etc/todatempo/backend.env
+ExecStart=/usr/bin/php bin/console messenger:consume async --time-limit=3600 --memory-limit=256M --no-interaction
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target
