@@ -1,29 +1,55 @@
 <script setup>
-import { computed, onMounted } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
-import { useCartStore } from '@/stores/cart'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, RouterLink } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
+import api from '@/api'
 import { formatDate, formatTime, formatMoney } from '@/utils/format'
+import Spinner from '@/components/ui/Spinner.vue'
 
-const router = useRouter()
-const cart = useCartStore()
+const route = useRoute()
 const { tenant, slug } = useTenantContext()
 
-const result = computed(() => cart.lastResult)
-const booking = computed(() => result.value?.booking)
-const order = computed(() => result.value?.order)
+const booking = ref(null)
+const paymentInstructions = ref('')
+const loading = ref(true)
+const error = ref('')
+const order = computed(() => booking.value ? {
+  number: booking.value.orderNumber,
+  total: (booking.value.amount ?? 0) / 100,
+  currency: booking.value.currencyCode,
+  status: booking.value.paymentState,
+  paymentInstructions: paymentInstructions.value,
+} : null)
 // Commande reelle Sylius payee par virement : en attente de reception.
 const awaitingTransfer = computed(() => order.value?.status === 'awaiting_payment')
 
-onMounted(() => {
-  if (!cart.lastResult?.order) {
-    router.replace({ name: 'tenant-home', params: { slug: slug.value } })
+onMounted(async () => {
+  try {
+    booking.value = await api.getBooking(route.params.bookingId)
+    if (!booking.value?.orderNumber) throw new Error('Cette réservation n’est associée à aucune commande.')
+  } catch (e) {
+    error.value = e?.message || 'La réservation est introuvable.'
+  } finally {
+    loading.value = false
+  }
+  if (!booking.value) return
+  try {
+    const methods = (await api.getCheckoutPaymentMethods?.()) || []
+    paymentInstructions.value = methods.find((item) => item.code === 'bank_transfer')?.instructions || ''
+  } catch {
+    // Les instructions sont facultatives : la réservation persistée reste affichable.
   }
 })
 </script>
 
 <template>
-  <div v-if="order" class="section py-12">
+  <div class="section py-12">
+    <Spinner v-if="loading" />
+    <div v-else-if="error" class="mx-auto max-w-lg rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700">
+      <p>{{ error }}</p>
+      <RouterLink :to="{ name: 'tenant-home', params: { slug } }" class="btn-outline mt-4">Retour à l’accueil</RouterLink>
+    </div>
+    <template v-else-if="order && booking">
     <div class="mx-auto max-w-2xl text-center">
       <div
         class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-3xl"
@@ -36,10 +62,10 @@ onMounted(() => {
       </h1>
       <p class="mt-2 text-slate-500">
         <template v-if="awaitingTransfer">
-          Merci {{ cart.jumper.firstName || '' }}. Votre creneau est garde — il ne reste qu'a effectuer le virement.
+          Votre creneau est garde — il ne reste qu'a effectuer le virement.
         </template>
         <template v-else>
-          Merci {{ cart.jumper.firstName || '' }}. Un email de confirmation vient de vous etre envoye (simule).
+          Votre rendez-vous est enregistré.
         </template>
       </p>
     </div>
@@ -112,5 +138,6 @@ onMounted(() => {
         <RouterLink :to="{ name: 'tenant-home', params: { slug } }" class="underline">Retour a {{ tenant?.name }}</RouterLink>
       </p>
     </div>
+    </template>
   </div>
 </template>

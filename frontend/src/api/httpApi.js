@@ -83,10 +83,8 @@ async function createPersistentBooking(payload, commercial = {}) {
     },
     options: (payload.options || []).map((option) => ({ name: option.name, price: option.price })),
     orderNumber: commercial.orderNumber || null,
+    orderToken: commercial.orderToken || null,
     voucherCode: commercial.voucherCode || null,
-    amount: commercial.amount ?? Math.round(Number(payload.total || 0) * 100),
-    currencyCode: commercial.currencyCode || 'EUR',
-    paymentState: commercial.paymentState || null,
   })
 }
 
@@ -646,20 +644,8 @@ export const httpApi = {
     if (payload.kind === 'gift' && payload.paymentMethod === 'bank_transfer') {
       return this._createGiftOrder(payload)
     }
-    // Paiement carte de démonstration : commande commerciale simulée, mais le
-    // rendez-vous est tout de même persisté pour apparaître dans l'agenda.
     if (payload.kind !== 'direct' || payload.paymentMethod !== 'bank_transfer') {
-      const mockResult = await mockApi.createOrder(payload)
-      if (payload.kind === 'direct' && payload.slot) {
-        const booking = await createPersistentBooking(payload, {
-          source: 'direct',
-          paymentState: 'paid_demo',
-          currencyCode: mockResult.order?.currency || 'EUR',
-          amount: Math.round(Number(mockResult.order?.total || 0) * 100),
-        })
-        return { ...mockResult, booking }
-      }
-      return mockResult
+      throw new Error('Ce moyen de paiement ne permet pas de créer une réservation réelle.')
     }
 
     // 1. Panier
@@ -722,25 +708,20 @@ export const httpApi = {
       /* non bloquant */
     }
 
-    const mockResult = await mockApi.createOrder(payload)
     const booking = await createPersistentBooking(payload, {
       source: 'direct',
       orderNumber: completed.number,
-      paymentState: completed.paymentState || 'awaiting_payment',
-      currencyCode: completed.currencyCode || mockResult.order.currency || 'EUR',
-      amount: completed.total ?? Math.round(Number(mockResult.order.total || 0) * 100),
+      orderToken: completed.tokenValue,
     })
 
     return {
-      ...mockResult,
       booking,
       order: {
-        ...mockResult.order,
         id: completed.tokenValue,
         number: completed.number,
         total: (completed.total ?? 0) / 100,
-        currency: completed.currencyCode || mockResult.order.currency,
-        status: 'awaiting_payment', // paymentState Sylius : en attente du virement
+        currency: completed.currencyCode,
+        status: completed.paymentState || 'awaiting_payment',
         paymentMethod: 'bank_transfer',
         paymentInstructions,
         syliusState: completed.state,
@@ -875,12 +856,8 @@ export const httpApi = {
     return mapVoucherFromApi(v)
   },
 
-  // Redemption REELLE (active -> used, persistee cote backend — voir
-  // GiftVoucherRedeemer, empeche toute reutilisation). Le creneau / la carte
-  // d'embarquement, eux, restent mock (memes limites que l'achat direct :
-  // "creneaux" pas encore un metier Sylius) -> fabriques via mockApi.createOrder
-  // puis re-injectes avec les VRAIES infos (nom du saut, horaires du creneau
-  // choisi), meme pattern que createOrder direct ci-dessus.
+  // Redemption et réservation réelles, effectuées atomiquement par le backend
+  // afin qu'un échec de créneau laisse le chèque disponible.
   async reserveVoucher(code, { tenantId, jumpTypeId, jumpTypeName, slotId, slot, jumper }) {
     const result = await apiWrite('POST', `/shop/bookings/from-voucher/${encodeURIComponent(code)}`, {
       serviceCode: jumpTypeId,
@@ -906,19 +883,13 @@ export const httpApi = {
   },
 
   async getBooking(bookingId) {
-    try {
-      const booking = await apiGet(`/shop/bookings/${encodeURIComponent(bookingId)}`)
-      return { ...booking, boardingPassId: booking.id }
-    } catch (error) {
-      if (error.status === 404) return mockApi.getBooking(bookingId)
-      throw error
-    }
+    const booking = await apiGet(`/shop/bookings/${encodeURIComponent(bookingId)}`)
+    return { ...booking, boardingPassId: booking.id }
   },
 
   async getBoardingPass(bookingId) {
-    try {
-      const booking = await apiGet(`/shop/bookings/${encodeURIComponent(bookingId)}`)
-      return {
+    const booking = await apiGet(`/shop/bookings/${encodeURIComponent(bookingId)}`)
+    return {
         id: booking.id,
         bookingId: booking.id,
         reference: booking.reference,
@@ -928,10 +899,6 @@ export const httpApi = {
         options: (booking.options || []).map((option) => option.name || option),
         waiverSigned: true,
         checkedInAt: booking.status === 'completed' ? booking.slotEnd : null,
-      }
-    } catch (error) {
-      if (error.status === 404) return mockApi.getBoardingPass(bookingId)
-      throw error
     }
   },
 

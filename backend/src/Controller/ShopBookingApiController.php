@@ -11,6 +11,7 @@ use App\Booking\BookingSlotGuard;
 use App\Booking\SlotUnavailable;
 use App\Entity\Booking;
 use App\Entity\GiftVoucher;
+use App\Entity\Order\Order;
 use App\Entity\Planning;
 use App\Entity\Product\Product;
 use App\Entity\StaffMember;
@@ -162,6 +163,12 @@ final class ShopBookingApiController
         }
         $serviceName = trim((string) $product->getName()) ?: trim((string) ($payload['serviceName'] ?? $serviceCode));
 
+        $orderToken = trim((string) ($payload['orderToken'] ?? ''));
+        $order = $orderToken !== '' ? $this->entityManager->getRepository(Order::class)->findOneBy(['tokenValue' => $orderToken]) : null;
+        if (!$order instanceof Order || $order->getCheckoutState() !== 'completed') {
+            return new JsonResponse(['error' => 'La commande associée est introuvable ou incomplète.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
         $staff = null;
@@ -196,12 +203,12 @@ final class ShopBookingApiController
         $booking->setCustomerNotes($this->nullableText($payload['customer']['notes'] ?? null));
         $booking->setSlotStart($start);
         $booking->setSlotEnd($end);
-        $booking->setOrderNumber($this->nullableText($payload['orderNumber'] ?? null, 255));
+        $booking->setOrderNumber($order->getNumber());
         $booking->setVoucherCode($this->nullableText($payload['voucherCode'] ?? null, 32));
         $booking->setOptions(\is_array($payload['options'] ?? null) ? array_values($payload['options']) : []);
-        $booking->setAmount(isset($payload['amount']) ? max(0, (int) $payload['amount']) : null);
-        $booking->setCurrencyCode(mb_substr(strtoupper((string) ($payload['currencyCode'] ?? 'EUR')), 0, 3));
-        $booking->setPaymentState($this->nullableText($payload['paymentState'] ?? null, 30));
+        $booking->setAmount($order->getTotal());
+        $booking->setCurrencyCode($order->getCurrencyCode() ?? 'EUR');
+        $booking->setPaymentState($order->getPaymentState());
 
         $this->entityManager->persist($booking);
         try {
@@ -499,6 +506,9 @@ final class ShopBookingApiController
             'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
             'options' => $booking->getOptions(),
             'paymentState' => $booking->getPaymentState(),
+            'orderNumber' => $booking->getOrderNumber(),
+            'amount' => $booking->getAmount(),
+            'currencyCode' => $booking->getCurrencyCode(),
         ];
     }
 }

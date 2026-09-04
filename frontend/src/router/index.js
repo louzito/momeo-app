@@ -89,7 +89,7 @@ const tenantRoutes = [
     meta: { title: 'Paiement' },
   },
   {
-    path: '/checkout/confirmation',
+    path: '/checkout/confirmation/:bookingId',
     name: 'checkout-confirmation',
     component: () => import('@/views/checkout/OrderConfirmation.vue'),
     meta: { title: 'Commande confirmee' },
