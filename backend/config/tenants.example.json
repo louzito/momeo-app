@@ -1,8 +1,8 @@
 {
-    "template": {
-        "db": "momeo_template",
-        "name": "Template",
-        "enabled": false,
-        "status": "template"
+    "demo": {
+        "db": "app_demo",
+        "name": "Centre de démonstration",
+        "enabled": true,
+        "status": "active"
     }
 }

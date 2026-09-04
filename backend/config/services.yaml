@@ -11,7 +11,7 @@ parameters:
     # MOMEO_PROVISIONING_SECRET alimente le nouveau nom. A supprimer en V2.
     env(TODATEMPO_PROVISIONING_SECRET): '%env(MOMEO_PROVISIONING_SECRET)%'
     # SkyBook multi-centres : registre des tenants + tenant par defaut (/admin, CLI legacy)
-    todatempo.default_tenant: 'skyline'
+    todatempo.default_tenant: '%env(SKYBOOK_DEFAULT_TENANT)%'
     todatempo.tenants_file: '%kernel.project_dir%/config/tenants.json'
     # Cheques cadeaux reels : base publique pour les liens d'activation /
     # QR codes ("{base}/{slug}/beneficiary/login?code=..."). Reutilise
