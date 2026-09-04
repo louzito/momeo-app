@@ -9,7 +9,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /**
  * Genere caddy/Caddyfile depuis le registre des tenants : c'est le reverse
  * proxy (port 80) qui fait le decoupage multi-centres cote back —
- *   localhost/{slug}/api/*  -> Sylius (nginx) avec X-Skybook-Tenant: {slug}
+ *   localhost/{slug}/api/*  -> Sylius (nginx) avec X-TodaTempo-Tenant: {slug}
  *                              (le prefixe est retire : Sylius ne le voit jamais)
  *   localhost/{slug}/*      -> front Vue (Vite en dev, build en prod)
  *   slug inconnu            -> 404 propre au proxy
@@ -70,7 +70,7 @@ final class CaddyConfigDumper
             $out[] = "\thandle @{$id}_api {";
             $out[] = "\t\turi strip_prefix /{$slug}";
             $out[] = "\t\treverse_proxy {$sylius} {";
-            $out[] = "\t\t\theader_up X-TodaTempo-Tenant \"{$slug}\"";
+            $out[] = sprintf("\t\t\theader_up %s \"%s\"", TenantIdentifierResolver::HTTP_HEADER, $slug);
             $out[] = "\t\t}";
             $out[] = "\t}";
             $out[] = "\tredir /{$slug} /{$slug}/ 302";

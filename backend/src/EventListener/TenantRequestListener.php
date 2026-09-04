@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use App\Tenant\TenantContext;
+use App\Tenant\TenantIdentifierResolver;
 use App\Tenant\TenantRegistry;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -12,8 +13,8 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Resout le tenant depuis l'en-tete X-Skybook-Tenant (pose par le proxy ou le
- * middleware Vite — Sylius ne voit jamais le prefixe /{slug} des URLs).
+ * Resout le tenant depuis X-TodaTempo-Tenant, avec lecture temporaire de
+ * X-Skybook-Tenant — Sylius ne voit jamais le prefixe /{slug} des URLs.
  * Slug inconnu ou desactive => 404 immediat, AVANT router/session/firewall
  * (priorite 512). Pas d'en-tete => tenant par defaut (/admin, /_profiler).
  *
@@ -28,6 +29,7 @@ final class TenantRequestListener
 {
     public function __construct(
         private readonly TenantContext $tenantContext,
+        private readonly TenantIdentifierResolver $identifierResolver,
         private readonly TenantRegistry $registry,
         private readonly Connection $connection,
     ) {
@@ -38,17 +40,10 @@ final class TenantRequestListener
         if (!$event->isMainRequest()) {
             return;
         }
-        $request = $event->getRequest();
-        // New header wins when both are present. The old one is accepted only
-        // while proxies deployed before this migration still exist.
-        $slug = $request->headers->get('X-TodaTempo-Tenant');
-        if ($slug === null || trim($slug) === '') {
-            $slug = $request->headers->get('X-Skybook-Tenant');
-        }
-        if ($slug === null || trim($slug) === '') {
+        $slug = $this->identifierResolver->fromRequest($event->getRequest());
+        if ($slug === null) {
             return;
         }
-        $slug = strtolower(trim($slug));
         if (!preg_match('/^[a-z0-9][a-z0-9-]{0,62}$/', $slug) || !$this->registry->isServable($slug)) {
             throw new NotFoundHttpException(sprintf('Centre inconnu : "%s".', $slug));
         }

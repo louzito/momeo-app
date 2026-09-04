@@ -17,7 +17,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * Smoke-test Phase 0 du chantier "cheques cadeaux reels" : cree un cheque
  * cadeau factice (statut `active` par defaut) dans la BDD du TENANT COURANT
- * (`SKYBOOK_TENANT=<slug> bin/console skybook:voucher:create ...`), pour
+ * (`TODATEMPO_TENANT=<slug> bin/console skybook:voucher:create ...`), pour
  * verifier que la table skybook_gift_voucher existe et est utilisable sans
  * passer par le tunnel d'achat (pas encore branche a ce stade).
  */
