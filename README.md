@@ -9,6 +9,9 @@ Application métier TodaTempo destinée aux établissements de soin et réunissa
 
 - [Contrat canonique de résolution du tenant](docs/tenant-resolution.md) :
   HTTP, CLI, workers, erreurs et compatibilité SkyBook.
+- [Checklist de mise en production V1](docs/production-checklist.md) :
+  configuration, permissions, migrations, tenants, worker, cron,
+  paiement/webhooks, SMTP, PDF, sauvegardes, santé, smoke test et rollback.
 
 ## Configuration locale
 
@@ -35,4 +38,6 @@ npm ci
 npm run build
 ```
 
-La procédure de déploiement sans Docker sera documentée lors de l’installation du VPS.
+La procédure de déploiement sans Docker (permissions, migrations, workers,
+cron, sauvegardes, contrôles de santé, smoke test et rollback) est décrite
+dans la [checklist de mise en production V1](docs/production-checklist.md).
