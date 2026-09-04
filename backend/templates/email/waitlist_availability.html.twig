@@ -1,0 +1,11 @@
+{% extends '@SyliusCore/Email/layout.html.twig' %}
+
+{% block subject %}Une place est disponible pour {{ request.serviceName }}{% endblock %}
+
+{% block content %}
+    <p>Bonjour {{ request.customerFirstName }},</p>
+    <p>Une place vient de se libérer pour <strong>{{ request.serviceName }}</strong>, le {{ slotStart|date('d/m/Y', centerTimezone) }} à {{ slotStart|date('H:i', centerTimezone) }}.</p>
+    <p>Cette information ne constitue pas une réservation et la place reste accessible aux autres clients.</p>
+    <p style="text-align:center;margin:26px 0"><a href="{{ bookingUrl }}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:#1abb9c;color:#fff;text-decoration:none">Voir les disponibilités</a></p>
+    <p style="color:#64748b;font-size:13px">Vous ne souhaitez plus recevoir ces alertes ? <a href="{{ unsubscribeUrl }}">Se désinscrire</a>.</p>
+{% endblock %}

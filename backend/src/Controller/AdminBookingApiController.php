@@ -16,6 +16,7 @@ use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
 use App\Resource\ResourceAvailability;
+use App\Waitlist\WaitlistNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,6 +36,7 @@ final class AdminBookingApiController
         private readonly BookingSlotGuard $slotGuard,
         private readonly BookingEmailDispatcher $emailDispatcher,
         private readonly ResourceAvailability $resourceAvailability,
+        private readonly WaitlistNotifier $waitlistNotifier,
     ) {
     }
 
@@ -251,6 +253,11 @@ final class AdminBookingApiController
         $booking->setStatus(Booking::STATUS_CANCELLED);
         $this->entityManager->flush();
         $this->emailDispatcher->cancellation($booking);
+        try {
+            $this->waitlistNotifier->notify($booking->getServiceCode(), $booking->getSlotStart(), $booking->getSlotEnd());
+        } catch (\Throwable) {
+            // L'annulation reste acquise ; une notification pourra être relancée depuis l'administration.
+        }
 
         return new JsonResponse($this->normalize($booking));
     }

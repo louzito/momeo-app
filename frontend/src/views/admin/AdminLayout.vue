@@ -20,6 +20,7 @@ const nav = computed(() => [
   { name: 'admin-options', label: 'Options & suppléments', icon: '＋', permission: 'catalog' },
   { name: 'admin-agenda', label: 'Agenda', icon: '🗓️', permission: 'agenda' },
   { name: 'admin-bookings', label: 'Réservations', icon: '📋', permission: 'agenda' },
+  { name: 'admin-waitlist', label: 'Liste d’attente', icon: '⏳', permission: 'agenda' },
   { name: 'admin-clients', label: 'Clients', icon: '♡', permission: 'clients' },
   { name: 'admin-orders', label: 'Commandes', icon: '🧾', permission: 'finances' },
   { name: 'admin-vouchers', label: 'Chèques cadeaux', icon: '🎁', permission: 'finances' },

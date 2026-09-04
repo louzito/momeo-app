@@ -531,6 +531,14 @@ export const httpApi = {
     return responses.flatMap((availability) => availability.member || [])
   },
 
+  async joinWaitlist(tenantId, data) {
+    return apiWrite('POST', '/shop/waitlist', data)
+  },
+
+  async leaveWaitlist(token) {
+    return apiWrite('POST', `/shop/waitlist/${encodeURIComponent(token)}/unsubscribe`)
+  },
+
   // --- ELIGIBILITE : regle REELLE du saut (attributs produit Sylius) ---------
   // La regle vient des attributs jump_age_min / jump_age_max / jump_weight_max /
   // jump_height_min / jump_bmi_max / jump_medical_cert / jump_waiver du produit

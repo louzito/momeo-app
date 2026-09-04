@@ -49,7 +49,7 @@ final class AdminApiPermissionSubscriber
     {
         $resource = substr($path, strlen('/api/v2/admin/'));
 
-        if (preg_match('#^(bookings|plannings|staff-time-offs)(?:/|$)#', $resource)) {
+        if (preg_match('#^(bookings|plannings|staff-time-offs|waitlist)(?:/|$)#', $resource)) {
             return TeamPermission::Agenda;
         }
         if (preg_match('#^staff-members(?:/|$)#', $resource)) {

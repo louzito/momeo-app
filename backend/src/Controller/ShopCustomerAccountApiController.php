@@ -8,6 +8,7 @@ use App\Booking\BookingSlotGuard;
 use App\Booking\CustomerBookingChangePolicy;
 use App\Booking\SlotUnavailable;
 use App\Email\BookingEmailDispatcher;
+use App\Waitlist\WaitlistNotifier;
 use App\Entity\Booking;
 use App\Entity\Planning;
 use App\Entity\Product\Product;
@@ -48,6 +49,7 @@ final class ShopCustomerAccountApiController extends AbstractController
         private readonly BookingSlotGuard $slotGuard,
         private readonly CustomerBookingChangePolicy $changePolicy,
         private readonly BookingEmailDispatcher $emailDispatcher,
+        private readonly WaitlistNotifier $waitlistNotifier,
         private readonly ResourceAvailability $resourceAvailability,
         #[Autowire(service: 'sylius_invoicing.repository.invoice')]
         private readonly InvoiceRepositoryInterface $invoiceRepository,
@@ -120,6 +122,11 @@ final class ShopCustomerAccountApiController extends AbstractController
             return $this->json(['error' => 'L’annulation n’a pas pu être enregistrée.'], Response::HTTP_CONFLICT);
         }
         $this->emailDispatcher->cancellation($booking);
+        try {
+            $this->waitlistNotifier->notify($booking->getServiceCode(), $booking->getSlotStart(), $booking->getSlotEnd());
+        } catch (\Throwable) {
+            // Ne pas invalider l'annulation si le transport d'email est indisponible.
+        }
 
         return $this->json($this->normalizeBooking($booking));
     }

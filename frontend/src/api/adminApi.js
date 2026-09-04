@@ -875,6 +875,15 @@ export async function cancelBooking(id) {
   return request('POST', `/admin/bookings/${encodeURIComponent(id)}/cancel`, {}, 'application/json')
 }
 
+export async function getWaitlist() {
+  const data = await request('GET', '/admin/waitlist')
+  return data.member || []
+}
+
+export async function unsubscribeWaitlistEntry(id) {
+  return request('POST', `/admin/waitlist/${encodeURIComponent(id)}/unsubscribe`, {}, 'application/json')
+}
+
 // --- Clients ---------------------------------------------------------------
 export async function getClients(search = '') {
   const query = search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ''

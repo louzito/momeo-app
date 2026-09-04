@@ -46,6 +46,12 @@ const tenantRoutes = [
     component: () => import('@/views/CalendarBrowse.vue'),
     meta: { title: 'Calendrier des creneaux' },
   },
+  {
+    path: '/waitlist/unsubscribe/:token',
+    name: 'waitlist-unsubscribe',
+    component: () => import('@/views/WaitlistUnsubscribe.vue'),
+    meta: { title: 'Désinscription de la liste d’attente' },
+  },
 
   // --- Tunnel d'achat ------------------------------------------------------
   {
@@ -198,6 +204,7 @@ const tenantRoutes = [
       // Ancienne URL "Horaires" -> redirige vers les plannings.
       { path: 'schedule', redirect: { name: 'admin-agenda' } },
       { path: 'bookings', name: 'admin-bookings', component: () => import('@/views/admin/AdminBookings.vue'), meta: { title: 'Réservations', layout: 'admin', requiresAdmin: true, permission: 'agenda' } },
+      { path: 'waitlist', name: 'admin-waitlist', component: () => import('@/views/admin/AdminWaitlist.vue'), meta: { title: 'Liste d’attente', layout: 'admin', requiresAdmin: true, permission: 'agenda' } },
       { path: 'clients', name: 'admin-clients', component: () => import('@/views/admin/AdminClients.vue'), meta: { title: 'Clients', layout: 'admin', requiresAdmin: true, permission: 'clients' } },
       { path: 'orders', name: 'admin-orders', component: () => import('@/views/admin/AdminOrders.vue'), meta: { title: 'Commandes', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
       { path: 'vouchers', name: 'admin-vouchers', component: () => import('@/views/admin/AdminVouchers.vue'), meta: { title: 'Chèques cadeaux', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
