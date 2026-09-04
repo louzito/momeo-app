@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Email;
 
+use App\Availability\CenterTimeZoneProvider;
 use App\Entity\Booking;
 use App\Entity\Channel\Channel;
 use App\Tenant\TenantContext;
@@ -17,6 +18,7 @@ final class BookingEmailDispatcher
         private readonly SenderInterface $sender,
         private readonly EntityManagerInterface $entityManager,
         private readonly TenantContext $tenantContext,
+        private readonly CenterTimeZoneProvider $timeZoneProvider,
         #[Autowire('%todatempo.public_base_url%')] private readonly string $publicBaseUrl,
     ) {
     }
@@ -41,6 +43,11 @@ final class BookingEmailDispatcher
         $this->send('booking_rescheduled', $booking);
     }
 
+    public function reminder(Booking $booking): void
+    {
+        $this->send('booking_reminder', $booking);
+    }
+
     private function send(string $type, Booking $booking): void
     {
         $channel = $this->entityManager->getRepository(Channel::class)->findOneBy(['code' => 'FASHION_WEB']);
@@ -53,6 +60,7 @@ final class BookingEmailDispatcher
             'booking' => $booking,
             'channel' => $channel,
             'bookingUrl' => sprintf('%s/%s/account/booking/%s', rtrim($this->publicBaseUrl, '/'), rawurlencode($this->tenantContext->getSlug()), rawurlencode($booking->getPublicToken())),
+            'centerTimezone' => $this->timeZoneProvider->get()->getName(),
         ]);
     }
 }

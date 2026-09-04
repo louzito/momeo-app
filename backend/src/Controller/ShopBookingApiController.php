@@ -268,6 +268,7 @@ final class ShopBookingApiController
         $booking->setCustomerLastName($lastName);
         $booking->setCustomerEmail($email);
         $booking->setCustomerPhone($this->nullableText($payload['customer']['phone'] ?? null, 40));
+        $booking->setSmsReminderConsent(($payload['customer']['smsReminderConsent'] ?? false) === true);
         $booking->setCustomerNotes($this->nullableText($payload['customer']['notes'] ?? null));
         $booking->setSlotStart($start);
         $booking->setSlotEnd($end);
@@ -382,6 +383,7 @@ final class ShopBookingApiController
             $booking->setCustomerLastName($lastName);
             $booking->setCustomerEmail($email);
             $booking->setCustomerPhone($this->nullableText($payload['customer']['phone'] ?? null, 40));
+            $booking->setSmsReminderConsent(($payload['customer']['smsReminderConsent'] ?? false) === true);
             $booking->setCustomerNotes($this->nullableText($payload['customer']['notes'] ?? null));
             $booking->setSlotStart($start);
             $booking->setSlotEnd($end);

@@ -44,6 +44,11 @@ final class SkybookEmailExtension extends AbstractExtension
             'intro' => "Bonjour %prenom%,\n\nVotre réservation pour %prestation% a été déplacée au %date% à %heure%.",
             'signature' => "À bientôt,\nL'équipe %etablissement%",
         ],
+        'booking_reminder' => [
+            'subject' => 'Rappel de votre rendez-vous %reservation% — %etablissement%',
+            'intro' => "Bonjour %prenom%,\n\nNous vous rappelons votre rendez-vous pour %prestation%, prévu le %date% à %heure%.",
+            'signature' => "À bientôt,\nL'équipe %etablissement%",
+        ],
         'order_confirmation' => [
             'subject' => 'Votre commande %commande% — %etablissement%',
             'intro' => "Bonjour %prenom%,\n\nMerci pour votre réservation chez %etablissement% !\nVotre commande %commande% (%total%) a bien été enregistrée.",

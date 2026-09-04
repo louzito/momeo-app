@@ -1,12 +1,12 @@
 {% extends '@SyliusCore/Email/layout.html.twig' %}
 
 {% block subject %}
-    {%- set emailVars = {'%prenom%': booking.customerFirstName, '%nom%': booking.customerLastName, '%reservation%': booking.reference, '%commande%': booking.orderNumber|default(''), '%prestation%': booking.serviceName, '%date%': booking.slotStart|date('d/m/Y'), '%heure%': booking.slotStart|date('H:i'), '%etablissement%': channel.name, '%centre%': channel.name, '%total%': booking.amount is not null ? ((booking.amount / 100)|number_format(2, ',', ' ') ~ ' ' ~ booking.currencyCode) : ''} -%}
+    {%- set emailVars = {'%prenom%': booking.customerFirstName, '%nom%': booking.customerLastName, '%reservation%': booking.reference, '%commande%': booking.orderNumber|default(''), '%prestation%': booking.serviceName, '%date%': booking.slotStart|date('d/m/Y', centerTimezone), '%heure%': booking.slotStart|date('H:i', centerTimezone), '%etablissement%': channel.name, '%centre%': channel.name, '%total%': booking.amount is not null ? ((booking.amount / 100)|number_format(2, ',', ' ') ~ ' ' ~ booking.currencyCode) : ''} -%}
     {{- skybook_email_text(emailCode, 'subject', emailVars) -}}
 {% endblock %}
 
 {% block content %}
-    {% set emailVars = {'%prenom%': booking.customerFirstName, '%nom%': booking.customerLastName, '%reservation%': booking.reference, '%commande%': booking.orderNumber|default(''), '%prestation%': booking.serviceName, '%date%': booking.slotStart|date('d/m/Y'), '%heure%': booking.slotStart|date('H:i'), '%etablissement%': channel.name, '%centre%': channel.name, '%total%': booking.amount is not null ? ((booking.amount / 100)|number_format(2, ',', ' ') ~ ' ' ~ booking.currencyCode) : ''} %}
+    {% set emailVars = {'%prenom%': booking.customerFirstName, '%nom%': booking.customerLastName, '%reservation%': booking.reference, '%commande%': booking.orderNumber|default(''), '%prestation%': booking.serviceName, '%date%': booking.slotStart|date('d/m/Y', centerTimezone), '%heure%': booking.slotStart|date('H:i', centerTimezone), '%etablissement%': channel.name, '%centre%': channel.name, '%total%': booking.amount is not null ? ((booking.amount / 100)|number_format(2, ',', ' ') ~ ' ' ~ booking.currencyCode) : ''} %}
     <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_text(emailCode, 'intro', emailVars)|e }}</div>
     <div style="text-align: center; margin-bottom: 26px;"><a href="{{ bookingUrl }}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:#1abb9c;color:#fff;text-decoration:none;">Voir ma réservation</a></div>
     <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_text(emailCode, 'signature', emailVars)|e }}</div>

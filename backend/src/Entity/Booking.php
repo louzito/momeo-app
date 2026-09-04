@@ -77,6 +77,9 @@ class Booking
     #[ORM\Column(name: 'customer_phone', length: 40, nullable: true)]
     private ?string $customerPhone = null;
 
+    #[ORM\Column(name: 'sms_reminder_consent', options: ['default' => false])]
+    private bool $smsReminderConsent = false;
+
     #[ORM\Column(name: 'customer_notes', type: Types::TEXT, nullable: true)]
     private ?string $customerNotes = null;
 
@@ -158,6 +161,8 @@ class Booking
     public function setCustomerEmail(string $value): void { $this->customerEmail = $value; }
     public function getCustomerPhone(): ?string { return $this->customerPhone; }
     public function setCustomerPhone(?string $value): void { $this->customerPhone = $value; }
+    public function hasSmsReminderConsent(): bool { return $this->smsReminderConsent; }
+    public function setSmsReminderConsent(bool $value): void { $this->smsReminderConsent = $value; }
     public function getCustomerNotes(): ?string { return $this->customerNotes; }
     public function setCustomerNotes(?string $value): void { $this->customerNotes = $value; }
     public function getSlotStart(): \DateTimeImmutable { return $this->slotStart; }

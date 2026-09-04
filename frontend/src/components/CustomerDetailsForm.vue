@@ -30,6 +30,15 @@ defineProps({
       </div>
     </div>
 
+    <label v-if="model.phone" class="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4">
+      <input
+        v-model="model.smsReminderConsent"
+        type="checkbox"
+        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+      />
+      <span class="text-sm text-slate-700">J'accepte de recevoir un rappel de ce rendez-vous par SMS.</span>
+    </label>
+
     <div>
       <label class="label">Informations utiles <span class="font-normal text-slate-400">(facultatif)</span></label>
       <textarea

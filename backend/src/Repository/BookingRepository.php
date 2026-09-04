@@ -56,4 +56,18 @@ final class BookingRepository extends ServiceEntityRepository
 
         return (int) $builder->getQuery()->getSingleScalarResult() > 0;
     }
+
+    /** @return list<Booking> */
+    public function findConfirmedStartingBetween(\DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        return $this->createQueryBuilder('booking')
+            ->andWhere('booking.status = :status')
+            ->andWhere('booking.slotStart >= :from')
+            ->andWhere('booking.slotStart < :to')
+            ->setParameter('status', Booking::STATUS_CONFIRMED)
+            ->setParameter('from', $from)
+            ->setParameter('to', $to)
+            ->getQuery()
+            ->getResult();
+    }
 }

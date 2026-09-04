@@ -19,6 +19,9 @@ sylius_mailer:
         booking_rescheduled:
             subject: todatempo.emails.booking_rescheduled.subject
             template: 'email/booking_transactional.html.twig'
+        booking_reminder:
+            subject: todatempo.emails.booking_reminder.subject
+            template: 'email/booking_transactional.html.twig'
         gift_voucher:
             subject: skybook.emails.gift_voucher.subject
             template: 'email/gift_voucher.html.twig'

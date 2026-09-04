@@ -31,6 +31,7 @@ const jumper = ref({
   lastName: '',
   email: '',
   phone: '',
+  smsReminderConsent: false,
   notes: '',
   bookingTermsAccepted: false,
   privacyAccepted: false,

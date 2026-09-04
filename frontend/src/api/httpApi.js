@@ -80,6 +80,7 @@ async function createPersistentBooking(payload, commercial = {}) {
       lastName: payload.jumper?.lastName || '',
       email: payload.jumper?.email || '',
       phone: payload.jumper?.phone || '',
+      smsReminderConsent: payload.jumper?.smsReminderConsent === true,
       notes: payload.jumper?.notes || '',
     },
     options: (payload.options || []).map((option) => ({ name: option.name, price: option.price })),
@@ -1023,6 +1024,7 @@ export const httpApi = {
         lastName: jumper?.lastName || '',
         email: jumper?.email || '',
         phone: jumper?.phone || '',
+        smsReminderConsent: jumper?.smsReminderConsent === true,
         notes: jumper?.notes || '',
       },
     })

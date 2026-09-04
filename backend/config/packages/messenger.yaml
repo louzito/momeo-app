@@ -14,6 +14,7 @@ framework:
 
         routing:
             'Symfony\Component\Mailer\Messenger\SendEmailMessage': async
+            'App\Reminder\Message\SendBookingReminder': async
 
 when@test:
     framework:

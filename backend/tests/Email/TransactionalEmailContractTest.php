@@ -22,7 +22,7 @@ final class TransactionalEmailContractTest extends TestCase
         $extension = file_get_contents($this->projectDir.'/src/Twig/SkybookEmailExtension.php');
         self::assertNotFalse($extension);
 
-        foreach (['booking_confirmation', 'payment_confirmation', 'booking_cancelled', 'booking_rescheduled', 'gift_voucher', 'invoice_generated'] as $code) {
+        foreach (['booking_confirmation', 'payment_confirmation', 'booking_cancelled', 'booking_rescheduled', 'booking_reminder', 'gift_voucher', 'invoice_generated'] as $code) {
             self::assertStringContainsString("'{$code}' => [", $extension);
         }
 

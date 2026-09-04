@@ -10,6 +10,7 @@ function emptyJumper() {
     lastName: '',
     email: '',
     phone: '',
+    smsReminderConsent: false,
     notes: '',
     bookingTermsAccepted: false,
     privacyAccepted: false,
