@@ -47,18 +47,18 @@ final class MinimalSyliusInitializerTest extends KernelTestCase
         self::assertNotNull($password);
         self::assertGreaterThanOrEqual(32, strlen($password));
         self::assertNull($secondPassword);
-        self::assertSame(1, $this->count(Currency::class, ['code' => 'EUR']));
-        self::assertSame(1, $this->count(Locale::class, ['code' => 'fr_FR']));
-        self::assertSame(1, $this->count(Country::class, ['code' => 'FR']));
-        self::assertSame(1, $this->count(Zone::class, ['code' => 'FR']));
-        self::assertSame(1, $this->count(Channel::class, ['code' => 'FASHION_WEB']));
-        self::assertSame(1, $this->count(PaymentMethod::class, ['code' => 'bank_transfer']));
-        self::assertSame(1, $this->count(ShippingMethod::class, ['code' => 'standard']));
-        self::assertSame(1, $this->count(AdminUser::class, ['email' => $email]));
+        self::assertSame(1, $this->entityCount(Currency::class, ['code' => 'EUR']));
+        self::assertSame(1, $this->entityCount(Locale::class, ['code' => 'fr_FR']));
+        self::assertSame(1, $this->entityCount(Country::class, ['code' => 'FR']));
+        self::assertSame(1, $this->entityCount(Zone::class, ['code' => 'FR']));
+        self::assertSame(1, $this->entityCount(Channel::class, ['code' => 'FASHION_WEB']));
+        self::assertSame(1, $this->entityCount(PaymentMethod::class, ['code' => 'bank_transfer']));
+        self::assertSame(1, $this->entityCount(ShippingMethod::class, ['code' => 'standard']));
+        self::assertSame(1, $this->entityCount(AdminUser::class, ['email' => $email]));
     }
 
     /** @param class-string $class @param array<string, mixed> $criteria */
-    private function count(string $class, array $criteria): int
+    private function entityCount(string $class, array $criteria): int
     {
         return $this->entityManager->getRepository($class)->count($criteria);
     }
