@@ -31,6 +31,12 @@ const tenantRoutes = [
     meta: { title: 'Détail de la prestation' },
   },
   {
+    path: '/products',
+    name: 'physical-products',
+    component: () => import('@/views/PhysicalProducts.vue'),
+    meta: { title: 'Produits' },
+  },
+  {
     path: '/jump/:jumpTypeId',
     redirect: (to) => ({ name: 'jump-detail', params: { jumpTypeId: to.params.jumpTypeId } }),
   },
@@ -181,6 +187,7 @@ const tenantRoutes = [
       { path: 'products', name: 'admin-products', component: () => import('@/views/admin/AdminProducts.vue'), meta: { title: 'Produits', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
       { path: 'products/new', name: 'admin-product-new', component: () => import('@/views/admin/AdminProductEdit.vue'), meta: { title: 'Nouvelle prestation', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
       { path: 'products/:id', name: 'admin-product-edit', component: () => import('@/views/admin/AdminProductEdit.vue'), meta: { title: 'Modifier la prestation', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'physical-products', name: 'admin-physical-products', component: () => import('@/views/admin/AdminPhysicalProducts.vue'), meta: { title: 'Produits physiques', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
       { path: 'staff', name: 'admin-staff', component: () => import('@/views/admin/AdminStaff.vue'), meta: { title: 'Équipe', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'options', name: 'admin-options', component: () => import('@/views/admin/AdminOptions.vue'), meta: { title: 'Upsells & options', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
       { path: 'options/new', name: 'admin-option-new', component: () => import('@/views/admin/AdminOptionEdit.vue'), meta: { title: 'Nouvelle option', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },

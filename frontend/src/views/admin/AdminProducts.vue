@@ -34,6 +34,7 @@ async function remove(id) {
         <p class="mt-1 text-slate-500">Créez les services que vos clients peuvent découvrir et réserver en ligne.</p>
       </div>
       <RouterLink :to="{ name: 'admin-product-new' }" class="btn-primary">+ Nouvelle prestation</RouterLink>
+      <RouterLink :to="{ name: 'admin-physical-products' }" class="btn-outline">Gérer les produits physiques</RouterLink>
     </div>
 
     <Spinner v-if="loading" />

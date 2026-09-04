@@ -412,6 +412,19 @@ function mapProductToJumpType(p, tenantId, attrs = {}) {
   }
 }
 
+function mapPhysicalProduct(p, tenantId) {
+  const variant = p.defaultVariantData || {}
+  return {
+    id: p.code, tenantId, type: 'physical', name: p.name || p.code,
+    summary: p.shortDescription || '', description: p.description || '', image: imageUrl(p.images),
+    price: (variant.price || 0) / 100,
+    stock: Math.max(0, Number(variant.onHand ?? p.onHand ?? 0) - Number(variant.onHold ?? 0)),
+    pickupEnabled: !!p.pickupEnabled,
+    deliveryEnabled: !!p.deliveryEnabled,
+    deliveryFee: (p.deliveryFee || 0) / 100,
+  }
+}
+
 async function buildAdminSession(identity = {}) {
   const [channel, shopConfig] = await Promise.all([
     httpApi.getShopChannel(),
@@ -488,6 +501,14 @@ export const httpApi = {
     const attrs = await Promise.all(items.map((p) => fetchJumpAttributes(p.code)))
     return items.map((p, i) => mapProductToJumpType(p, tenantId, attrs[i]))
   },
+
+  async getPhysicalProducts(tenantId) {
+    const data = await apiGet('/shop/physical-products')
+    return membersOf(data).map((p) => mapPhysicalProduct(p, tenantId))
+  },
+  async createPhysicalProduct(tenantId, data) { return sylius.createPhysicalProduct(data) },
+  async updatePhysicalProduct(tenantId, code, data) { return sylius.updatePhysicalProduct(code, data) },
+  async deletePhysicalProduct(tenantId, code) { return sylius.deletePhysicalProduct(code) },
 
   async getJumpType(tenantId, jumpTypeId) {
     // jumpTypeId = code produit Sylius (ex. "jump_tandem_discovery")
@@ -611,6 +632,7 @@ export const httpApi = {
   async markOrderPaid(paymentId) {
     return sylius.completePayment(paymentId)
   },
+  async updatePreparationState(tokenValue, state) { return sylius.updatePreparationState(tokenValue, state) },
 
   // Cheques cadeaux REELS vus par le centre (Phase 3) — liste + stats pour
   // AdminVouchers.vue et le tableau de bord.
@@ -800,6 +822,46 @@ export const httpApi = {
         syliusState: completed.state,
       },
     }
+  },
+
+  async createPhysicalOrder(payload) {
+    if (!payload.items?.length) throw new Error('Votre panier est vide.')
+    const cart = await apiWrite('POST', '/shop/orders', {})
+    const token = cart.tokenValue
+    for (const item of payload.items) {
+      await apiWrite('POST', `/shop/orders/${token}/items`, {
+        productVariant: `/api/v2/shop/product-variants/${item.id}-variant`,
+        quantity: item.quantity,
+      })
+    }
+    const address = payload.address || {}
+    const billingAddress = {
+      firstName: address.firstName, lastName: address.lastName,
+      countryCode: address.countryCode || 'FR', street: address.street,
+      city: address.city, postcode: address.postcode,
+    }
+    await apiWrite('PUT', `/shop/orders/${token}`, {
+      email: payload.email, billingAddress,
+      ...(payload.mode === 'delivery' ? { shippingAddress: billingAddress } : {}),
+    })
+    await apiWrite('PATCH', `/shop/orders/${token}/physical-fulfillment`, { mode: payload.mode })
+    let addressed = await apiGet(`/shop/orders/${token}`)
+    for (const shipment of addressed.shipments || []) {
+      const shipmentId = shipment.id ?? String(shipment['@id'] || shipment).split('/').pop()
+      await apiWrite('PATCH', `/shop/orders/${token}/shipments/${shipmentId}`, {
+        shippingMethod: '/api/v2/shop/shipping-methods/standard',
+      })
+    }
+    addressed = await apiGet(`/shop/orders/${token}`)
+    const paymentId = addressed.payments?.[0]?.id
+    if (paymentId != null) {
+      await apiWrite('PATCH', `/shop/orders/${token}/payments/${paymentId}`, {
+        paymentMethod: `/api/v2/shop/payment-methods/${payload.paymentMethod || 'bank_transfer'}`,
+      })
+    }
+    const completed = await apiWrite('PATCH', `/shop/orders/${token}/complete`, {})
+    return { id: completed.tokenValue, number: completed.number, total: (completed.total || 0) / 100,
+      currency: completed.currencyCode, preparationState: 'pending', fulfillmentMode: payload.mode }
   },
 
   async createStripeCheckoutSession({ orderToken, paymentId, bookingToken, successUrl, cancelUrl }) {

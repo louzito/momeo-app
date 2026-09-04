@@ -3,6 +3,7 @@
 // l'espace centre (Configuration boutique > Boutique). L'accueil, lui,
 // n'affiche que la selection "mise en avant" (max 9).
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
 import { orderJumpTypes } from '@/utils/catalog'
 import JumpTypeCard from '@/components/JumpTypeCard.vue'
@@ -25,6 +26,7 @@ const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
     <div class="mb-10">
       <h1 class="font-display text-3xl font-bold text-slate-900 sm:text-4xl">Boutique</h1>
       <p class="mt-2 text-slate-500">Toutes nos expériences et formules.</p>
+      <RouterLink :to="{ name: 'physical-products' }" class="btn-outline mt-4">Voir les produits à emporter ou livrés</RouterLink>
     </div>
 
     <div v-if="products.length" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

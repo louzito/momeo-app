@@ -351,6 +351,28 @@ export async function deleteJump(code) {
   return { ok: true }
 }
 
+export async function createPhysicalProduct(data) {
+  const code = data.code || codeFrom('product_', data.name)
+  await createSimpleProduct({ code, name: data.name, price: data.price, shortDescription: data.summary || '', description: data.description || '' })
+  await request('PUT', `/admin/products/${code}/commerce`, {
+    type: 'physical', pickupEnabled: !!data.pickupEnabled, deliveryEnabled: !!data.deliveryEnabled,
+    deliveryFee: Math.round(Number(data.deliveryFee || 0) * 100), stock: Math.max(0, Math.round(Number(data.stock) || 0)),
+  }, 'application/json')
+  return { code }
+}
+
+export async function updatePhysicalProduct(code, data) {
+  await patchProduct(code, { name: data.name, shortDescription: data.summary, description: data.description })
+  if (data.price != null) await patchVariantPrice(code, data.price)
+  await request('PUT', `/admin/products/${code}/commerce`, {
+    type: 'physical', pickupEnabled: !!data.pickupEnabled, deliveryEnabled: !!data.deliveryEnabled,
+    deliveryFee: Math.round(Number(data.deliveryFee || 0) * 100), stock: Math.max(0, Math.round(Number(data.stock) || 0)),
+  }, 'application/json')
+  return { code }
+}
+
+export async function deletePhysicalProduct(code) { return deleteJump(code) }
+
 // --- Moyens de paiement ------------------------------------------------------
 // Le centre gere TOUT depuis l'espace admin du front (jamais le panel Sylius) :
 // activation, libelle affiche au client, et instructions de reglement
@@ -695,6 +717,8 @@ function mapOrder(o) {
     createdAt: o.checkoutCompletedAt || o.createdAt || null,
     notes: o.notes || '',
     paymentId: codeFromIri(firstPayment?.['@id'] || firstPayment),
+    fulfillmentMode: o.fulfillmentMode || null,
+    preparationState: o.preparationState || null,
   }
 }
 
@@ -708,6 +732,10 @@ export async function getOrders({ paymentState = null, limit = 50 } = {}) {
 export async function completePayment(paymentId) {
   await request('PATCH', `/admin/payments/${paymentId}/complete`, {}, 'application/merge-patch+json')
   return { ok: true }
+}
+
+export async function updatePreparationState(tokenValue, state) {
+  return request('PATCH', `/admin/orders/${encodeURIComponent(tokenValue)}/preparation`, { state }, 'application/json')
 }
 
 // Detail complet d'une commande (items, client, adresse, totaux) — utilise par
