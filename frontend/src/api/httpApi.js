@@ -448,54 +448,15 @@ export const httpApi = {
     return mapProductToJumpType(p, tenantId, attrs)
   },
 
-  // --- CRENEAUX : generes depuis les PLANNINGS (taxons Sylius) ---------------
-  // Les plannings sont crees par le centre dans l'onglet Plannings et stockes
-  // en taxons `planning_*` (voir adminApi). Chaque planning definit jours
-  // d'ouverture, heures, capacite par creneau (1 saut = 1 place) et sauts
-  // cibles (aucun = tous les sauts). Les creneaux sont deterministes :
-  //   id = slot_<planning>_<YYYY-MM-DD>_<HHMM>
-  // L'occupation reelle (decompte multi-session) viendra avec le plugin metier ;
-  // en attendant on decremente en memoire de session (createOrder).
+  // Les disponibilites sont integralement calculees par le backend.
   async getSlots(tenantId, { jumpTypeId = null } = {}) {
-    if (jumpTypeId) {
-      try {
-        const availability = await apiGet('/shop/availability', { serviceCode: jumpTypeId })
-        return availability.member || []
-      } catch {
-        // Repli temporaire sur les plannings historiques si l'API n'est pas disponible.
-      }
-    }
-    const plannings = (await fetchPublicPlannings()).filter(
-      (p) => Object.keys(p.days || {}).length || (p.openDays.length && p.times.length),
-    )
-    // Aucun planning configure -> comportement mock historique (autres tenants).
-    if (!plannings.length) {
-      const slots = await mockApi.getSlots(tenantId, {})
-      return jumpTypeId
-        ? slots.map((s) => ({ ...s, compatibleJumpTypeIds: [...(s.compatibleJumpTypeIds || []), jumpTypeId] }))
-        : slots
-    }
-    const applicable = jumpTypeId
-      ? plannings.filter((p) => !p.jumpCodes.length || p.jumpCodes.includes(jumpTypeId))
-      : plannings
-    // Un planning sans sauts cibles est compatible avec TOUS les sauts : il
-    // faut alors la liste des codes reels (le calendrier grise par inclusion).
-    let allJumpCodes = jumpTypeId ? [jumpTypeId] : []
-    if (applicable.some((p) => !p.jumpCodes.length) && !jumpTypeId) {
-      try {
-        const data = await apiGet('/shop/products', { itemsPerPage: 100 })
-        allJumpCodes = membersOf(data)
-          .map((x) => x.code)
-          .filter((c) => isServiceProductCode(c))
-      } catch {
-        allJumpCodes = []
-      }
-    }
-    return applicable
-      .flatMap((p) =>
-        generatePlanningSlots(p, tenantId, p.jumpCodes.length ? p.jumpCodes : allJumpCodes),
-      )
-      .sort((a, b) => new Date(a.start) - new Date(b.start))
+    const serviceCodes = jumpTypeId
+      ? [jumpTypeId]
+      : (await this.getJumpTypes(tenantId)).map((service) => service.id)
+    const responses = await Promise.all(serviceCodes.map((serviceCode) =>
+      apiGet('/shop/availability', { serviceCode }),
+    ))
+    return responses.flatMap((availability) => availability.member || [])
   },
 
   // --- ELIGIBILITE : regle REELLE du saut (attributs produit Sylius) ---------
