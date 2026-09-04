@@ -6,9 +6,6 @@
 #   - nginx : 80  -> 8080   (boutique/admin/api sur http://localhost:8080)
 #   - mysql : 3306 -> 3307  (le MySQL de WAMP garde 3306)
 # (le port INTERNE des conteneurs ne change pas : DATABASE_URL vise mysql:3306)
-# AJOUT SKYBOOK : service `gotenberg` (Chrome headless) pour la generation des
-# PDF de factures (sylius/pdf-generation-bundle, adapter gotenberg). Demarre
-# automatiquement avec `docker compose up -d` — rien a installer dans l'image php.
 # =====================================================================
 services:
     php:
@@ -88,12 +85,6 @@ services:
     mailhog:
         ports:
             - "8025:8025"
-    # Generation PDF (factures) : Gotenberg = Chromium headless en conteneur.
-    # Le php l'atteint en interne via http://gotenberg:3000 (pas de port publie).
-    gotenberg:
-        image: gotenberg/gotenberg:8
-        restart: unless-stopped
-
     # Reverse proxy MULTI-CENTRES (port hote 8081) : localhost:8081/{slug}/api -> nginx
     # avec X-Skybook-Tenant, localhost/{slug}/* -> front (Vite en dev), slug
     # inconnu -> 404. Config generee depuis le registre par

@@ -10,8 +10,13 @@ use App\Entity\User\ShopUser;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
+use Sylius\InvoicingPlugin\Entity\InvoiceInterface;
+use Sylius\InvoicingPlugin\Provider\InvoiceFileProviderInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -24,6 +29,10 @@ final class ShopCustomerAccountApiController extends AbstractController
         private readonly BookingRepository $bookingRepository,
         private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly EntityManagerInterface $entityManager,
+        #[Autowire(service: 'sylius_invoicing.repository.invoice')]
+        private readonly InvoiceRepositoryInterface $invoiceRepository,
+        #[Autowire(service: 'sylius_invoicing.provider.invoice_file')]
+        private readonly InvoiceFileProviderInterface $invoiceFileProvider,
     ) {
     }
 
@@ -80,6 +89,33 @@ final class ShopCustomerAccountApiController extends AbstractController
             'createdAt' => $order->getCreatedAt()?->format(\DateTimeInterface::ATOM),
             'kind' => null !== $this->giftVoucherRepository->findOneBy(['purchaseOrderNumber' => $order->getNumber()]) ? 'gift' : 'direct',
         ], $orders)]);
+    }
+
+    #[Route('/invoices/{id}/download', name: 'todatempo_api_shop_account_invoice_download', methods: ['GET'])]
+    public function invoice(string $id, #[CurrentUser] ShopUser $user): Response
+    {
+        $invoice = $this->invoiceRepository->find($id);
+        if (!$invoice instanceof InvoiceInterface || !$this->ownsInvoice($invoice, $user)) {
+            throw $this->createNotFoundException('Facture introuvable.');
+        }
+
+        $pdf = $this->invoiceFileProvider->provide($invoice);
+
+        return new Response($pdf->content(), Response::HTTP_OK, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('attachment; filename="%s"', basename($pdf->filename())),
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    private function ownsInvoice(InvoiceInterface $invoice, ShopUser $user): bool
+    {
+        $customerEmail = $invoice->order()->getCustomer()?->getEmail();
+
+        return \is_string($customerEmail)
+            && 0 === strcasecmp($customerEmail, (string) $user->getEmail())
+            && $invoice->paymentState() === 'paid';
     }
 
     /** @return array<string, mixed> */

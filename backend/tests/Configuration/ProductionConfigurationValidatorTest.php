@@ -22,6 +22,8 @@ final class ProductionConfigurationValidatorTest extends TestCase
         file_put_contents($this->projectDir.'/config/jwt/private.pem', 'private');
         file_put_contents($this->projectDir.'/config/jwt/public.pem', 'public');
         file_put_contents($this->projectDir.'/config/encryption/payment.key', 'payment');
+        file_put_contents($this->projectDir.'/wkhtmltopdf', "#!/bin/sh\nexit 0\n");
+        chmod($this->projectDir.'/wkhtmltopdf', 0755);
         file_put_contents($this->projectDir.'/config/tenants.json', json_encode([
             'demo' => ['db' => 'app_demo', 'enabled' => true, 'status' => 'active'],
         ], \JSON_THROW_ON_ERROR));
@@ -36,6 +38,7 @@ final class ProductionConfigurationValidatorTest extends TestCase
             'JWT_PUBLIC_KEY' => '%kernel.project_dir%/config/jwt/public.pem',
             'JWT_PASSPHRASE' => 'passphrase',
             'SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH' => '%kernel.project_dir%/config/encryption/payment.key',
+            'WKHTMLTOPDF_PATH' => $this->projectDir.'/wkhtmltopdf',
             'MESSENGER_TRANSPORT_DSN' => 'doctrine://default',
             'SYLIUS_MESSENGER_TRANSPORT_MAIN_DSN' => 'doctrine://default',
             'SYLIUS_MESSENGER_TRANSPORT_MAIN_FAILED_DSN' => 'doctrine://default?queue_name=main_failed',
@@ -110,6 +113,16 @@ final class ProductionConfigurationValidatorTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('registre des tenants invalide');
+
+        (new ProductionConfigurationValidator())->validate($this->projectDir);
+    }
+
+    public function testItRejectsMissingPdfBinary(): void
+    {
+        $_SERVER['WKHTMLTOPDF_PATH'] = $this->projectDir.'/missing-wkhtmltopdf';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('WKHTMLTOPDF_PATH ne pointe pas vers un binaire exécutable');
 
         (new ProductionConfigurationValidator())->validate($this->projectDir);
     }

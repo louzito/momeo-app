@@ -23,14 +23,12 @@ use Symfony\Component\Routing\Attribute\Route;
  * et collent au contrat DEJA code dans le front (adminApi.js) :
  *
  *   GET /api/v2/admin/invoices?orderNumber=000000027  -> { member: [ {...} ] }
- *   GET /api/v2/admin/invoices/{id}/download          -> PDF (Gotenberg/archive)
+ *   GET /api/v2/admin/invoices/{id}/download          -> PDF (archive privee)
  *
  * Le PDF est servi par le meme service que le bouton Download du panel
  * (sylius_invoicing.provider.invoice_file : lit l'archive private/invoices/,
- * ou la (re)genere via Gotenberg si absente).
- *
- * NB modele mono-centre : 1 deploiement = 1 centre = 1 BDD, donc pas de
- * filtrage par tenant — tout admin JWT du deploiement voit toutes les factures.
+ * ou la genere via wkhtmltopdf si absente). La resolution de BDD et la claim
+ * JWT bornent la requete au tenant courant ; le storage applique le meme slug.
  */
 final class AdminInvoiceApiController
 {
@@ -77,7 +75,9 @@ final class AdminInvoiceApiController
             'Content-Type' => 'application/pdf',
             // inline : permet l'affichage dans un <iframe> cote front
             // (le front force de toute facon le telechargement via blob quand il veut).
-            'Content-Disposition' => sprintf('inline; filename="%s"', $pdf->filename()),
+            'Content-Disposition' => sprintf('inline; filename="%s"', basename($pdf->filename())),
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 

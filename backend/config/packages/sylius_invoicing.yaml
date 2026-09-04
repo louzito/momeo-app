@@ -1,10 +1,8 @@
 imports:
     - { resource: "@SyliusInvoicingPlugin/config/config.yaml" }
 
-# SkyBook : PDF ACTIVE via le mode moderne (sylius/pdf-generation-bundle +
-# Gotenberg — voir config/packages/sylius_pdf_generation.yaml et le service
-# docker `gotenberg`). `legacy: false` debranche l'ancien generateur knp_snappy
-# qui exigeait le binaire wkhtmltopdf (absent de l'image php).
+# PDF actif via sylius/pdf-generation-bundle et son adaptateur knp_snappy.
+# L'installation explicite de wkhtmltopdf est documentee dans docs/invoices.md.
 sylius_invoicing:
     pdf_generator:
         enabled: true

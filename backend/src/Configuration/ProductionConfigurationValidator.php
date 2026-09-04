@@ -17,6 +17,7 @@ final class ProductionConfigurationValidator
         'JWT_PUBLIC_KEY',
         'JWT_PASSPHRASE',
         'SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH',
+        'WKHTMLTOPDF_PATH',
         'MESSENGER_TRANSPORT_DSN',
         'SYLIUS_MESSENGER_TRANSPORT_MAIN_DSN',
         'SYLIUS_MESSENGER_TRANSPORT_MAIN_FAILED_DSN',
@@ -48,6 +49,11 @@ final class ProductionConfigurationValidator
             if (!is_file($path) || !is_readable($path) || (int) filesize($path) <= 0) {
                 $errors[] = sprintf('%s ne pointe pas vers un fichier lisible et non vide (%s)', $name, $path);
             }
+        }
+
+        $pdfBinary = $values['WKHTMLTOPDF_PATH'] ?? '';
+        if ($pdfBinary !== '' && (!is_file($pdfBinary) || !is_executable($pdfBinary))) {
+            $errors[] = sprintf('WKHTMLTOPDF_PATH ne pointe pas vers un binaire exécutable (%s)', $pdfBinary);
         }
 
         $registryFile = $projectDir.'/config/tenants.json';
