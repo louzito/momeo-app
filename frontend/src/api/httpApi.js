@@ -69,6 +69,8 @@ async function createPersistentBooking(payload, commercial = {}) {
     source: commercial.source || 'direct',
     serviceCode: payload.jumpTypeId,
     serviceName: payload.jumpTypeName,
+    planningCode: payload.slot.planningCode || null,
+    resourceCode: payload.slot.resourceCode || null,
     staffMemberId: payload.slot.staffMemberId || null,
     start: payload.slot.start,
     end: payload.slot.end,
@@ -883,6 +885,8 @@ export const httpApi = {
     const result = await apiWrite('POST', `/shop/bookings/from-voucher/${encodeURIComponent(code)}`, {
       serviceCode: jumpTypeId,
       serviceName: jumpTypeName,
+      planningCode: slot?.planningCode || null,
+      resourceCode: slot?.resourceCode || null,
       staffMemberId: slot?.staffMemberId || null,
       start: slot?.start,
       end: slot?.end,

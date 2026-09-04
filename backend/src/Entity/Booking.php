@@ -14,6 +14,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_momeo_booking_start', columns: ['slot_start'])]
 #[ORM\Index(name: 'idx_momeo_booking_service', columns: ['service_code'])]
 #[ORM\Index(name: 'idx_momeo_booking_staff', columns: ['staff_member_id'])]
+#[ORM\Index(name: 'idx_momeo_booking_planning', columns: ['planning_code'])]
+#[ORM\Index(name: 'idx_momeo_booking_resource', columns: ['resource_code'])]
 #[ORM\UniqueConstraint(name: 'uniq_momeo_booking_reference', columns: ['reference'])]
 #[ORM\UniqueConstraint(name: 'uniq_momeo_booking_public_token', columns: ['public_token'])]
 #[ORM\UniqueConstraint(name: 'uniq_momeo_booking_staff_start', columns: ['staff_member_id', 'slot_start'])]
@@ -47,6 +49,12 @@ class Booking
 
     #[ORM\Column(name: 'service_name', length: 255)]
     private string $serviceName;
+
+    #[ORM\Column(name: 'planning_code', length: 255, nullable: true)]
+    private ?string $planningCode = null;
+
+    #[ORM\Column(name: 'resource_code', length: 255, nullable: true)]
+    private ?string $resourceCode = null;
 
     #[ORM\ManyToOne(targetEntity: StaffMember::class)]
     #[ORM\JoinColumn(name: 'staff_member_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -122,6 +130,10 @@ class Booking
     public function setServiceCode(string $serviceCode): void { $this->serviceCode = $serviceCode; }
     public function getServiceName(): string { return $this->serviceName; }
     public function setServiceName(string $serviceName): void { $this->serviceName = $serviceName; }
+    public function getPlanningCode(): ?string { return $this->planningCode; }
+    public function setPlanningCode(?string $planningCode): void { $this->planningCode = $planningCode; }
+    public function getResourceCode(): ?string { return $this->resourceCode; }
+    public function setResourceCode(?string $resourceCode): void { $this->resourceCode = $resourceCode; }
     public function getStaffMember(): ?StaffMember { return $this->staffMember; }
     public function setStaffMember(?StaffMember $staffMember): void { $this->staffMember = $staffMember; }
     public function getStaffName(): ?string { return $this->staffName; }

@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Booking\BookingSlotGuard;
+use App\Booking\SlotUnavailable;
 use App\Entity\Booking;
+use App\Entity\Planning;
 use App\Entity\Product\Product;
 use App\Entity\StaffMember;
 use App\Repository\BookingRepository;
+use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,9 +26,11 @@ final class AdminBookingApiController
 {
     public function __construct(
         private readonly BookingRepository $bookingRepository,
+        private readonly PlanningRepository $planningRepository,
         private readonly StaffMemberRepository $staffRepository,
         private readonly StaffTimeOffRepository $timeOffRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly BookingSlotGuard $slotGuard,
     ) {
     }
 
@@ -72,7 +78,7 @@ final class AdminBookingApiController
                 throw new \DomainException('Ce collaborateur ne réalise pas cette prestation.');
             }
             if ($this->bookingRepository->hasOverlap($staff, $start, $end)) {
-                throw new \DomainException('Ce créneau est déjà occupé.');
+                throw new SlotUnavailable('Ce créneau est déjà occupé.');
             }
             if ($this->timeOffRepository->hasOverlap($staff, $start, $end)) {
                 throw new \DomainException('Ce collaborateur est indisponible sur ce créneau.');
@@ -85,6 +91,9 @@ final class AdminBookingApiController
             $booking->setSource('manual');
             $booking->setServiceCode($serviceCode);
             $booking->setServiceName(mb_substr(trim((string) $product->getName()) ?: $serviceCode, 0, 255));
+            $planning = $this->planning($payload, $serviceCode, $start, $end);
+            $booking->setPlanningCode($planning?->getCode());
+            $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null, 255));
             $booking->setStaffMember($staff);
             $booking->setStaffName(trim($staff->getFirstName().' '.$staff->getLastName()));
             $booking->setCustomerFirstName($firstName);
@@ -98,14 +107,18 @@ final class AdminBookingApiController
             $booking->setCurrencyCode('EUR');
             $booking->setPaymentState('pay_on_site');
             $this->entityManager->persist($booking);
+            $this->slotGuard->assertAvailable($booking, $planning?->getCapacity() ?? 1);
             $this->entityManager->flush();
             $connection->commit();
+        } catch (SlotUnavailable $exception) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => $exception->getMessage(), 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         } catch (\DomainException $exception) {
             $connection->rollBack();
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_CONFLICT);
         } catch (\Throwable) {
             $connection->rollBack();
-            return new JsonResponse(['error' => 'Le rendez-vous n’a pas pu être enregistré.'], Response::HTTP_CONFLICT);
+            return new JsonResponse(['error' => 'Le rendez-vous n’a pas pu être enregistré.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         }
 
         return new JsonResponse($this->normalize($booking), Response::HTTP_CREATED);
@@ -124,6 +137,8 @@ final class AdminBookingApiController
 
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
+        $this->entityManager->lock($booking, LockMode::PESSIMISTIC_WRITE);
+        $this->entityManager->refresh($booking);
         $staff = null;
         $staffId = (int) ($payload['staffMemberId'] ?? 0);
         if ($staffId > 0) {
@@ -138,7 +153,7 @@ final class AdminBookingApiController
             }
             if ($this->bookingRepository->hasOverlap($staff, $start, $end, $booking)) {
                 $connection->rollBack();
-                return new JsonResponse(['error' => 'Ce créneau vient d’être réservé.'], Response::HTTP_CONFLICT);
+                return new JsonResponse(['error' => 'Ce créneau vient d’être réservé.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
             }
             if ($this->timeOffRepository->hasOverlap($staff, $start, $end)) {
                 $connection->rollBack();
@@ -148,16 +163,23 @@ final class AdminBookingApiController
 
         $booking->setStaffMember($staff);
         $booking->setStaffName($staff ? trim($staff->getFirstName().' '.$staff->getLastName()) : null);
+        $planning = $this->planning($payload, $booking->getServiceCode(), $start, $end);
+        $booking->setPlanningCode($planning?->getCode());
+        $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null, 255));
         $booking->setSlotStart($start);
         $booking->setSlotEnd($end);
         $booking->setStatus(Booking::STATUS_CONFIRMED);
         $booking->setPostponedReason(null);
         try {
+            $this->slotGuard->assertAvailable($booking, $planning?->getCapacity() ?? 1, $booking);
             $this->entityManager->flush();
             $connection->commit();
+        } catch (SlotUnavailable $exception) {
+            $connection->rollBack();
+            return new JsonResponse(['error' => $exception->getMessage(), 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         } catch (\Throwable) {
             $connection->rollBack();
-            return new JsonResponse(['error' => 'Ce créneau vient d’être réservé.'], Response::HTTP_CONFLICT);
+            return new JsonResponse(['error' => 'Ce créneau vient d’être réservé.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
         }
 
         return new JsonResponse($this->normalize($booking));
@@ -242,6 +264,36 @@ final class AdminBookingApiController
         return $reference;
     }
 
+    /** @param array<string, mixed> $payload */
+    private function planning(array $payload, string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $end): ?Planning
+    {
+        $code = trim((string) ($payload['planningCode'] ?? ''));
+        if ($code !== '') {
+            $planning = $this->planningRepository->findOneBy(['code' => $code, 'active' => true]);
+            return $planning instanceof Planning && ($planning->getServiceCodes() === [] || \in_array($serviceCode, $planning->getServiceCodes(), true)) ? $planning : null;
+        }
+
+        $staffId = (int) ($payload['staffMemberId'] ?? 0);
+        foreach ($this->planningRepository->findActiveForService($serviceCode) as $planning) {
+            if ($planning->getStaffMember() !== null && $planning->getStaffMember()?->getId() !== $staffId) {
+                continue;
+            }
+            $timezone = new \DateTimeZone($planning->getTimezone());
+            $localStart = $start->setTimezone($timezone);
+            $localEnd = $end->setTimezone($timezone);
+            if ($localStart->format('Y-m-d') !== $localEnd->format('Y-m-d')) {
+                continue;
+            }
+            foreach ($planning->getDays()[strtolower($localStart->format('l'))] ?? [] as $range) {
+                if ($localStart->format('H:i') >= $range['start'] && $localEnd->format('H:i') <= $range['end']) {
+                    return $planning;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /** @return array<string, mixed> */
     private function normalize(Booking $booking): array
     {
@@ -254,6 +306,8 @@ final class AdminBookingApiController
             'source' => $booking->getSource(),
             'serviceCode' => $booking->getServiceCode(),
             'serviceName' => $booking->getServiceName(),
+            'planningCode' => $booking->getPlanningCode(),
+            'resourceCode' => $booking->getResourceCode(),
             'jumpTypeId' => $booking->getServiceCode(),
             'jumpTypeName' => $booking->getServiceName(),
             'customerName' => $customerName,

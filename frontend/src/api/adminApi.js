@@ -748,6 +748,8 @@ export async function rescheduleBooking(id, slot) {
     start: slot.start,
     end: slot.end,
     staffMemberId: slot.staffMemberId || null,
+    planningCode: slot.planningCode || null,
+    resourceCode: slot.resourceCode || null,
   }, 'application/json')
 }
 
