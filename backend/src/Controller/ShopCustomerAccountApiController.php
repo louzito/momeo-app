@@ -15,6 +15,7 @@ use App\Entity\Product\Product;
 use App\Entity\StaffMember;
 use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
+use App\Gdpr\CustomerDataManager;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
@@ -51,11 +52,27 @@ final class ShopCustomerAccountApiController extends AbstractController
         private readonly BookingEmailDispatcher $emailDispatcher,
         private readonly WaitlistNotifier $waitlistNotifier,
         private readonly ResourceAvailability $resourceAvailability,
+        private readonly CustomerDataManager $customerDataManager,
         #[Autowire(service: 'sylius_invoicing.repository.invoice')]
         private readonly InvoiceRepositoryInterface $invoiceRepository,
         #[Autowire(service: 'sylius_invoicing.provider.invoice_file')]
         private readonly InvoiceFileProviderInterface $invoiceFileProvider,
     ) {
+    }
+
+    #[Route('/data-export', name: 'todatempo_api_shop_account_data_export', methods: ['GET'])]
+    public function dataExport(#[CurrentUser] ShopUser $user): JsonResponse
+    {
+        return $this->json($this->customerDataManager->export((string) $user->getEmail(), 'customer'), headers: [
+            'Content-Disposition' => 'attachment; filename="mes-donnees.json"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
+    }
+
+    #[Route('/profile', name: 'todatempo_api_shop_account_erase', methods: ['DELETE'])]
+    public function eraseProfile(#[CurrentUser] ShopUser $user): JsonResponse
+    {
+        return $this->json(['status' => 'anonymized', 'counts' => $this->customerDataManager->erase((string) $user->getEmail(), 'customer')]);
     }
 
     #[Route('/profile', name: 'todatempo_api_shop_account_profile', methods: ['GET'])]

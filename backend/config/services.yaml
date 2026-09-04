@@ -11,6 +11,9 @@ parameters:
     env(TODATEMPO_REMINDER_SMS_HOURS): '24'
     env(TODATEMPO_SMS_ENABLED): '0'
     env(TODATEMPO_REQUIRED_DEPENDENCIES): ''
+    env(TODATEMPO_GDPR_BOOKING_RETENTION_MONTHS): '36'
+    env(TODATEMPO_GDPR_WAITLIST_RETENTION_DAYS): '90'
+    env(TODATEMPO_GDPR_INVOICE_RETENTION_YEARS): '10'
     # Compatibilite temporaire : un deploiement qui ne fournit encore que
     # MOMEO_PROVISIONING_SECRET alimente le nouveau nom. A supprimer en V2.
     env(TODATEMPO_PROVISIONING_SECRET): '%env(MOMEO_PROVISIONING_SECRET)%'
@@ -29,6 +32,9 @@ parameters:
     # pour servir un tenant (aucune URL n'est restituee par les sondes).
     todatempo.required_dependencies: '%env(string:TODATEMPO_REQUIRED_DEPENDENCIES)%'
     todatempo.metrics_file: '%kernel.project_dir%/var/observability/metrics.json'
+    todatempo.gdpr.booking_retention_months: '%env(int:TODATEMPO_GDPR_BOOKING_RETENTION_MONTHS)%'
+    todatempo.gdpr.waitlist_retention_days: '%env(int:TODATEMPO_GDPR_WAITLIST_RETENTION_DAYS)%'
+    todatempo.gdpr.invoice_retention_years: '%env(int:TODATEMPO_GDPR_INVOICE_RETENTION_YEARS)%'
 
 services:
     # Default configuration for services in *this* file
