@@ -10,7 +10,9 @@ use App\Entity\Order\Order;
 use App\Entity\Payment\Payment;
 use App\Entity\Payment\PaymentMethod;
 use App\Entity\StripeWebhookEvent;
+use App\Observability\MetricsRegistry;
 use App\Payment\StripeCheckout;
+use App\Tenant\TenantContext;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Exception\SignatureVerificationException;
@@ -27,6 +29,8 @@ final class ShopStripePaymentController
         private readonly EntityManagerInterface $entityManager,
         private readonly StripeCheckout $checkout,
         private readonly BookingEmailDispatcher $emailDispatcher,
+        private readonly MetricsRegistry $metrics,
+        private readonly TenantContext $tenantContext,
     ) {}
 
     #[Route('/checkout-session', name: 'todatempo_stripe_checkout_session', methods: ['POST'])]
@@ -85,13 +89,16 @@ final class ShopStripePaymentController
         $method = $this->entityManager->getRepository(PaymentMethod::class)->findOneBy(['code' => 'stripe_web_elements', 'enabled' => true]);
         $secret = trim((string) ($method?->getGatewayConfig()?->getConfig()['webhook_secret_key'] ?? ''));
         if ($secret === '') {
+            $this->metrics->increment('webhook_failed', $this->tenantContext->getSlug());
             return new JsonResponse(['error' => 'Webhook Stripe non configuré.'], Response::HTTP_SERVICE_UNAVAILABLE);
         }
         try {
             $event = Webhook::constructEvent($request->getContent(), (string) $request->headers->get('Stripe-Signature'), $secret);
         } catch (\UnexpectedValueException|SignatureVerificationException) {
+            $this->metrics->increment('webhook_failed', $this->tenantContext->getSlug());
             return new JsonResponse(['error' => 'Signature Stripe invalide.'], Response::HTTP_BAD_REQUEST);
         }
+        $this->metrics->increment('webhook_received', $this->tenantContext->getSlug());
 
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
@@ -121,6 +128,7 @@ final class ShopStripePaymentController
                 $this->checkout->cancel($payment, $booking);
             } elseif ($event->type === 'checkout.session.async_payment_failed') {
                 $this->checkout->fail($payment, $booking);
+                $this->metrics->increment('reservation_failed', $this->tenantContext->getSlug());
             }
         }
 
@@ -129,6 +137,7 @@ final class ShopStripePaymentController
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
+            $this->metrics->increment('webhook_failed', $this->tenantContext->getSlug());
             throw $exception;
         }
 

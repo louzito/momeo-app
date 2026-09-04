@@ -10,6 +10,7 @@ parameters:
     env(TODATEMPO_REMINDER_EMAIL_HOURS): '24'
     env(TODATEMPO_REMINDER_SMS_HOURS): '24'
     env(TODATEMPO_SMS_ENABLED): '0'
+    env(TODATEMPO_REQUIRED_DEPENDENCIES): ''
     # Compatibilite temporaire : un deploiement qui ne fournit encore que
     # MOMEO_PROVISIONING_SECRET alimente le nouveau nom. A supprimer en V2.
     env(TODATEMPO_PROVISIONING_SECRET): '%env(MOMEO_PROVISIONING_SECRET)%'
@@ -24,6 +25,10 @@ parameters:
     # Authentifie les appels serveur-a-serveur emis par le portail Momeo.
     # La valeur de production doit etre injectee par l'environnement.
     todatempo.provisioning_secret: '%env(TODATEMPO_PROVISIONING_SECRET)%'
+    # URLs HTTP, separees par des virgules, dont la disponibilite est requise
+    # pour servir un tenant (aucune URL n'est restituee par les sondes).
+    todatempo.required_dependencies: '%env(string:TODATEMPO_REQUIRED_DEPENDENCIES)%'
+    todatempo.metrics_file: '%kernel.project_dir%/var/observability/metrics.json'
 
 services:
     # Default configuration for services in *this* file
@@ -55,6 +60,17 @@ services:
     App\Tenant\TenantDoctorInterface: '@App\Tenant\TenantDoctor'
     App\Payment\RefundProvider: '@App\Payment\ConfiguredRefundProvider'
     App\Reminder\Sms\SmsProvider: '@App\Reminder\Sms\DisabledSmsProvider'
+
+    App\Observability\HealthChecker:
+        arguments:
+            $requiredDependencies: '%todatempo.required_dependencies%'
+
+    App\Observability\MetricsRegistry:
+        arguments:
+            $file: '%todatempo.metrics_file%'
+
+    App\Observability\LogContextProcessor:
+        tags: ['monolog.processor']
 
     # Controllers are imported separately to make sure services can be injected
     # as action arguments even if you don't extend any base controller class
