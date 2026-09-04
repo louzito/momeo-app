@@ -1,5 +1,9 @@
 imports:
     - { resource: "../vendor/sylius/sylius/src/Sylius/Behat/Resources/config/services.xml" }
 
+parameters:
+    # Tests must never depend on the developer/production tenant registry.
+    todatempo.tenants_file: '%kernel.project_dir%/tests/Fixtures/tenants.json'
+
 sylius_api:
     enabled: true

@@ -1,4 +1,4 @@
-.PHONY: run
+.PHONY: run test-business
 
 DOCKER_COMPOSE ?= docker compose
 # Avoid using root (0:0) as DOCKER_USER, especially in WSL2 environments
@@ -23,6 +23,16 @@ init:
 
 run:
 	@make -s up
+
+# Suite métier isolée : MySQL éphémère/dédié, transports synchrones et aucun
+# appel à un service de production. Une erreur PHPUnit conserve son contexte.
+test-business:
+	@ENV=test DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.test.yml run --rm php composer install --no-interaction --no-scripts
+	@ENV=test DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.test.yml run --rm php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction
+	@ENV=test DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.test.yml run --rm php sh -c 'test -s config/encryption/test.key || openssl rand -hex 32 -out config/encryption/test.key'
+	@ENV=test DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.test.yml run --rm php bin/console doctrine:schema:drop --full-database --force
+	@ENV=test DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.test.yml run --rm php bin/console sylius:install --no-interaction
+	@ENV=test DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.test.yml run --rm php vendor/bin/phpunit --configuration phpunit.business.xml --testdox
 
 debug:
 	@ENV=$(ENV) DOCKER_USER=$(DOCKER_USER) $(DOCKER_COMPOSE) -f compose.yml -f compose.override.yml -f compose.debug.yml up -d

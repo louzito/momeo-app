@@ -1,0 +1,25 @@
+services:
+    php:
+        environment:
+            APP_ENV: test
+            APP_DEBUG: 0
+            APP_SECRET: test-only-not-a-production-secret
+            DATABASE_URL: "mysql://root@mysql/todatempo_test?charset=utf8mb4&serverVersion=8.4"
+            SKYBOOK_DEFAULT_TENANT: demo
+            DEFAULT_URI: http://localhost
+            TODATEMPO_PROVISIONING_SECRET: test-only-provisioning-secret
+            JWT_SECRET_KEY: "%kernel.project_dir%/config/jwt/private-test.pem"
+            JWT_PUBLIC_KEY: "%kernel.project_dir%/config/jwt/public-test.pem"
+            JWT_PASSPHRASE: test-only-change-me
+            SYLIUS_PAYMENT_ENCRYPTION_KEY_PATH: "%kernel.project_dir%/config/encryption/test.key"
+            MAILER_DSN: "null://null"
+            MESSENGER_TRANSPORT_DSN: "sync://"
+            SYLIUS_MESSENGER_TRANSPORT_MAIN_DSN: "sync://"
+            SYLIUS_MESSENGER_TRANSPORT_MAIN_FAILED_DSN: "sync://"
+            SYLIUS_MESSENGER_TRANSPORT_CATALOG_PROMOTION_REMOVAL_DSN: "sync://"
+            SYLIUS_MESSENGER_TRANSPORT_CATALOG_PROMOTION_REMOVAL_FAILED_DSN: "sync://"
+            SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_DSN: "sync://"
+            SYLIUS_MESSENGER_TRANSPORT_PAYMENT_REQUEST_FAILED_DSN: "sync://"
+    mysql:
+        environment:
+            MYSQL_DATABASE: todatempo_test

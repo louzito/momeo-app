@@ -1,0 +1,8 @@
+{
+    "demo": {
+        "db": "todatempo_test",
+        "name": "TodaTempo integration tests",
+        "enabled": true,
+        "status": "active"
+    }
+}

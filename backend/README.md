@@ -102,6 +102,23 @@ $ tail -f var/log/prod.log
 $ tail -f var/log/dev.log
 ```
 
+## Tests d’intégration métier
+
+La suite ciblée (isolation tenant/JWT, disponibilités, concurrence de réservation,
+webhooks Stripe, chèques cadeaux, permissions et factures) s’exécute avec une
+seule commande :
+
+```bash
+make test-business
+```
+
+Elle utilise exclusivement la base MySQL `todatempo_test` déclarée dans
+`compose.test.yml`, un registre de tenants de test et des transports synchrones.
+Elle ne requiert aucune clé Stripe, SMTP ou autre service de production. PHPUnit
+est lancé avec `--testdox` afin que le scénario métier en échec soit explicite.
+La base dédiée est recréée à chaque exécution ; elle ne doit donc contenir aucune
+donnée à conserver.
+
 ## Contributing
 
 Would like to help us and build the most developer-friendly eCommerce framework? Start from reading our [Contribution Guide](https://docs.sylius.com/en/latest/contributing/)!
