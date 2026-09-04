@@ -4,11 +4,21 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Booking\BookingSlotGuard;
+use App\Booking\CustomerBookingChangePolicy;
+use App\Booking\SlotUnavailable;
+use App\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
+use App\Entity\Planning;
+use App\Entity\StaffMember;
 use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
+use App\Repository\PlanningRepository;
+use App\Repository\StaffMemberRepository;
+use App\Repository\StaffTimeOffRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
 use Sylius\InvoicingPlugin\Entity\InvoiceInterface;
@@ -16,6 +26,7 @@ use Sylius\InvoicingPlugin\Provider\InvoiceFileProviderInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
@@ -29,6 +40,12 @@ final class ShopCustomerAccountApiController extends AbstractController
         private readonly BookingRepository $bookingRepository,
         private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly PlanningRepository $planningRepository,
+        private readonly StaffMemberRepository $staffRepository,
+        private readonly StaffTimeOffRepository $timeOffRepository,
+        private readonly BookingSlotGuard $slotGuard,
+        private readonly CustomerBookingChangePolicy $changePolicy,
+        private readonly BookingEmailDispatcher $emailDispatcher,
         #[Autowire(service: 'sylius_invoicing.repository.invoice')]
         private readonly InvoiceRepositoryInterface $invoiceRepository,
         #[Autowire(service: 'sylius_invoicing.provider.invoice_file')]
@@ -69,6 +86,105 @@ final class ShopCustomerAccountApiController extends AbstractController
         if (!$booking instanceof Booking || 0 !== strcasecmp($booking->getCustomerEmail(), (string) $user->getEmail())) {
             throw $this->createNotFoundException('Réservation introuvable.');
         }
+
+        return $this->json($this->normalizeBooking($booking));
+    }
+
+    #[Route('/bookings/{publicToken<[0-9a-f]{32}>}/cancel', name: 'todatempo_api_shop_account_booking_cancel', methods: ['POST'])]
+    public function cancel(string $publicToken, #[CurrentUser] ShopUser $user): JsonResponse
+    {
+        $booking = $this->ownedBooking($publicToken, $user);
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
+        try {
+            $this->entityManager->lock($booking, LockMode::PESSIMISTIC_WRITE);
+            $this->entityManager->refresh($booking);
+            $this->changePolicy->assertAllowed($booking, 'cancel');
+            $booking->recordChange([
+                'action' => 'cancelled', 'actor' => 'customer',
+                'at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+                'previousStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
+                'previousEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
+            ]);
+            $booking->setStatus(Booking::STATUS_CANCELLED);
+            $this->entityManager->flush();
+            $connection->commit();
+        } catch (\DomainException $exception) {
+            $connection->rollBack();
+            return $this->json(['error' => $exception->getMessage(), 'code' => 'change_deadline_passed'], Response::HTTP_CONFLICT);
+        } catch (\Throwable) {
+            $connection->rollBack();
+            return $this->json(['error' => 'L’annulation n’a pas pu être enregistrée.'], Response::HTTP_CONFLICT);
+        }
+        $this->emailDispatcher->cancellation($booking);
+
+        return $this->json($this->normalizeBooking($booking));
+    }
+
+    #[Route('/bookings/{publicToken<[0-9a-f]{32}>}/reschedule', name: 'todatempo_api_shop_account_booking_reschedule', methods: ['POST'])]
+    public function reschedule(string $publicToken, Request $request, #[CurrentUser] ShopUser $user): JsonResponse
+    {
+        $booking = $this->ownedBooking($publicToken, $user);
+        $payload = json_decode($request->getContent(), true);
+        $payload = \is_array($payload) ? $payload : [];
+        try {
+            $start = new \DateTimeImmutable((string) ($payload['start'] ?? ''));
+            $end = new \DateTimeImmutable((string) ($payload['end'] ?? ''));
+        } catch (\Throwable) {
+            return $this->json(['error' => 'Le nouveau créneau est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if ($end <= $start || $start <= new \DateTimeImmutable()) {
+            return $this->json(['error' => 'Ce créneau n’est plus disponible.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+        }
+
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
+        try {
+            $this->entityManager->lock($booking, LockMode::PESSIMISTIC_WRITE);
+            $this->entityManager->refresh($booking);
+            $this->changePolicy->assertAllowed($booking, 'reschedule');
+            $planning = $this->planningRepository->findOneBy(['code' => trim((string) ($payload['planningCode'] ?? '')), 'active' => true]);
+            $staff = $this->staffRepository->find((int) ($payload['staffMemberId'] ?? 0));
+            if (!$planning instanceof Planning || ($planning->getServiceCodes() !== [] && !\in_array($booking->getServiceCode(), $planning->getServiceCodes(), true))) {
+                throw new SlotUnavailable('Ce créneau ne figure plus au planning.');
+            }
+            $this->assertPlannedSlot($planning, $booking, $start, $end);
+            if (!$staff instanceof StaffMember || !$staff->isActive() || !$staff->isBookable() || !\in_array($booking->getServiceCode(), $staff->getServiceCodes(), true)) {
+                throw new SlotUnavailable('Ce collaborateur n’est plus disponible.');
+            }
+            $this->assertStaffHours($staff, $planning, $start, $end);
+            if ($this->timeOffRepository->hasOverlap($staff, $start, $end)) {
+                throw new SlotUnavailable('Ce collaborateur est indisponible sur ce créneau.');
+            }
+            $previousStart = $booking->getSlotStart();
+            $previousEnd = $booking->getSlotEnd();
+            $booking->setPlanningCode($planning->getCode());
+            $booking->setStaffMember($staff);
+            $booking->setStaffName(trim($staff->getFirstName().' '.$staff->getLastName()));
+            $booking->setResourceCode($this->nullableText($payload['resourceCode'] ?? null));
+            $booking->setSlotStart($start);
+            $booking->setSlotEnd($end);
+            $this->slotGuard->assertAvailable($booking, $planning->getCapacity(), $booking);
+            $booking->recordChange([
+                'action' => 'rescheduled', 'actor' => 'customer',
+                'at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+                'previousStart' => $previousStart->format(\DateTimeInterface::ATOM),
+                'previousEnd' => $previousEnd->format(\DateTimeInterface::ATOM),
+                'newStart' => $start->format(\DateTimeInterface::ATOM), 'newEnd' => $end->format(\DateTimeInterface::ATOM),
+            ]);
+            $this->entityManager->flush();
+            $connection->commit();
+        } catch (SlotUnavailable $exception) {
+            $connection->rollBack();
+            return $this->json(['error' => $exception->getMessage(), 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+        } catch (\DomainException $exception) {
+            $connection->rollBack();
+            return $this->json(['error' => $exception->getMessage(), 'code' => 'change_deadline_passed'], Response::HTTP_CONFLICT);
+        } catch (\Throwable) {
+            $connection->rollBack();
+            return $this->json(['error' => 'Ce créneau vient d’être réservé.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+        }
+        $this->emailDispatcher->rescheduled($booking);
 
         return $this->json($this->normalizeBooking($booking));
     }
@@ -118,6 +234,56 @@ final class ShopCustomerAccountApiController extends AbstractController
             && $invoice->paymentState() === 'paid';
     }
 
+    private function ownedBooking(string $publicToken, ShopUser $user): Booking
+    {
+        $booking = $this->bookingRepository->findOneBy(['publicToken' => $publicToken]);
+        if (!$booking instanceof Booking || 0 !== strcasecmp($booking->getCustomerEmail(), (string) $user->getEmail())) {
+            throw $this->createNotFoundException('Réservation introuvable.');
+        }
+        return $booking;
+    }
+
+    private function nullableText(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+        return $value === '' ? null : mb_substr($value, 0, 255);
+    }
+
+    private function assertPlannedSlot(Planning $planning, Booking $booking, \DateTimeImmutable $start, \DateTimeImmutable $end): void
+    {
+        if (($end->getTimestamp() - $start->getTimestamp()) !== ($booking->getSlotEnd()->getTimestamp() - $booking->getSlotStart()->getTimestamp())) {
+            throw new SlotUnavailable('La durée de la prestation ne peut pas être modifiée.');
+        }
+        $timezone = new \DateTimeZone($planning->getTimezone());
+        $localStart = $start->setTimezone($timezone);
+        $localEnd = $end->setTimezone($timezone);
+        if ($localStart->format('Y-m-d') !== $localEnd->format('Y-m-d')) {
+            throw new SlotUnavailable('Ce créneau ne figure plus au planning.');
+        }
+        foreach ($planning->getDays()[strtolower($localStart->format('l'))] ?? [] as $range) {
+            if ($localStart->format('H:i') >= $range['start'] && $localEnd->format('H:i') <= $range['end']) {
+                return;
+            }
+        }
+        throw new SlotUnavailable('Ce créneau ne figure plus au planning.');
+    }
+
+    private function assertStaffHours(StaffMember $staff, Planning $planning, \DateTimeImmutable $start, \DateTimeImmutable $end): void
+    {
+        $timezone = new \DateTimeZone($planning->getTimezone());
+        $localStart = $start->setTimezone($timezone);
+        $localEnd = $end->setTimezone($timezone);
+        $hours = $staff->getWorkingHours()[strtolower($localStart->format('l'))] ?? null;
+        if (!\is_array($hours) || !($hours['enabled'] ?? false)) {
+            throw new SlotUnavailable('Ce créneau est en dehors des horaires du collaborateur.');
+        }
+        $opening = new \DateTimeImmutable($localStart->format('Y-m-d').' '.($hours['start'] ?? '09:00'), $timezone);
+        $closing = new \DateTimeImmutable($localStart->format('Y-m-d').' '.($hours['end'] ?? '18:00'), $timezone);
+        if ($localStart < $opening || $localEnd > $closing) {
+            throw new SlotUnavailable('Ce créneau est en dehors des horaires du collaborateur.');
+        }
+    }
+
     /** @return array<string, mixed> */
     private function normalizeBooking(Booking $booking): array
     {
@@ -134,6 +300,7 @@ final class ShopCustomerAccountApiController extends AbstractController
             'orderNumber' => $booking->getOrderNumber(), 'amount' => $booking->getAmount(),
             'totalAmount' => $booking->getTotalAmount(), 'balanceDue' => $booking->getBalanceDue(),
             'currencyCode' => $booking->getCurrencyCode(), 'postponedReason' => $booking->getPostponedReason(),
+            'changeHistory' => $booking->getChangeHistory(), 'changePolicy' => $this->changePolicy->limits(),
         ];
     }
 }

@@ -112,6 +112,10 @@ class Booking
     #[ORM\Column(name: 'postponed_reason', type: Types::TEXT, nullable: true)]
     private ?string $postponedReason = null;
 
+    /** @var list<array<string, mixed>> */
+    #[ORM\Column(name: 'change_history', type: Types::JSON)]
+    private array $changeHistory = [];
+
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
@@ -177,6 +181,10 @@ class Booking
     public function setPaymentState(?string $value): void { $this->paymentState = $value; }
     public function getPostponedReason(): ?string { return $this->postponedReason; }
     public function setPostponedReason(?string $value): void { $this->postponedReason = $value; }
+    /** @return list<array<string, mixed>> */
+    public function getChangeHistory(): array { return $this->changeHistory; }
+    /** @param array<string, mixed> $change */
+    public function recordChange(array $change): void { $this->changeHistory[] = $change; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
 

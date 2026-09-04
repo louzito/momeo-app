@@ -285,6 +285,17 @@ async function save() {
               </span>
             </span>
           </label>
+          <div class="mt-4 grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
+            <div>
+              <label class="label">Annulation client jusqu’à (heures avant)</label>
+              <input v-model.number="cfg.bookingChanges.cancelHours" type="number" min="0" max="8760" class="input" />
+            </div>
+            <div>
+              <label class="label">Déplacement client jusqu’à (heures avant)</label>
+              <input v-model.number="cfg.bookingChanges.rescheduleHours" type="number" min="0" max="8760" class="input" />
+            </div>
+            <p class="text-xs text-slate-500 sm:col-span-2">Passé ces délais, le serveur refuse l’action, même si la page était déjà ouverte.</p>
+          </div>
         </section>
 
         <section class="card p-6">

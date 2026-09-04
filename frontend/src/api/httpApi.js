@@ -457,6 +457,17 @@ export const httpApi = {
     return data.member || []
   },
 
+  async cancelCustomerBooking(bookingId) {
+    return customerRequest('POST', `/shop/account/bookings/${encodeURIComponent(bookingId)}/cancel`, {})
+  },
+
+  async rescheduleCustomerBooking(bookingId, slot) {
+    return customerRequest('POST', `/shop/account/bookings/${encodeURIComponent(bookingId)}/reschedule`, {
+      planningCode: slot.planningCode, resourceCode: slot.resourceCode || null,
+      staffMemberId: slot.staffMemberId, start: slot.start, end: slot.end,
+    })
+  },
+
   // --- CATALOGUE : branche sur Sylius ---
   async getJumpTypes(tenantId) {
     const data = await apiGet('/shop/products', { itemsPerPage: 100 })

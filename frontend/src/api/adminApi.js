@@ -496,6 +496,10 @@ export async function getShopConfig() {
     },
     // Cheques cadeaux : ACTIFS par defaut (absent != false).
     giftVouchersEnabled: cfg.giftVouchersEnabled !== false,
+    bookingChanges: {
+      cancelHours: Math.max(0, Number(cfg.bookingChanges?.cancelHours ?? 24)),
+      rescheduleHours: Math.max(0, Number(cfg.bookingChanges?.rescheduleHours ?? 24)),
+    },
     // Pages legales activables (affichees dans le footer si enabled).
     legal: {
       terms: { enabled: false, content: '', ...(cfg.legal?.terms || {}) },
@@ -535,6 +539,7 @@ export async function saveShopConfig(cfg) {
           shopOrder: Array.isArray(cfg.shopOrder) ? cfg.shopOrder : [],
           emails: cfg.emails || {},
           giftVouchersEnabled: cfg.giftVouchersEnabled !== false,
+          bookingChanges: cfg.bookingChanges || { cancelHours: 24, rescheduleHours: 24 },
           legal: cfg.legal || { terms: { enabled: false, content: '' }, mentions: { enabled: false, content: '' } },
         }),
       },

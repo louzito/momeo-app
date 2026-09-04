@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
 import api from '@/api'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import SlotCalendar from '@/components/SlotCalendar.vue'
 import { formatDate, formatTime, formatMoney } from '@/utils/format'
 
 const route = useRoute()
@@ -12,6 +13,16 @@ const { tenant } = useTenantContext()
 const booking = ref(null)
 const loading = ref(true)
 const error = ref('')
+const actionError = ref('')
+const acting = ref(false)
+const rescheduling = ref(false)
+const slots = ref([])
+const selectedSlot = ref(null)
+
+const cancelDeadline = computed(() => booking.value ? new Date(new Date(booking.value.slotStart).getTime() - (booking.value.changePolicy?.cancelHours ?? 24) * 3600000) : null)
+const rescheduleDeadline = computed(() => booking.value ? new Date(new Date(booking.value.slotStart).getTime() - (booking.value.changePolicy?.rescheduleHours ?? 24) * 3600000) : null)
+const canCancel = computed(() => booking.value?.status === 'confirmed' && Date.now() < cancelDeadline.value?.getTime())
+const canReschedule = computed(() => booking.value?.status === 'confirmed' && Date.now() < rescheduleDeadline.value?.getTime())
 
 onMounted(async () => {
   try {
@@ -22,6 +33,33 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function cancelBooking() {
+  if (!window.confirm('Confirmer l’annulation de cette réservation ?')) return
+  acting.value = true; actionError.value = ''
+  try { booking.value = await api.cancelCustomerBooking(booking.value.id) }
+  catch (e) { actionError.value = e?.message || 'L’annulation a échoué.' }
+  finally { acting.value = false }
+}
+
+async function openReschedule() {
+  acting.value = true; actionError.value = ''
+  try {
+    slots.value = await api.getSlots(tenant.value?.id, { jumpTypeId: booking.value.jumpTypeId })
+    rescheduling.value = true
+  } catch (e) { actionError.value = e?.message || 'Les créneaux sont indisponibles.' }
+  finally { acting.value = false }
+}
+
+async function confirmReschedule() {
+  if (!selectedSlot.value) return
+  acting.value = true; actionError.value = ''
+  try {
+    booking.value = await api.rescheduleCustomerBooking(booking.value.id, selectedSlot.value)
+    rescheduling.value = false; selectedSlot.value = null
+  } catch (e) { actionError.value = e?.message || 'Le déplacement a échoué.' }
+  finally { acting.value = false }
+}
 </script>
 
 <template>
@@ -43,6 +81,26 @@ onMounted(async () => {
         <p class="mt-1 text-slate-500">{{ tenant?.name }} · Réf. {{ booking.reference }}</p>
       </div>
       <StatusBadge :status="booking.status" />
+    </div>
+
+    <div v-if="booking.status === 'confirmed'" class="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+      <h2 class="font-semibold text-slate-800">Gérer mon rendez-vous</h2>
+      <p class="mt-1 text-sm text-slate-500">Déplacement possible jusqu’au {{ formatDate(rescheduleDeadline, { short: true }) }} à {{ formatTime(rescheduleDeadline) }} ; annulation jusqu’au {{ formatDate(cancelDeadline, { short: true }) }} à {{ formatTime(cancelDeadline) }}.</p>
+      <p v-if="actionError" class="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{{ actionError }}</p>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <button class="btn-primary" :disabled="acting || !canReschedule" @click="openReschedule">Déplacer</button>
+        <button class="btn-outline text-rose-600" :disabled="acting || !canCancel" @click="cancelBooking">Annuler</button>
+      </div>
+      <p v-if="!canCancel && !canReschedule" class="mt-3 text-sm text-amber-700">Les délais de modification sont dépassés. Contactez le centre.</p>
+    </div>
+
+    <div v-if="rescheduling" class="mt-6 card p-6">
+      <h2 class="mb-4 font-semibold text-slate-800">Choisir un nouveau créneau</h2>
+      <SlotCalendar :slots="slots" :selected-slot-id="selectedSlot?.id" :jump-type-id="booking.jumpTypeId" @select="selectedSlot = $event" />
+      <div class="mt-5 flex justify-end gap-3">
+        <button class="btn-ghost" :disabled="acting" @click="rescheduling = false">Fermer</button>
+        <button class="btn-primary" :disabled="acting || !selectedSlot" @click="confirmReschedule">Confirmer le déplacement</button>
+      </div>
     </div>
 
     <!-- Bandeau de reprogrammation -->
