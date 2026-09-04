@@ -20,10 +20,10 @@ export const useBeneficiaryStore = defineStore('beneficiary', {
     vouchers: [],
     loading: false,
     error: null,
-    // Resultat de la derniere reservation (voucher + "booking" mock), lu par
-    // VoucherConfirmation.vue juste apres reserveVoucher() — le cheque reel
-    // ne porte pas la reservation (creneau/carte d'embarquement = mock, voir
-    // httpApi.reserveVoucher), donc rien a re-fetcher au rechargement.
+    // Resultat de la derniere reservation (voucher + booking reels), lu par
+    // VoucherConfirmation.vue juste apres reserveVoucher() pour eviter un
+    // aller-retour reseau ; en cas de rechargement direct de la page, le
+    // booking est re-fetche via le cheque (voir httpApi.getVoucherByCode).
     lastReservation: null,
   }),
   getters: {

@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Booking;
 use App\Entity\GiftVoucher;
 use App\GiftVoucher\GiftVoucherQrCodeGenerator;
-use App\GiftVoucher\GiftVoucherRedeemer;
+use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,7 +20,10 @@ use Symfony\Component\Routing\Attribute\Route;
  * courant, aucun filtrage explicite necessaire).
  * Phase 1 : QR + lookup par commande (page de confirmation d'achat).
  * Phase 2 : espace beneficiaire reel — login (code + email), liste des
- * cheques d'un email, lookup par code, et redemption (active -> used).
+ * cheques d'un email, lookup par code. La redemption (active -> used) est
+ * reelle et atomique, portee par ShopBookingApiController::createFromVoucher
+ * (transaction + verrou pessimiste + creation du Booking reel) : c'est la
+ * SEULE voie de consommation d'un cheque, il n'y en a pas d'autre ici.
  *
  * Securite : meme modele que le reste du checkout API Sylius de ce projet
  * (ShopGiftOrderMarkerController) — connaitre le code (10 chiffres, genere
@@ -31,7 +35,7 @@ final class ShopGiftVoucherApiController
     public function __construct(
         private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly GiftVoucherQrCodeGenerator $qrCodeGenerator,
-        private readonly GiftVoucherRedeemer $giftVoucherRedeemer,
+        private readonly BookingRepository $bookingRepository,
     ) {
     }
 
@@ -126,36 +130,22 @@ final class ShopGiftVoucherApiController
         return new JsonResponse($this->normalize($voucher));
     }
 
-    /**
-     * Redemption reelle : active -> used (persiste, empeche toute reutilisation).
-     * Le creneau / la carte d'embarquement restent geres par le mock front
-     * (voir GiftVoucherRedeemer) — seul ce passage de statut est reel.
-     */
-    #[Route(
-        '/api/v2/shop/gift-vouchers/{code}/redeem',
-        name: 'skybook_api_shop_gift_voucher_redeem',
-        methods: ['POST'],
-        requirements: ['code' => '\d{10}'],
-    )]
-    public function redeem(string $code): JsonResponse
-    {
-        $voucher = $this->giftVoucherRepository->findOneByCode($code);
-        if (!$voucher instanceof GiftVoucher) {
-            return new JsonResponse(['error' => 'Chèque cadeau introuvable.'], Response::HTTP_NOT_FOUND);
-        }
-
-        try {
-            $this->giftVoucherRedeemer->redeem($voucher);
-        } catch (\DomainException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_CONFLICT);
-        }
-
-        return new JsonResponse($this->normalize($voucher));
-    }
-
     /** @return array<string, mixed> */
     private function normalize(GiftVoucher $voucher): array
     {
+        $booking = null;
+        if ($voucher->getUsageOrderNumber() !== null) {
+            $usedBooking = $this->bookingRepository->findOneBy(['reference' => $voucher->getUsageOrderNumber()]);
+            if ($usedBooking instanceof Booking) {
+                $booking = [
+                    'reference' => $usedBooking->getReference(),
+                    'jumpTypeName' => $usedBooking->getServiceName(),
+                    'slotStart' => $usedBooking->getSlotStart()->format(\DateTimeInterface::ATOM),
+                    'slotEnd' => $usedBooking->getSlotEnd()->format(\DateTimeInterface::ATOM),
+                ];
+            }
+        }
+
         return [
             'code' => $voucher->getCode(),
             'status' => $voucher->getEffectiveStatus(),
@@ -170,6 +160,7 @@ final class ShopGiftVoucherApiController
             'personalMessage' => $voucher->getPersonalMessage(),
             'purchaserName' => $voucher->getPurchaserName(),
             'expiresAt' => $voucher->getExpiresAt()->format(\DateTimeInterface::ATOM),
+            'booking' => $booking,
         ];
     }
 }

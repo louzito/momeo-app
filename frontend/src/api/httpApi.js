@@ -104,6 +104,9 @@ function mapVoucherFromApi(v) {
     personalMessage: v.personalMessage,
     purchaserName: v.purchaserName,
     expiresAt: v.expiresAt,
+    booking: v.booking
+      ? { reference: v.booking.reference, jumpTypeName: v.booking.jumpTypeName, slotStart: v.booking.slotStart, slotEnd: v.booking.slotEnd }
+      : null,
   }
 }
 

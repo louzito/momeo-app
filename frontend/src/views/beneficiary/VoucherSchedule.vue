@@ -109,8 +109,8 @@ async function confirm() {
         fullName: `${jumper.value.firstName || ''} ${jumper.value.lastName || ''}`.trim(),
       },
     })
-    // Le cheque reel ne porte pas la reservation (creneau mock) -> on la
-    // transmet via le store pour que la page de confirmation l'affiche.
+    // On transmet la reservation reelle via le store pour que la page de
+    // confirmation l'affiche sans reappeler l'API.
     beneficiaryStore.setLastReservation({ code, voucher: result.voucher, booking: result.booking })
     router.push({ name: 'beneficiary-confirmation', params: { code } })
   } catch (e) {

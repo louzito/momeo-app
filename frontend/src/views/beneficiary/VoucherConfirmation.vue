@@ -15,15 +15,16 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
-    // Cheque cadeau reel : la reservation (creneau mock) ne survit pas cote
-    // serveur -> on la lit depuis le store, posee par VoucherSchedule.vue
-    // juste apres reserveVoucher(). Si absente (rechargement direct de cette
-    // page), on retombe sur le statut reel du cheque uniquement.
+    // La reservation vient du store juste apres reserveVoucher() (evite un
+    // aller-retour reseau) ; si absente (rechargement direct de cette page),
+    // le cheque reste consultable par son code et porte sa reservation reelle
+    // via `usageOrderNumber` (voir ShopGiftVoucherApiController::normalize).
     if (store.lastReservation?.code === code) {
       voucher.value = store.lastReservation.voucher
       booking.value = store.lastReservation.booking
     } else {
       voucher.value = await api.getVoucherByCode(code)
+      booking.value = voucher.value.booking
     }
   } finally {
     loading.value = false
@@ -64,10 +65,7 @@ onMounted(async () => {
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row">
-        <RouterLink :to="{ name: 'boarding-pass', params: { bookingId: booking.id } }" class="btn-primary flex-1">
-          Voir ma confirmation
-        </RouterLink>
-        <RouterLink :to="{ name: 'beneficiary-dashboard' }" class="btn-outline flex-1">Retour a mes cheques</RouterLink>
+        <RouterLink :to="{ name: 'beneficiary-dashboard' }" class="btn-primary flex-1">Retour a mes cheques</RouterLink>
       </div>
     </div>
   </div>
