@@ -20,6 +20,7 @@ import { mockApi } from '@/mocks/mockApi'
 import { API_BASE, TENANT_SLUG, displayImageUrl, isServiceProductCode, tenantHeaders } from './config'
 import * as sylius from './adminApi'
 import { customerRequest } from './customerAuth'
+import { readSiteConfigDocument } from '@/utils/siteConfig'
 
 // --- client HTTP minimal ---------------------------------------------------
 async function apiGet(path, params = {}) {
@@ -682,12 +683,13 @@ export const httpApi = {
       try {
         cfg = JSON.parse(t.description || '{}')
       } catch { /* pas encore configure */ }
+      cfg = readSiteConfigDocument(cfg).published
       const imgOf = (type) => (t.images || []).find((i) => i.type === type)
       return {
         ...cfg,
-        logoUrl: displayImageUrl(imgOf('logo')?.path),
-        bannerUrl: displayImageUrl(imgOf('banner')?.path),
-        bannerMobileUrl: displayImageUrl(imgOf('banner_mobile')?.path),
+        logoUrl: displayImageUrl(cfg.assets?.logo || imgOf('logo')?.path),
+        bannerUrl: displayImageUrl(cfg.assets?.banner || imgOf('banner')?.path),
+        bannerMobileUrl: displayImageUrl(cfg.assets?.bannerMobile || imgOf('banner_mobile')?.path),
       }
     } catch (error) {
       if (error.status === 404) return null
@@ -700,6 +702,9 @@ export const httpApi = {
   },
   async saveShopConfig(tenantId, cfg) {
     return sylius.saveShopConfig(cfg)
+  },
+  async publishShopConfig(tenantId, cfg) {
+    return sylius.publishShopConfig(cfg)
   },
   async uploadShopLogo(tenantId, file) {
     return sylius.uploadShopLogo(file)

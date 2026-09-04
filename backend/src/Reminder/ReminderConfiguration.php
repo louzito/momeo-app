@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Reminder;
 
+use App\Configuration\SiteConfigDocument;
 use App\Entity\Taxonomy\Taxon;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -23,8 +24,9 @@ final class ReminderConfiguration
     {
         $config = [];
         try {
-            $taxon = $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
-            $decoded = json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true);
+            $taxon = $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => 'todatempo_config'])
+                ?? $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
+            $decoded = SiteConfigDocument::published(json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true));
             $config = \is_array($decoded['reminders'] ?? null) ? $decoded['reminders'] : [];
         } catch (\Throwable) {
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Configuration\SiteConfigDocument;
 use App\Entity\Taxonomy\Taxon;
 use Doctrine\ORM\EntityManagerInterface;
 use Twig\Extension\AbstractExtension;
@@ -98,8 +99,9 @@ final class SkybookEmailExtension extends AbstractExtension
             return $this->configCache;
         }
         try {
-            $taxon = $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
-            $data = json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true);
+            $taxon = $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'todatempo_config'])
+                ?? $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
+            $data = SiteConfigDocument::published(json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true));
 
             return $this->configCache = \is_array($data) ? $data : [];
         } catch (\Throwable) {

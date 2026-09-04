@@ -38,6 +38,8 @@ const heroMobile = computed(() => tenant.value?.bannerMobileUrl || heroDesktop.v
 const heroTitle = computed(() => tenant.value?.home?.title?.trim() || tenant.value?.tagline || tenant.value?.name || '')
 const heroText = computed(() => tenant.value?.home?.subtitle?.trim() || tenant.value?.about || '')
 const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
+const sectionOrder = computed(() => tenant.value?.home?.sections || ['highlights', 'catalog', 'gift'])
+const orderOf = (key) => sectionOrder.value.indexOf(key) === -1 ? 99 : sectionOrder.value.indexOf(key)
 </script>
 
 <template>
@@ -68,8 +70,9 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
       </div>
     </section>
 
+    <div class="flex flex-col">
     <!-- Points forts -->
-    <section v-if="highlights.length" class="section -mt-8 relative z-10">
+    <section v-if="highlights.length" class="section -mt-8 relative z-10" :style="{ order: orderOf('highlights') }">
       <div class="grid gap-4 rounded-2xl bg-white p-6 shadow-soft sm:grid-cols-3">
         <div v-for="(h, i) in highlights" :key="i" class="flex items-center gap-3">
           <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">✓</span>
@@ -79,7 +82,7 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
     </section>
 
     <!-- Catalogue -->
-    <section id="catalogue" class="section py-16">
+    <section id="catalogue" class="section py-16" :style="{ order: orderOf('catalog') }">
       <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 class="font-display text-3xl font-bold text-slate-900">{{ catalogTitle }}</h2>
@@ -105,7 +108,7 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
     </section>
 
     <!-- Bandeau cadeau (masque si les cheques cadeaux sont desactives) -->
-    <section v-if="giftEnabled" class="section pb-16">
+    <section v-if="giftEnabled" class="section pb-16" :style="{ order: orderOf('gift') }">
       <div class="flex flex-col items-center justify-between gap-6 rounded-3xl bg-gradient-to-r from-brand-600 to-brand-500 p-8 text-white sm:flex-row sm:p-12">
         <div>
           <h3 class="font-display text-2xl font-bold">Offrez un moment rien qu’à soi 🎁</h3>
@@ -116,5 +119,6 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
         <a href="#catalogue" class="btn bg-white text-brand-700 hover:bg-white/90">Choisir une prestation à offrir</a>
       </div>
     </section>
+    </div>
   </div>
 </template>

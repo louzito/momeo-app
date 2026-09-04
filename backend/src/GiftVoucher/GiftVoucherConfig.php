@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GiftVoucher;
 
+use App\Configuration\SiteConfigDocument;
 use App\Entity\Taxonomy\Taxon;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -39,8 +40,9 @@ final class GiftVoucherConfig
             return $this->cache;
         }
         try {
-            $taxon = $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
-            $data = json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true);
+            $taxon = $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'todatempo_config'])
+                ?? $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
+            $data = SiteConfigDocument::published(json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true));
 
             return $this->cache = \is_array($data) ? $data : [];
         } catch (\Throwable) {

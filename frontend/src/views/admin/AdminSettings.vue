@@ -15,11 +15,14 @@ import { displayImageUrl } from '@/api/config'
 import { SHOP_DEFAULT_COLORS } from '@/composables/useBranding'
 import { SOCIAL_NETWORKS } from '@/utils/socialIcons'
 import Spinner from '@/components/ui/Spinner.vue'
+import { validateSiteConfig } from '@/utils/siteConfig'
 
 const admin = useAdminStore()
 const loading = ref(true)
 const saving = ref(false)
 const saved = ref(false)
+const publishing = ref(false)
+const previewing = ref(false)
 const error = ref('')
 
 const cfg = ref(null)
@@ -39,9 +42,9 @@ const files = ref({ logo: null, banner: null, banner_mobile: null })
 const previews = ref({ logo: '', banner: '', banner_mobile: '' })
 
 const IMAGE_RULES = {
-  logo: { label: 'logo', maxMo: 4 },
-  banner: { label: 'bannière ordinateur', maxMo: 6 },
-  banner_mobile: { label: 'bannière mobile', maxMo: 6 },
+  logo: { label: 'logo', maxMo: 4, minWidth: 128, minHeight: 128 },
+  banner: { label: 'bannière ordinateur', maxMo: 6, minWidth: 1200, minHeight: 400 },
+  banner_mobile: { label: 'bannière mobile', maxMo: 6, minWidth: 600, minHeight: 800 },
 }
 
 const COLOR_FIELDS = [
@@ -124,12 +127,24 @@ async function load() {
 }
 onMounted(load)
 
-function onImagePicked(type, e) {
+async function onImagePicked(type, e) {
   const f = e.target.files?.[0]
   if (!f) return
   const rule = IMAGE_RULES[type]
   if (!f.type.startsWith('image/')) { error.value = 'Choisissez un fichier image.'; return }
   if (f.size > rule.maxMo * 1024 * 1024) { error.value = `Image trop lourde pour la ${rule.label} (${rule.maxMo} Mo max).`; return }
+  try {
+    const dimensions = await new Promise((resolve, reject) => {
+      const image = new Image()
+      image.onload = () => { resolve({ width: image.naturalWidth, height: image.naturalHeight }); URL.revokeObjectURL(image.src) }
+      image.onerror = reject
+      image.src = URL.createObjectURL(f)
+    })
+    if (dimensions.width < rule.minWidth || dimensions.height < rule.minHeight) {
+      error.value = `${rule.label} trop petite : ${rule.minWidth} × ${rule.minHeight} px minimum.`
+      return
+    }
+  } catch { error.value = 'Cette image est illisible ou corrompue.'; return }
   error.value = ''
   files.value[type] = f
   if (previews.value[type]) URL.revokeObjectURL(previews.value[type])
@@ -181,6 +196,13 @@ function moveFeatured(i, dir) {
   ;[arr[i], arr[j]] = [arr[j], arr[i]]
 }
 
+const SECTION_LABELS = { highlights: 'Points forts', catalog: 'Prestations mises en avant', gift: 'Chèques cadeaux' }
+function moveHomeSection(i, dir) {
+  const j = i + dir
+  if (j < 0 || j >= cfg.value.home.sections.length) return
+  ;[cfg.value.home.sections[i], cfg.value.home.sections[j]] = [cfg.value.home.sections[j], cfg.value.home.sections[i]]
+}
+
 // --- Ordre de la page Boutique ---
 const orderedShopJumps = computed(() => {
   const order = cfg.value?.shopOrder || []
@@ -198,7 +220,8 @@ function moveShop(i, dir) {
 }
 
 async function save() {
-  if (!cfg.value.name?.trim()) { error.value = 'Le nom de la boutique est requis.'; tab.value = 'general'; return }
+  const validationErrors = validateSiteConfig(cfg.value)
+  if (validationErrors.length) { error.value = validationErrors[0]; return false }
   if (!validateBookingRules(cfg.value.bookingRules)) { error.value = 'Les règles de réservation contiennent une valeur invalide.'; tab.value = 'general'; return }
   cfg.value.bookingChanges.cancelHours = cfg.value.bookingRules.cancellationNoticeHours
   try {
@@ -211,14 +234,17 @@ async function save() {
   saving.value = true
   error.value = ''
   try {
-    await api.saveShopConfig(admin.tenantId, cfg.value)
     const urlKeys = { logo: 'logoUrl', banner: 'bannerUrl', banner_mobile: 'bannerMobileUrl' }
+    const assetKeys = { logo: 'logo', banner: 'banner', banner_mobile: 'bannerMobile' }
+    cfg.value.assets = { ...(cfg.value.assets || {}) }
     for (const [type, file] of Object.entries(files.value)) {
       if (!file) continue
       const res = await api.uploadShopImage(admin.tenantId, file, type)
       cfg.value[urlKeys[type]] = displayImageUrl(res.path)
+      cfg.value.assets[assetKeys[type]] = res.path
       files.value[type] = null
     }
+    await api.saveShopConfig(admin.tenantId, cfg.value)
     saved.value = true
     setTimeout(() => (saved.value = false), 2500)
   } catch (e) {
@@ -226,6 +252,18 @@ async function save() {
   } finally {
     saving.value = false
   }
+  return !error.value
+}
+
+async function publish() {
+  if (!await save()) return
+  publishing.value = true
+  try {
+    const publication = await api.publishShopConfig(admin.tenantId, cfg.value)
+    cfg.value._publication = publication
+    saved.value = false
+  } catch (e) { error.value = e?.message || 'Échec de la publication.' }
+  finally { publishing.value = false }
 }
 </script>
 
@@ -233,7 +271,10 @@ async function save() {
   <div class="mx-auto max-w-3xl">
     <h1 class="font-display text-2xl font-bold text-slate-900">Configuration boutique</h1>
     <p class="mt-1 text-slate-500">
-      Identité, page d'accueil, pages légales — appliqués immédiatement sur la boutique en ligne.
+      Modifiez un brouillon, contrôlez son aperçu puis publiez-le en une seule fois.
+    </p>
+    <p v-if="cfg?._publication" class="mt-1 text-xs text-slate-400">
+      Version publiée : {{ cfg._publication.revision || 0 }}<span v-if="cfg._publication.publishedAt"> · {{ new Date(cfg._publication.publishedAt).toLocaleString('fr-FR') }}</span>
     </p>
 
     <!-- Sous-menus -->
@@ -404,6 +445,17 @@ async function save() {
 
       <!-- ======================= PAGE D'ACCUEIL ======================= -->
       <template v-else-if="tab === 'home'">
+        <section class="card p-6">
+          <h2 class="mb-1 font-semibold text-slate-800">Ordre des sections</h2>
+          <p class="mb-4 text-sm text-slate-500">La bannière reste en tête ; organisez les blocs suivants pour ordinateur et mobile.</p>
+          <div class="space-y-2">
+            <div v-for="(key, i) in cfg.home.sections" :key="key" class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+              <span class="w-6 text-xs font-bold text-slate-400">{{ i + 1 }}</span><span class="flex-1 text-sm font-medium">{{ SECTION_LABELS[key] }}</span>
+              <button type="button" class="btn-ghost px-2" :disabled="i === 0" @click="moveHomeSection(i, -1)">▲</button>
+              <button type="button" class="btn-ghost px-2" :disabled="i === cfg.home.sections.length - 1" @click="moveHomeSection(i, 1)">▼</button>
+            </div>
+          </div>
+        </section>
         <section class="card p-6">
           <h2 class="mb-1 font-semibold text-slate-800">Bannière (ordinateur)</h2>
           <p class="mb-4 text-sm text-slate-500">
@@ -579,10 +631,28 @@ async function save() {
         </section>
       </template>
 
-      <div class="flex items-center justify-end gap-3">
-        <span v-if="saved" class="text-sm text-emerald-600">✓ Configuration enregistrée</span>
-        <button class="btn-primary px-8" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button>
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <span v-if="saved" class="text-sm text-emerald-600">✓ Brouillon enregistré</span>
+        <button type="button" class="btn-outline px-5" @click="previewing = true">Aperçu responsive</button>
+        <button class="btn-outline px-5" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer le brouillon' }}</button>
+        <button type="button" class="btn-primary px-6" :disabled="saving || publishing" @click="publish">{{ publishing ? 'Publication…' : 'Publier' }}</button>
       </div>
     </form>
+
+    <div v-if="previewing && cfg" class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Aperçu du site">
+      <div class="mx-auto max-w-6xl rounded-2xl bg-slate-100 p-4 shadow-2xl">
+        <div class="mb-3 flex items-center justify-between"><strong>Aperçu du brouillon</strong><button type="button" class="btn-outline px-3 py-1" @click="previewing = false">Fermer</button></div>
+        <div class="grid items-start gap-5 lg:grid-cols-[1fr_390px]">
+          <div v-for="device in ['Ordinateur', 'Mobile']" :key="device" class="overflow-hidden rounded-xl bg-white shadow" :class="device === 'Mobile' ? 'mx-auto w-full max-w-[390px]' : ''">
+            <div class="px-5 py-3 font-semibold" :style="{ backgroundColor: cfg.colors.header, color: cfg.colors.textHeader }">{{ cfg.name }}</div>
+            <div class="relative flex min-h-64 items-center bg-slate-700 bg-cover bg-center p-8 text-white" :style="{ backgroundImage: `linear-gradient(#0f172a99,#0f172a99), url(${device === 'Mobile' ? (previews.banner_mobile || cfg.bannerMobileUrl || previews.banner || cfg.bannerUrl) : (previews.banner || cfg.bannerUrl)})` }">
+              <div><h2 class="text-3xl font-bold">{{ cfg.home.title || cfg.name }}</h2><p class="mt-2">{{ cfg.home.subtitle }}</p></div>
+            </div>
+            <div v-for="key in cfg.home.sections" :key="key" class="border-b p-5"><strong>{{ SECTION_LABELS[key] }}</strong><p class="mt-1 text-sm text-slate-500">{{ key === 'catalog' ? (cfg.home.catalogText || 'Découvrez nos prestations.') : key === 'highlights' ? cfg.home.highlights.join(' · ') : 'Offrez une prestation.' }}</p></div>
+            <div class="px-5 py-4 text-sm" :style="{ backgroundColor: cfg.colors.footer, color: cfg.colors.textFooter }">© {{ cfg.name }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

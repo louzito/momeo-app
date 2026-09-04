@@ -15,6 +15,7 @@
 import { API_BASE, TENANT_SLUG, displayImageUrl, tenantHeaders } from './config'
 import { normalizeShopColors } from '@/composables/useBranding'
 import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
+import { normalizeSiteConfig, publishSiteConfigDocument, readSiteConfigDocument } from '@/utils/siteConfig'
 
 const TOKEN_KEY = `todatempo.sylius.jwt.${TENANT_SLUG}`
 const DEFAULT_CHANNEL = 'FASHION_WEB' // channel du Sylius de demo (a rendre configurable plus tard)
@@ -515,13 +516,15 @@ export async function getShopConfig() {
   try {
     cfg = JSON.parse(t.translations?.en_US?.description || '{}')
   } catch { /* description vide */ }
+  const document = readSiteConfigDocument(cfg)
+  cfg = document.draft
   // NB : ne JAMAIS retomber sur images[0] — le taxon porte aussi les bannieres.
   const imgOf = (type) => (t.images || []).find((i) => i.type === type)
-  return {
-    name: ch.name || '',
+  return normalizeSiteConfig({
+    name: cfg.name || ch.name || '',
     timezone: typeof cfg.timezone === 'string' ? cfg.timezone : 'Europe/Paris',
-    contactEmail: ch.contactEmail || '',
-    contactPhone: ch.contactPhoneNumber || '',
+    contactEmail: cfg.contactEmail || ch.contactEmail || '',
+    contactPhone: cfg.contactPhone || ch.contactPhoneNumber || '',
     address: { street: '', postcode: '', city: '', ...(cfg.address || {}) },
     // Normalise + migre l'ancien champ unique `text` vers textHeader/textFooter.
     colors: normalizeShopColors(cfg.colors),
@@ -567,48 +570,55 @@ export async function getShopConfig() {
       terms: { enabled: false, content: '', ...(cfg.legal?.terms || {}) },
       mentions: { enabled: false, content: '', ...(cfg.legal?.mentions || {}) },
     },
-    logoUrl: displayImageUrl(imgOf('logo')?.path),
-    bannerUrl: displayImageUrl(imgOf('banner')?.path),
-    bannerMobileUrl: displayImageUrl(imgOf('banner_mobile')?.path),
-  }
+    assets: { ...(cfg.assets || {}) },
+    logoUrl: displayImageUrl(cfg.assets?.logo || imgOf('draft_logo')?.path || imgOf('logo')?.path),
+    bannerUrl: displayImageUrl(cfg.assets?.banner || imgOf('draft_banner')?.path || imgOf('banner')?.path),
+    bannerMobileUrl: displayImageUrl(cfg.assets?.bannerMobile || imgOf('draft_banner_mobile')?.path || imgOf('banner_mobile')?.path),
+    _publication: { revision: document.revision, publishedAt: document.publishedAt },
+  })
 }
 
-export async function saveShopConfig(cfg) {
+async function writeSiteConfigDocument(document) {
   await ensureConfigTaxon()
-  // 1. Champs natifs Sylius sur le channel.
-  await request('PUT', `/admin/channels/${DEFAULT_CHANNEL}`, {
-    name: cfg.name || 'TodaTempo',
-    contactEmail: cfg.contactEmail || null,
-    contactPhoneNumber: cfg.contactPhone || null,
-  })
-  // 2. Le reste en JSON public (le front vitrine lit ce taxon sans auth).
-  //    On duplique nom / contact dans le JSON : le shop API n'expose pas
-  //    contactEmail / contactPhoneNumber du channel.
   await request('PUT', `/admin/taxons/${CONFIG_TAXON}`, {
     enabled: true,
     translations: {
       en_US: {
         '@id': `/api/v2/admin/taxon/${CONFIG_TAXON}/translations/en_US`,
-        description: JSON.stringify({
-          name: cfg.name,
-          timezone: cfg.timezone || 'Europe/Paris',
-          contactEmail: cfg.contactEmail,
-          contactPhone: cfg.contactPhone,
-          address: cfg.address,
-          colors: cfg.colors,
-          socials: cfg.socials,
-          home: cfg.home || { title: '', subtitle: '' },
-          shopOrder: Array.isArray(cfg.shopOrder) ? cfg.shopOrder : [],
-          emails: cfg.emails || {},
-          giftVouchersEnabled: cfg.giftVouchersEnabled !== false,
-          bookingChanges: cfg.bookingChanges || { cancelHours: 24, rescheduleHours: 24 },
-          bookingRules: cfg.bookingRules,
-          legal: cfg.legal || { terms: { enabled: false, content: '' }, mentions: { enabled: false, content: '' } },
-        }),
+        description: JSON.stringify(document),
       },
     },
   })
   return { ok: true }
+}
+
+export async function saveShopConfig(cfg) {
+  await ensureConfigTaxon()
+  const taxon = await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
+  let raw = {}
+  try { raw = JSON.parse(taxon.translations?.en_US?.description || '{}') } catch { /* vide */ }
+  const document = readSiteConfigDocument(raw)
+  document.draft = normalizeSiteConfig(cfg)
+  delete document.draft._publication
+  return writeSiteConfigDocument(document)
+}
+
+export async function publishShopConfig(cfg) {
+  await ensureConfigTaxon()
+  const taxon = await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
+  let raw = {}
+  try { raw = JSON.parse(taxon.translations?.en_US?.description || '{}') } catch { /* vide */ }
+  const draft = normalizeSiteConfig(cfg)
+  delete draft._publication
+  const document = publishSiteConfigDocument(readSiteConfigDocument(raw), draft)
+  // Synchronise d'abord les champs administratifs. Le rendu public ne les lit
+  // pas et ne bascule qu'avec l'unique PUT final de l'instantané complet.
+  await request('PUT', `/admin/channels/${DEFAULT_CHANNEL}`, {
+    name: draft.name || 'TodaTempo', contactEmail: draft.contactEmail || null,
+    contactPhoneNumber: draft.contactPhone || null,
+  })
+  await writeSiteConfigDocument(document)
+  return { revision: document.revision, publishedAt: document.publishedAt }
 }
 
 // Upload d'une image de la boutique sur le taxon de config, par TYPE
@@ -616,15 +626,12 @@ export async function saveShopConfig(cfg) {
 // meme type (le taxon porte logo ET bannieres).
 export async function uploadShopImage(file, type = 'logo') {
   await ensureConfigTaxon()
-  const t = await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
-  for (const img of (t.images || []).filter((i) => i.type === type)) {
-    try {
-      await request('DELETE', String(img['@id'] || img).replace('/api/v2', ''))
-    } catch { /* deja supprimee */ }
-  }
+  const draftType = `draft_${type}`
+  // Une ancienne image de brouillon peut être référencée par la version
+  // publiée : elle reste donc stockée jusqu'à une future politique de purge.
   const fd = new FormData()
   fd.append('file', file)
-  fd.append('type', type)
+  fd.append('type', draftType)
   const res = await fetch(`${API_BASE}/admin/taxons/${CONFIG_TAXON}/images`, {
     method: 'POST',
     headers: tenantHeaders({ Accept: 'application/ld+json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }),

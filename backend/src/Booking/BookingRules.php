@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Booking;
 
+use App\Configuration\SiteConfigDocument;
 use App\Entity\Taxonomy\Taxon;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -34,7 +35,7 @@ final class BookingRules
         }
         foreach (['todatempo_config', 'skybook_config'] as $code) {
             $taxon = $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => $code]);
-            $config = json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true);
+            $config = SiteConfigDocument::published(json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true));
             if (\is_array($config)) {
                 $raw = \is_array($config['bookingRules'] ?? null) ? $config['bookingRules'] : [];
                 // Keep the already deployed cancellation setting backwards compatible.

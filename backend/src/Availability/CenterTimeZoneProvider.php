@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Availability;
 
+use App\Configuration\SiteConfigDocument;
 use App\Entity\Taxonomy\Taxon;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -18,8 +19,9 @@ final class CenterTimeZoneProvider
     public function get(): \DateTimeZone
     {
         try {
-            $taxon = $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
-            $config = json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true);
+            $taxon = $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => 'todatempo_config'])
+                ?? $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
+            $config = SiteConfigDocument::published(json_decode($taxon?->getTranslation('en_US')?->getDescription() ?: '{}', true));
             $name = \is_array($config) && \is_string($config['timezone'] ?? null) ? $config['timezone'] : self::DEFAULT_TIMEZONE;
 
             return new \DateTimeZone($name);
