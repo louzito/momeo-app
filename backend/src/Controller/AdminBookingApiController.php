@@ -230,6 +230,18 @@ final class AdminBookingApiController
         return new JsonResponse($this->normalize($booking));
     }
 
+    #[Route('/{id<\d+>}/no-show', name: 'momeo_api_admin_booking_no_show', methods: ['POST'])]
+    public function noShow(Booking $booking): JsonResponse
+    {
+        if ($booking->getStatus() !== Booking::STATUS_CONFIRMED) {
+            return new JsonResponse(['error' => 'Seul un rendez-vous confirmé peut être marqué absent.'], Response::HTTP_CONFLICT);
+        }
+        $booking->setStatus(Booking::STATUS_NO_SHOW);
+        $this->entityManager->flush();
+
+        return new JsonResponse($this->normalize($booking));
+    }
+
     #[Route('/{id<\d+>}/cancel', name: 'momeo_api_admin_booking_cancel', methods: ['POST'])]
     public function cancel(Booking $booking): JsonResponse
     {

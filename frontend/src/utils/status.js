@@ -15,6 +15,7 @@ export const STATUS_META = {
   postponed: { label: 'Reportee (meteo)', classes: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
   cancelled: { label: 'Annulee', classes: 'bg-rose-100 text-rose-700', dot: 'bg-rose-500' },
   completed: { label: 'Effectuee', classes: 'bg-slate-200 text-slate-600', dot: 'bg-slate-500' },
+  no_show: { label: 'Absente', classes: 'bg-orange-100 text-orange-700', dot: 'bg-orange-500' },
   // Commandes
   paid: { label: 'Payee', classes: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
 }

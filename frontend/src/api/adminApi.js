@@ -771,6 +771,14 @@ export async function getGiftVouchers({ status = null } = {}) {
   return { member: data.member || [], stats: data.stats || {} }
 }
 
+export async function getDashboardOverview({ from, to, timezone } = {}) {
+  const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  if (timezone) params.set('timezone', timezone)
+  return request('GET', `/admin/dashboard/overview${params.size ? `?${params}` : ''}`)
+}
+
 // --- Équipe ---------------------------------------------------------------
 export async function getStaffMembers() {
   const data = await request('GET', '/admin/staff-members')
@@ -816,6 +824,10 @@ export async function postponeBooking(id, reason) {
 
 export async function completeBooking(id) {
   return request('POST', `/admin/bookings/${encodeURIComponent(id)}/complete`, {}, 'application/json')
+}
+
+export async function markBookingNoShow(id) {
+  return request('POST', `/admin/bookings/${encodeURIComponent(id)}/no-show`, {}, 'application/json')
 }
 
 export async function cancelBooking(id) {

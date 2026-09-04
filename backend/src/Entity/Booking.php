@@ -27,6 +27,7 @@ class Booking
     public const STATUS_POSTPONED = 'postponed';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_NO_SHOW = 'no_show';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

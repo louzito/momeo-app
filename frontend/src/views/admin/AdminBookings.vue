@@ -25,6 +25,7 @@ const FILTERS = [
   { key: 'postponed', label: 'Reportés' },
   { key: 'completed', label: 'Effectués' },
   { key: 'cancelled', label: 'Annulés' },
+  { key: 'no_show', label: 'Absences' },
   { key: 'all', label: 'Tous' },
 ]
 
@@ -63,6 +64,7 @@ async function act(fn, id) {
 }
 
 const complete = (b) => act(() => api.completeBooking(b.id), b.id)
+const markNoShow = (b) => act(() => api.markBookingNoShow(b.id), b.id)
 const cancel = (b) => act(() => api.cancelBooking(b.id), b.id)
 
 async function openReschedule(b) {
@@ -154,6 +156,7 @@ const isFuture = (b) => new Date(b.slotStart) >= Date.now()
               <button v-if="['confirmed','postponed'].includes(b.status)" class="btn-outline px-3 py-1.5 text-xs" @click="openReschedule(b)">Reprogrammer</button>
               <button v-if="b.status === 'confirmed' && isFuture(b)" class="btn px-3 py-1.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-200" @click="openPostpone(b)">Reporter</button>
               <button v-if="b.status === 'confirmed'" class="btn px-3 py-1.5 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200" @click="complete(b)">Effectué</button>
+              <button v-if="b.status === 'confirmed' && !isFuture(b)" class="btn px-3 py-1.5 text-xs bg-orange-100 text-orange-700 hover:bg-orange-200" @click="markNoShow(b)">Absence</button>
               <button v-if="['confirmed','postponed'].includes(b.status)" class="btn px-3 py-1.5 text-xs bg-slate-100 text-slate-600 hover:bg-slate-200" @click="cancel(b)">Annuler</button>
             </template>
           </div>

@@ -999,26 +999,8 @@ export const httpApi = {
     sylius.logout()
   },
 
-  // Tableau de bord : sauts/commandes restent mock (creneaux pas encore un
-  // metier Sylius), mais les stats de cheques cadeaux sont REELLES (Phase 3).
-  async getAdminOverview(tenantId) {
-    const base = await mockApi.getAdminOverview(tenantId)
-    try {
-      const { stats } = await sylius.getGiftVouchers({})
-      return {
-        ...base,
-        vouchers: {
-          awaitingPayment: stats.awaiting_payment || 0,
-          active: stats.active || 0,
-          used: stats.used || 0,
-          expired: stats.expired || 0,
-        },
-      }
-    } catch {
-      // Erreur reseau -> stats a zero en repli (garde la forme attendue par le
-      // template, pas celle du mock qui a un vocabulaire de statuts different).
-      return { ...base, vouchers: { awaitingPayment: 0, active: 0, used: 0, expired: 0 } }
-    }
+  async getAdminOverview(_tenantId, range = {}) {
+    return sylius.getDashboardOverview(range)
   },
 
   async createJumpType(tenantId, data) {
@@ -1089,6 +1071,10 @@ export const httpApi = {
 
   async completeBooking(bookingId) {
     return sylius.completeBooking(bookingId)
+  },
+
+  async markBookingNoShow(bookingId) {
+    return sylius.markBookingNoShow(bookingId)
   },
 
   async cancelBooking(bookingId) {
