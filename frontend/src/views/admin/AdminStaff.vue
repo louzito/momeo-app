@@ -38,6 +38,8 @@ function emptyForm() {
     firstName: '',
     lastName: '',
     email: '',
+    accountEmail: '',
+    role: 'practitioner',
     phone: '',
     jobTitle: '',
     bio: '',
@@ -87,6 +89,8 @@ function editMember(member) {
     firstName: member.firstName || '',
     lastName: member.lastName || '',
     email: member.email || '',
+    accountEmail: member.accountEmail || '',
+    role: member.role || 'practitioner',
     phone: member.phone || '',
     jobTitle: member.jobTitle || '',
     bio: member.bio || '',
@@ -207,6 +211,18 @@ onMounted(load)
               <label class="block text-sm font-medium text-slate-700">Téléphone
                 <input v-model.trim="form.phone" class="input mt-1 w-full" type="tel" maxlength="40" autocomplete="tel" />
               </label>
+              <label class="block text-sm font-medium text-slate-700">Compte professionnel lié
+                <input v-model.trim="form.accountEmail" class="input mt-1 w-full" type="email" maxlength="180" placeholder="compte@etablissement.fr" />
+                <span class="mt-1 block text-xs font-normal text-slate-400">Laissez vide si cette personne ne se connecte pas.</span>
+              </label>
+              <label class="block text-sm font-medium text-slate-700">Rôle d’accès
+                <select v-model="form.role" class="input mt-1 w-full">
+                  <option value="owner">Propriétaire</option>
+                  <option value="manager">Manager</option>
+                  <option value="reception">Accueil</option>
+                  <option value="practitioner">Praticien</option>
+                </select>
+              </label>
             </div>
             <label class="mt-4 block text-sm font-medium text-slate-700">Présentation interne
               <textarea v-model.trim="form.bio" class="input mt-1 min-h-24 w-full resize-y" placeholder="Compétences, informations utiles…" />
@@ -284,6 +300,7 @@ onMounted(load)
               <h2 class="truncate font-display font-bold text-slate-900">{{ member.displayName }}</h2>
               <span v-if="!member.active" class="chip bg-slate-100 text-slate-500">Archivé</span>
               <span v-else-if="member.bookable" class="chip bg-emerald-50 text-emerald-700">Réservable</span>
+              <span v-if="member.role" class="chip bg-indigo-50 text-indigo-700">{{ { owner: 'Propriétaire', manager: 'Manager', reception: 'Accueil', practitioner: 'Praticien' }[member.role] }}</span>
             </div>
             <p class="mt-0.5 text-sm text-slate-500">{{ member.jobTitle || 'Collaborateur' }}</p>
           </div>

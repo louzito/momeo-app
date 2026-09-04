@@ -178,24 +178,24 @@ const tenantRoutes = [
     meta: { layout: 'admin', requiresAdmin: true },
     children: [
       { path: '', name: 'admin-dashboard', component: () => import('@/views/admin/AdminDashboard.vue'), meta: { title: 'Tableau de bord', layout: 'admin', requiresAdmin: true } },
-      { path: 'products', name: 'admin-products', component: () => import('@/views/admin/AdminProducts.vue'), meta: { title: 'Produits', layout: 'admin', requiresAdmin: true } },
-      { path: 'products/new', name: 'admin-product-new', component: () => import('@/views/admin/AdminProductEdit.vue'), meta: { title: 'Nouvelle prestation', layout: 'admin', requiresAdmin: true } },
-      { path: 'products/:id', name: 'admin-product-edit', component: () => import('@/views/admin/AdminProductEdit.vue'), meta: { title: 'Modifier la prestation', layout: 'admin', requiresAdmin: true } },
-      { path: 'staff', name: 'admin-staff', component: () => import('@/views/admin/AdminStaff.vue'), meta: { title: 'Équipe', layout: 'admin', requiresAdmin: true } },
-      { path: 'options', name: 'admin-options', component: () => import('@/views/admin/AdminOptions.vue'), meta: { title: 'Upsells & options', layout: 'admin', requiresAdmin: true } },
-      { path: 'options/new', name: 'admin-option-new', component: () => import('@/views/admin/AdminOptionEdit.vue'), meta: { title: 'Nouvelle option', layout: 'admin', requiresAdmin: true } },
-      { path: 'options/:id', name: 'admin-option-edit', component: () => import('@/views/admin/AdminOptionEdit.vue'), meta: { title: 'Modifier l\'option', layout: 'admin', requiresAdmin: true } },
-      { path: 'plannings', name: 'admin-plannings', component: () => import('@/views/admin/AdminPlannings.vue'), meta: { title: 'Plannings', layout: 'admin', requiresAdmin: true } },
-      { path: 'resources', name: 'admin-resources', component: () => import('@/views/admin/AdminResources.vue'), meta: { title: 'Ressources', layout: 'admin', requiresAdmin: true } },
-      { path: 'agenda', name: 'admin-agenda', component: () => import('@/views/admin/AdminAgenda.vue'), meta: { title: 'Agenda', layout: 'admin', requiresAdmin: true } },
+      { path: 'products', name: 'admin-products', component: () => import('@/views/admin/AdminProducts.vue'), meta: { title: 'Produits', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'products/new', name: 'admin-product-new', component: () => import('@/views/admin/AdminProductEdit.vue'), meta: { title: 'Nouvelle prestation', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'products/:id', name: 'admin-product-edit', component: () => import('@/views/admin/AdminProductEdit.vue'), meta: { title: 'Modifier la prestation', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'staff', name: 'admin-staff', component: () => import('@/views/admin/AdminStaff.vue'), meta: { title: 'Équipe', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
+      { path: 'options', name: 'admin-options', component: () => import('@/views/admin/AdminOptions.vue'), meta: { title: 'Upsells & options', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'options/new', name: 'admin-option-new', component: () => import('@/views/admin/AdminOptionEdit.vue'), meta: { title: 'Nouvelle option', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'options/:id', name: 'admin-option-edit', component: () => import('@/views/admin/AdminOptionEdit.vue'), meta: { title: 'Modifier l\'option', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'plannings', name: 'admin-plannings', component: () => import('@/views/admin/AdminPlannings.vue'), meta: { title: 'Plannings', layout: 'admin', requiresAdmin: true, permission: 'agenda' } },
+      { path: 'resources', name: 'admin-resources', component: () => import('@/views/admin/AdminResources.vue'), meta: { title: 'Ressources', layout: 'admin', requiresAdmin: true, permission: 'catalog' } },
+      { path: 'agenda', name: 'admin-agenda', component: () => import('@/views/admin/AdminAgenda.vue'), meta: { title: 'Agenda', layout: 'admin', requiresAdmin: true, permission: 'agenda' } },
       // Ancienne URL "Horaires" -> redirige vers les plannings.
       { path: 'schedule', redirect: { name: 'admin-agenda' } },
-      { path: 'bookings', name: 'admin-bookings', component: () => import('@/views/admin/AdminBookings.vue'), meta: { title: 'Réservations', layout: 'admin', requiresAdmin: true } },
-      { path: 'clients', name: 'admin-clients', component: () => import('@/views/admin/AdminClients.vue'), meta: { title: 'Clients', layout: 'admin', requiresAdmin: true } },
-      { path: 'orders', name: 'admin-orders', component: () => import('@/views/admin/AdminOrders.vue'), meta: { title: 'Commandes', layout: 'admin', requiresAdmin: true } },
-      { path: 'vouchers', name: 'admin-vouchers', component: () => import('@/views/admin/AdminVouchers.vue'), meta: { title: 'Chèques cadeaux', layout: 'admin', requiresAdmin: true } },
-      { path: 'payments', name: 'admin-payments', component: () => import('@/views/admin/AdminPayments.vue'), meta: { title: 'Moyens de paiement', layout: 'admin', requiresAdmin: true } },
-      { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/AdminSettings.vue'), meta: { title: 'Configuration boutique', layout: 'admin', requiresAdmin: true } },
+      { path: 'bookings', name: 'admin-bookings', component: () => import('@/views/admin/AdminBookings.vue'), meta: { title: 'Réservations', layout: 'admin', requiresAdmin: true, permission: 'agenda' } },
+      { path: 'clients', name: 'admin-clients', component: () => import('@/views/admin/AdminClients.vue'), meta: { title: 'Clients', layout: 'admin', requiresAdmin: true, permission: 'clients' } },
+      { path: 'orders', name: 'admin-orders', component: () => import('@/views/admin/AdminOrders.vue'), meta: { title: 'Commandes', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
+      { path: 'vouchers', name: 'admin-vouchers', component: () => import('@/views/admin/AdminVouchers.vue'), meta: { title: 'Chèques cadeaux', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
+      { path: 'payments', name: 'admin-payments', component: () => import('@/views/admin/AdminPayments.vue'), meta: { title: 'Moyens de paiement', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
+      { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/AdminSettings.vue'), meta: { title: 'Configuration boutique', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
     ],
   },
 
@@ -208,7 +208,7 @@ const tenantRoutes = [
     // layout 'admin' = App.vue masque le chrome public (navbar/footer) ; la route
     // etant top-level, elle n'herite pas non plus de la sidebar AdminLayout ->
     // page nue, propre a imprimer.
-    meta: { title: 'Facture', layout: 'admin', requiresAdmin: true },
+    meta: { title: 'Facture', layout: 'admin', requiresAdmin: true, permission: 'finances' },
   },
 
   // --- Pages d'etat / erreurs ----------------------------------------------
@@ -294,6 +294,11 @@ router.beforeEach(async (to) => {
     const store = useAdminStore()
     if (!store.isLoggedIn) {
       return { name: 'admin-login', query: { redirect: to.fullPath } }
+    }
+    if (to.meta.permission && !store.can(to.meta.permission)) {
+      const fallback = ['agenda', 'clients', 'finances', 'catalog', 'settings'].find((permission) => store.can(permission))
+      const destinations = { agenda: 'admin-agenda', clients: 'admin-clients', finances: 'admin-orders', catalog: 'admin-products', settings: 'admin-settings' }
+      return fallback ? { name: destinations[fallback] } : { name: 'admin-login' }
     }
   }
   return true

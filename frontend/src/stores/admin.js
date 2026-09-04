@@ -28,6 +28,7 @@ export const useAdminStore = defineStore('admin', {
     tenant: (s) => s.session?.tenant || null,
     tenantId: (s) => s.session?.tenant?.id || null,
     currency: (s) => s.session?.tenant?.currency || 'USD',
+    can: (s) => (permission) => (s.session?.admin?.permissions || []).includes(permission),
   },
   actions: {
     persist() {

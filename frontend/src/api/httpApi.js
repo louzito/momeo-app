@@ -421,7 +421,14 @@ async function buildAdminSession(identity = {}) {
   const name = identity.name || email.split('@')[0] || 'Propriétaire'
 
   return {
-    admin: { id: `admin_${TENANT_SLUG}`, name, email, role: 'BusinessOwner' },
+    admin: {
+      id: `admin_${TENANT_SLUG}`,
+      name,
+      email,
+      role: identity.role || 'practitioner',
+      permissions: identity.permissions || [],
+      staffMemberId: identity.staffMemberId || null,
+    },
     tenant: {
       id: `workspace_${TENANT_SLUG}`,
       slug: TENANT_SLUG,
@@ -978,7 +985,8 @@ export const httpApi = {
 
   // --- ADMIN : connexion + CRUD produit via l'API admin Sylius ---
   async adminLogin(email, password) {
-    const identity = await sylius.login(email, password)
+    await sylius.login(email, password)
+    const identity = await sylius.getTeamSession()
     return buildAdminSession(identity)
   },
 

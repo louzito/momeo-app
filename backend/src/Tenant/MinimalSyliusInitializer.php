@@ -14,6 +14,7 @@ use App\Entity\Payment\GatewayConfig;
 use App\Entity\Payment\PaymentMethod;
 use App\Entity\Shipping\ShippingMethod;
 use App\Entity\User\AdminUser;
+use App\Security\TeamRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Addressing\Model\ZoneInterface;
 
@@ -204,6 +205,7 @@ final class MinimalSyliusInitializer
         }
         if ($admin instanceof AdminUser) {
             $admin->setEnabled(true);
+            $admin->setTeamRole(TeamRole::Owner);
             if ($providedPassword !== null) {
                 $admin->setPlainPassword($providedPassword);
             }
@@ -218,6 +220,7 @@ final class MinimalSyliusInitializer
         $admin->setPlainPassword($password);
         $admin->setEnabled(true);
         $admin->setLocaleCode('fr_FR');
+        $admin->setTeamRole(TeamRole::Owner);
         $this->entityManager->persist($admin);
 
         return $password;

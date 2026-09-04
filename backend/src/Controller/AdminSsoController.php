@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\User\AdminUser;
 use App\Tenant\AdminLoginTicketStore;
+use App\Security\TeamPermissions;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -48,7 +49,13 @@ final class AdminSsoController
 
         $response = new JsonResponse([
             'token' => $this->jwtManager->create($admin),
-            'admin' => ['email' => $admin->getEmail(), 'name' => $ticket['name']],
+            'admin' => [
+                'email' => $admin->getEmail(),
+                'name' => $ticket['name'],
+                'role' => $admin->getTeamRole()->value,
+                'permissions' => TeamPermissions::forRole($admin->getTeamRole()),
+                'staffMemberId' => $admin->getStaffMember()?->getId(),
+            ],
         ]);
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->setCookie(

@@ -108,6 +108,11 @@ export async function exchangeSsoSession() {
   return data.admin || {}
 }
 
+/** Retourne le rôle et les permissions calculés côté serveur pour le JWT courant. */
+export async function getTeamSession() {
+  return request('GET', '/admin/team/session')
+}
+
 // --- Helpers ---------------------------------------------------------------
 function slugify(str) {
   return String(str)

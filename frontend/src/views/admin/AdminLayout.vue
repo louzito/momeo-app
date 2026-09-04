@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 import { applyBranding } from '@/composables/useBranding'
@@ -12,20 +12,20 @@ onMounted(() => {
   if (admin.tenant) applyBranding(admin.tenant)
 })
 
-const nav = [
+const nav = computed(() => [
   { name: 'admin-dashboard', label: 'Tableau de bord', icon: '📊' },
-  { name: 'admin-products', label: 'Prestations', icon: '✦' },
-  { name: 'admin-staff', label: 'Équipe', icon: '👥' },
-  { name: 'admin-resources', label: 'Ressources', icon: '◫' },
-  { name: 'admin-options', label: 'Options & suppléments', icon: '＋' },
-  { name: 'admin-agenda', label: 'Agenda', icon: '🗓️' },
-  { name: 'admin-bookings', label: 'Réservations', icon: '📋' },
-  { name: 'admin-clients', label: 'Clients', icon: '♡' },
-  { name: 'admin-orders', label: 'Commandes', icon: '🧾' },
-  { name: 'admin-vouchers', label: 'Chèques cadeaux', icon: '🎁' },
-  { name: 'admin-payments', label: 'Moyens de paiement', icon: '💳' },
-  { name: 'admin-settings', label: 'Configuration boutique', icon: '⚙️' },
-]
+  { name: 'admin-products', label: 'Prestations', icon: '✦', permission: 'catalog' },
+  { name: 'admin-staff', label: 'Équipe', icon: '👥', permission: 'settings' },
+  { name: 'admin-resources', label: 'Ressources', icon: '◫', permission: 'catalog' },
+  { name: 'admin-options', label: 'Options & suppléments', icon: '＋', permission: 'catalog' },
+  { name: 'admin-agenda', label: 'Agenda', icon: '🗓️', permission: 'agenda' },
+  { name: 'admin-bookings', label: 'Réservations', icon: '📋', permission: 'agenda' },
+  { name: 'admin-clients', label: 'Clients', icon: '♡', permission: 'clients' },
+  { name: 'admin-orders', label: 'Commandes', icon: '🧾', permission: 'finances' },
+  { name: 'admin-vouchers', label: 'Chèques cadeaux', icon: '🎁', permission: 'finances' },
+  { name: 'admin-payments', label: 'Moyens de paiement', icon: '💳', permission: 'finances' },
+  { name: 'admin-settings', label: 'Configuration boutique', icon: '⚙️', permission: 'settings' },
+].filter((item) => !item.permission || admin.can(item.permission)))
 
 function logout() {
   admin.logout()

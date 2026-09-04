@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\StaffMember;
+use App\Entity\User\AdminUser;
 use App\Repository\StaffMemberRepository;
+use App\Security\TeamRole;
+use App\Security\TeamPermission;
+use App\Security\TeamPermissions;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,6 +25,7 @@ final class AdminStaffMemberApiController
     public function __construct(
         private readonly StaffMemberRepository $repository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly Security $security,
     ) {
     }
 
@@ -42,6 +48,9 @@ final class AdminStaffMemberApiController
         }
 
         $this->entityManager->persist($member);
+        if (($error = $this->syncAccount($member, $payload)) !== null) {
+            return new JsonResponse(['error' => $error], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         $this->entityManager->flush();
 
         return new JsonResponse($this->normalize($member), Response::HTTP_CREATED);
@@ -50,11 +59,15 @@ final class AdminStaffMemberApiController
     #[Route('/{id<\d+>}', name: 'momeo_api_admin_staff_update', methods: ['PUT'])]
     public function update(StaffMember $member, Request $request): JsonResponse
     {
-        $error = $this->hydrate($member, $this->payload($request));
+        $payload = $this->payload($request);
+        $error = $this->hydrate($member, $payload);
         if ($error !== null) {
             return new JsonResponse(['error' => $error], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        if (($error = $this->syncAccount($member, $payload)) !== null) {
+            return new JsonResponse(['error' => $error], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         $this->entityManager->flush();
 
         return new JsonResponse($this->normalize($member));
@@ -143,9 +156,70 @@ final class AdminStaffMemberApiController
         return $hours;
     }
 
+    /** @param array<string, mixed> $payload */
+    private function syncAccount(StaffMember $member, array $payload): ?string
+    {
+        if (!array_key_exists('accountEmail', $payload) && !array_key_exists('role', $payload)) {
+            return null;
+        }
+
+        $role = TeamRole::tryFrom((string) ($payload['role'] ?? TeamRole::Practitioner->value));
+        if ($role === null) {
+            return 'Le rôle doit être owner, manager, reception ou practitioner.';
+        }
+
+        $repository = $this->entityManager->getRepository(AdminUser::class);
+        $currentlyLinked = $repository->findOneBy(['staffMember' => $member]);
+        $email = mb_strtolower(trim((string) ($payload['accountEmail'] ?? '')));
+        if ($email === '') {
+            if ($currentlyLinked instanceof AdminUser && !$this->canRemoveOwner($currentlyLinked)) {
+                return 'Le dernier propriétaire ne peut pas être dissocié.';
+            }
+            $currentlyLinked?->setStaffMember(null);
+            return null;
+        }
+
+        $admin = $repository->findOneBy(['email' => $email]);
+        if (!$admin instanceof AdminUser || !$admin->isEnabled()) {
+            return 'Aucun compte actif ne correspond à cette adresse email.';
+        }
+        $otherLink = $repository->findOneBy(['staffMember' => $member]);
+        if ($otherLink instanceof AdminUser && $otherLink !== $admin) {
+            if (!$this->canRemoveOwner($otherLink)) {
+                return 'Le dernier propriétaire ne peut pas être remplacé.';
+            }
+            $otherLink->setStaffMember(null);
+        }
+        if ($admin->getTeamRole() === TeamRole::Owner && $role !== TeamRole::Owner && !$this->canRemoveOwner($admin)) {
+            return 'Au moins un propriétaire actif est obligatoire.';
+        }
+
+        $admin->setStaffMember($member);
+        $admin->setTeamRole($role);
+        return null;
+    }
+
+    private function canRemoveOwner(AdminUser $admin): bool
+    {
+        if ($admin->getTeamRole() !== TeamRole::Owner) {
+            return true;
+        }
+
+        return count($this->entityManager->getRepository(AdminUser::class)->findBy([
+            'teamRole' => TeamRole::Owner,
+            'enabled' => true,
+        ])) > 1;
+    }
+
     /** @return array<string, mixed> */
     private function normalize(StaffMember $member): array
     {
+        $account = null;
+        $currentAdmin = $this->security->getUser();
+        if ($currentAdmin instanceof AdminUser && TeamPermissions::allows($currentAdmin->getTeamRole(), TeamPermission::Settings)) {
+            $account = $this->entityManager->getRepository(AdminUser::class)->findOneBy(['staffMember' => $member]);
+        }
+
         return [
             'id' => $member->getId(),
             'firstName' => $member->getFirstName(),
@@ -161,6 +235,8 @@ final class AdminStaffMemberApiController
             'serviceCodes' => $member->getServiceCodes(),
             'workingHours' => $member->getWorkingHours(),
             'position' => $member->getPosition(),
+            'accountEmail' => $account instanceof AdminUser ? $account->getEmail() : null,
+            'role' => $account instanceof AdminUser ? $account->getTeamRole()->value : null,
             'createdAt' => $member->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $member->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         ];
