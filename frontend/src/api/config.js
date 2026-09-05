@@ -9,11 +9,14 @@
 
 export const USE_REAL_API = true
 
+export const APP_BASE = import.meta.env?.BASE_URL || '/'
+
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/
 
 /** Slug canonique du centre, lu strictement dans le premier segment. */
-export function resolveTenantSlug(pathname = typeof window !== 'undefined' ? window.location.pathname : '') {
-  const segment = (String(pathname).split('/')[1] || '').toLowerCase()
+export function resolveTenantSlug(pathname = typeof window !== 'undefined' ? window.location.pathname : '', base = APP_BASE) {
+  if (!String(pathname).startsWith(base)) return null
+  const segment = (String(pathname).slice(base.length).split('/')[0] || '').toLowerCase()
   return SLUG_RE.test(segment) ? segment : null
 }
 
@@ -37,12 +40,12 @@ export function buildTenantHeaders(slug, extra = {}) {
   return { ...extra, 'X-Skybook-Tenant': slug }
 }
 
-export const API_BASE = '/api/v2'
+export const API_BASE = import.meta.env?.VITE_API_BASE || '/api/v2'
 
 // Base des medias Sylius (fallback si un chemin d'image n'est pas absolu).
 // Racine PARTAGEE : les chemins d'images des tenants contiennent deja le slug
 // (public/media/image/{slug}/... — voir TenantImagePathGenerator cote back).
-export const MEDIA_BASE = typeof window !== 'undefined' ? window.location.origin : ''
+export const MEDIA_BASE = import.meta.env?.VITE_MEDIA_BASE || (typeof window !== 'undefined' ? window.location.origin : '')
 
 // Les nouvelles prestations utilisent `service_`. Le prefixe historique
 // `jump_` reste lisible le temps de migrer les anciens catalogues en securite.

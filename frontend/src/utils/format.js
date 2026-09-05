@@ -51,3 +51,10 @@ export function isoDay(date) {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+export function formatDateTime(input) {
+  if (input == null || input === '') return '—'
+  const date = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(date.getTime())) return '—'
+  return `${formatDate(date)} à ${formatTime(date)}`
+}

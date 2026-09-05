@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { TENANT_SLUG, TENANT_ERROR } from '@/api/config'
+import { TENANT_SLUG, TENANT_ERROR, APP_BASE } from '@/api/config'
 
 // MULTI-CENTRES : le premier segment de l'URL est le slug du centre
 // (localhost:5173/{slug}/...). Il n'existe volontairement aucun fallback vers
@@ -277,7 +277,7 @@ const invalidTenantRoutes = [{
 const router = createRouter({
   // Base multi-centres : toutes les routes vivent sous /{slug}/ (les noms de
   // routes et les paths relatifs ci-dessus ne changent pas).
-  history: createWebHistory(TENANT_SLUG ? `/${TENANT_SLUG}/` : '/'),
+  history: createWebHistory(TENANT_SLUG ? `${APP_BASE}${TENANT_SLUG}/` : APP_BASE),
   routes: TENANT_SLUG ? tenantRoutes : invalidTenantRoutes,
   scrollBehavior() {
     return { top: 0 }

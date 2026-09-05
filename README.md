@@ -41,3 +41,49 @@ npm run build
 La procédure de déploiement sans Docker (permissions, migrations, workers,
 cron, sauvegardes, contrôles de santé, smoke test et rollback) est décrite
 dans la [checklist de mise en production V1](docs/production-checklist.md).
+
+## Commandes à la racine (sans Docker)
+
+```bash
+make build   # Compile Vue et les assets Sylius avec les dépendances installées
+make test    # Tests unitaires frontend et contrôle du bundle de production
+make deploy  # Installe les dépendances verrouillées et déploie les deux parties
+```
+
+Prérequis : PHP et ses extensions compatibles avec `backend/composer.lock`,
+Composer, Node.js, npm, Corepack, Bash et `flock`. Exécuter sur le serveur,
+depuis le checkout de la branche à publier, avec un compte disposant des droits
+sur les dépendances, les assets et le cache Symfony. Yarn 1.22.22 est fixé dans
+`backend/package.json` et appelé par Corepack.
+
+`make deploy` utilise `APP_ENV=prod` et `APP_DEBUG=0`, vérifie la configuration
+privée du backend, construit `frontend/dist/` et `backend/public/build/`,
+recrée le cache Symfony, installe les assets des bundles puis demande l'arrêt
+propre des workers Messenger. Leur superviseur doit les relancer automatiquement.
+Apache/Nginx doit déjà servir ces répertoires et acheminer les appels API vers
+`backend/public/index.php`. Aucun transfert SSH ni configuration du serveur web
+n'est réalisé. La publication se fait sur place : prévoir une fenêtre de
+maintenance, car les deux builds ne basculent pas atomiquement.
+
+Pour un hébergement sous `/todatempo-app/`, créer `frontend/.env.local` avec :
+
+```dotenv
+VITE_APP_BASE=/todatempo-app/
+VITE_API_BASE=/todatempo-app/backend/api/v2
+VITE_MEDIA_BASE=/todatempo-app/backend
+```
+
+Le préfixe doit commencer et finir par `/`. Sans ces valeurs, l'application
+utilise `/<tenant>/` et `/api/v2`. Les variables `VITE_*` sont publiques et
+intégrées au build : ne jamais y placer de secrets.
+
+Les migrations sont optionnelles et concernent **tous les tenants du registre**,
+pool et template compris. Après sauvegarde des bases :
+
+```bash
+MIGRATE=1 make deploy
+```
+
+La commande s'arrête à la première étape en échec. Une configuration de production
+incomplète bloque la publication ; suivre la checklist ci-dessus pour les clés,
+le PDF, les permissions, les sauvegardes et les contrôles de santé.

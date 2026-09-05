@@ -11,7 +11,7 @@
     "test": "npm run test:unit",
     "test:unit": "node --test test/*.test.* tests/*.test.*",
     "test:e2e": "playwright test",
-    "test:production": "vite build && node --test tests/production",
+    "test:production": "vite build && node --test tests/production/*.test.mjs",
     "test:ci": "npm run test:unit && npm run test:production && npm run test:e2e"
   },
   "dependencies": {

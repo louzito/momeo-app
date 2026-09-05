@@ -34,3 +34,5 @@
 
 /.DS_Store
 /Thumbs.db
+
+/.deploy.lock

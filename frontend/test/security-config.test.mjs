@@ -8,7 +8,7 @@ import viteConfig from '../vite.config.js'
 const root = fileURLToPath(new URL('../..', import.meta.url))
 
 test('normal Vite and Caddy configurations expose no command endpoint', async () => {
-  const pluginNames = viteConfig.plugins.map((plugin) => plugin.name)
+  const pluginNames = viteConfig({ mode: 'production' }).plugins.map((plugin) => plugin.name)
   assert.deepEqual(pluginNames, ['vite:vue', 'skybook-tenant-rewrite'])
 
   const configuredFiles = [

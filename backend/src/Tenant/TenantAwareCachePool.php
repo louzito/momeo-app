@@ -83,6 +83,13 @@ final class TenantAwareCachePool implements AdapterInterface, CacheInterface, Na
         return $this->inner->commit();
     }
 
+    public function reset(): void
+    {
+        if (method_exists($this->inner, 'reset')) {
+            $this->inner->reset();
+        }
+    }
+
     public function get(string $key, callable $callback, ?float $beta = null, ?array &$metadata = null): mixed
     {
         if (!$this->inner instanceof CacheInterface) {

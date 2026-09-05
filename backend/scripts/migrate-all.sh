@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # =============================================================================
 # SkyBook — applique les migrations Doctrine en attente sur TOUTES les BDD du
 # registre (chaque tenant a sa propre table sylius_migrations, la source des
@@ -8,11 +8,11 @@
 # `pool-NNN` sont INCLUS expres (sinon un futur clone du pool, ou le template
 # lui-meme, n'aurait pas la nouvelle table/colonne).
 # =============================================================================
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SLUGS=$(bin/console todatempo:tenant:list --json | php -r '
-    $data = json_decode(stream_get_contents(STDIN), true) ?: [];
+    $data = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
     foreach (array_keys($data) as $slug) {
         echo $slug . "\n";
     }

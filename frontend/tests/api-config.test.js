@@ -29,3 +29,9 @@ test('les en-têtes API transmettent le tenant sans écraser les autres valeurs'
   )
   assert.throws(() => config.buildTenantHeaders('../autre-centre'), /invalide/)
 })
+
+test('le préfixe hébergé est retiré sans fallback vers un autre centre', () => {
+  assert.equal(config.resolveTenantSlug('/todatempo-app/centre-paris/admin', '/todatempo-app/'), 'centre-paris')
+  assert.equal(config.resolveTenantSlug('/todatempo-app/', '/todatempo-app/'), null)
+  assert.equal(config.resolveTenantSlug('/autre/centre-paris/', '/todatempo-app/'), null)
+})
