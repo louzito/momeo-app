@@ -70,6 +70,25 @@ final class TenantIdentifierResolverTest extends TestCase
         self::assertSame('new-centre', $this->resolver->fromEnvironment());
     }
 
+    public function testSsoPostResolvesTheFormTenantBehindAPublicPrefix(): void
+    {
+        $request = Request::create('/todatempo-app/backend/api/v2/admin/todatempo/sso/handoff', 'POST', ['tenant' => '  Centre-Paris  '], [], [], [
+            'SCRIPT_NAME' => '/todatempo-app/backend/index.php',
+            'SCRIPT_FILENAME' => '/var/www/public/index.php',
+        ]);
+        self::assertSame('centre-paris', $this->resolver->fromRequest($request));
+    }
+
+    public function testFormTenantCannotOverrideTheHeaderOrSelectOtherApiTenants(): void
+    {
+        $request = Request::create('/api/v2/admin/todatempo/sso/handoff', 'POST', ['tenant' => 'beta']);
+        $request->headers->set(TenantIdentifierResolver::HTTP_HEADER, 'alpha');
+        self::assertSame('alpha', $this->resolver->fromRequest($request));
+        self::assertNull($this->resolver->fromRequest(Request::create('/api/v2/admin/orders', 'POST', ['tenant' => 'beta'])));
+        self::assertNull($this->resolver->fromRequest(Request::create('/api/v2/admin/todatempo/sso/handoff', 'GET', ['tenant' => 'beta'])));
+        self::assertNull($this->resolver->fromRequest(Request::create('/api/v2/admin/todatempo/sso/handoff', 'POST')));
+    }
+
     private function clearTenantEnvironment(): void
     {
         $names = [

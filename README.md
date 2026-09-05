@@ -87,3 +87,6 @@ MIGRATE=1 make deploy
 La commande s'arrête à la première étape en échec. Une configuration de production
 incomplète bloque la publication ; suivre la checklist ci-dessus pour les clés,
 le PDF, les permissions, les sauvegardes et les contrôles de santé.
+
+Le [guide SSO](docs/sso.md) décrit les URL internes/publiques, la sélection du
+centre, le cookie et la coexistence des JWT avec une protection HTTP Basic.

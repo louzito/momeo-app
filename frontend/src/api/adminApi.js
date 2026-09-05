@@ -12,7 +12,7 @@
 // Chaque requete porte le tenant et cible /api/v2 sur l'origine courante.
 // =============================================================================
 
-import { API_BASE, TENANT_SLUG, displayImageUrl, tenantHeaders } from './config'
+import { API_BASE, JWT_AUTH_HEADER, TENANT_SLUG, displayImageUrl, tenantHeaders } from './config'
 import { normalizeShopColors } from '@/composables/useBranding'
 import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
 import { normalizeSiteConfig, publishSiteConfigDocument, readSiteConfigDocument } from '@/utils/siteConfig'
@@ -52,7 +52,7 @@ export function logout() {
 function headers(contentType = 'application/ld+json', withAuth = true) {
   const h = { Accept: 'application/ld+json' }
   if (contentType) h['Content-Type'] = contentType
-  if (withAuth && token) h['Authorization'] = 'Bearer ' + token
+  if (withAuth && token) h[JWT_AUTH_HEADER] = 'Bearer ' + token
   return tenantHeaders(h)
 }
 
@@ -634,7 +634,7 @@ export async function uploadShopImage(file, type = 'logo') {
   fd.append('type', draftType)
   const res = await fetch(`${API_BASE}/admin/taxons/${CONFIG_TAXON}/images`, {
     method: 'POST',
-    headers: tenantHeaders({ Accept: 'application/ld+json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }),
+    headers: tenantHeaders({ Accept: 'application/ld+json', ...(token ? { [JWT_AUTH_HEADER]: 'Bearer ' + token } : {}) }),
     body: fd,
   })
   const data = await res.json().catch(() => null)
@@ -667,7 +667,7 @@ export async function findInvoicesForOrder(orderNumber) {
 
 export async function downloadInvoiceBlob(invoiceId) {
   const res = await fetch(`${API_BASE}/admin/invoices/${invoiceId}/download`, {
-    headers: tenantHeaders({ ...(token ? { Authorization: 'Bearer ' + token } : {}) }),
+    headers: tenantHeaders({ ...(token ? { [JWT_AUTH_HEADER]: 'Bearer ' + token } : {}) }),
   })
   if (!res.ok) throw new Error(`Telechargement impossible (HTTP ${res.status}).`)
   return res.blob()
@@ -683,7 +683,7 @@ async function uploadProductImage(code, file) {
   fd.append('type', 'main')
   const res = await fetch(`${API_BASE}/admin/products/${encodeURIComponent(code)}/images`, {
     method: 'POST',
-    headers: tenantHeaders({ Accept: 'application/ld+json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }),
+    headers: tenantHeaders({ Accept: 'application/ld+json', ...(token ? { [JWT_AUTH_HEADER]: 'Bearer ' + token } : {}) }),
     body: fd,
   })
   const data = await res.json().catch(() => null)

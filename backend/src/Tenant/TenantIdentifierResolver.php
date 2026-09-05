@@ -24,6 +24,13 @@ final class TenantIdentifierResolver
             return $header;
         }
 
+        // Un formulaire HTML ne peut pas envoyer notre en-tête de tenant.
+        // Ce champ est accepté uniquement pour le POST SSO ; le ticket reste
+        // vérifié dans le cache du tenant sélectionné avant toute connexion.
+        if ($request->isMethod('POST') && preg_match('#^/api/v2/admin/(?:todatempo|momeo)/sso/handoff$#', $request->getPathInfo())) {
+            return $this->resolve($request->request->get('tenant'), null);
+        }
+
         // Stripe cannot attach our tenant header. The slug is therefore part of
         // this one webhook URL and is resolved before Symfony routing runs.
         if (preg_match('#^/api/v2/shop/payments/stripe/webhook/([a-z0-9][a-z0-9-]{0,62})$#', $request->getPathInfo(), $matches)) {

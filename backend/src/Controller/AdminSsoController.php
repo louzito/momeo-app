@@ -62,7 +62,8 @@ final class AdminSsoController
             Cookie::create(self::COOKIE_NAME)
                 ->withValue('')
                 ->withExpires(new \DateTimeImmutable('-1 day'))
-                ->withPath('/'.$ticket['slug'].'/api/v2/admin/todatempo/sso/session')
+                ->withPath($request->getBaseUrl().'/api/v2/admin/todatempo/sso/session')
+                ->withSecure($request->isSecure())
                 ->withHttpOnly(true)
                 ->withSameSite(Cookie::SAMESITE_LAX),
         );

@@ -1,4 +1,4 @@
-import { API_BASE, TENANT_SLUG, tenantHeaders } from './config'
+import { API_BASE, JWT_AUTH_HEADER, TENANT_SLUG, tenantHeaders } from './config'
 
 const TOKEN_KEY = `todatempo.customer.jwt.${TENANT_SLUG}`
 let token = null
@@ -18,7 +18,7 @@ export function setCustomerToken(value) {
 export async function customerRequest(method, path, body, { auth = true } = {}) {
   const headers = tenantHeaders({ Accept: 'application/ld+json' })
   if (body !== undefined) headers['Content-Type'] = 'application/ld+json'
-  if (auth && token) headers.Authorization = `Bearer ${token}`
+  if (auth && token) headers[JWT_AUTH_HEADER] = `Bearer ${token}`
   const response = await fetch(`${API_BASE}${path}`, { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
   const text = await response.text()
   const data = text ? JSON.parse(text) : null

@@ -40,6 +40,9 @@ export function buildTenantHeaders(slug, extra = {}) {
   return { ...extra, 'X-Skybook-Tenant': slug }
 }
 
+// Un hébergeur peut réserver Authorization à son authentification HTTP Basic.
+export const JWT_AUTH_HEADER = import.meta.env?.VITE_JWT_AUTH_HEADER || 'Authorization'
+
 export const API_BASE = import.meta.env?.VITE_API_BASE || '/api/v2'
 
 // Base des medias Sylius (fallback si un chemin d'image n'est pas absolu).

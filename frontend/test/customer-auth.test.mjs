@@ -15,7 +15,7 @@ test('le JWT client est isolé par tenant et ne persiste pas dans localStorage',
 })
 
 test('les appels privés transmettent le JWT et purgent une session refusée', () => {
-  assert.match(auth, /headers\.Authorization = `Bearer \$\{token\}`/)
+  assert.match(auth, /headers\[JWT_AUTH_HEADER\] = `Bearer \$\{token\}`/)
   assert.match(auth, /response\.status === 401/)
   assert.match(api, /\/shop\/account\/bookings/)
   assert.doesNotMatch(api.slice(api.indexOf('async getCustomerBookings'), api.indexOf('async getPaymentMethods')), /mockApi\.getCustomer/)
