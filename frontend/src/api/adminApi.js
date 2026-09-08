@@ -14,6 +14,7 @@
 
 import { API_BASE, JWT_AUTH_HEADER, TENANT_SLUG, displayImageUrl, tenantHeaders } from './config'
 import { normalizeShopColors } from '@/composables/useBranding'
+import { redirectExpiredAdminSession } from '@/utils/adminSession'
 import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
 import { normalizeSiteConfig, publishSiteConfigDocument, readSiteConfigDocument } from '@/utils/siteConfig'
 
@@ -23,6 +24,7 @@ const DEFAULT_CHANNEL = 'FASHION_WEB' // channel du Sylius de demo (a rendre con
 const JUMP_ASSOC_TYPE = 'todatempo_services'
 const LEGACY_JUMP_ASSOC_TYPES = new Set(['skybook_jumps'])
 
+let redirectingToLogin = false
 let token = null
 try {
   token = migrateLocalStorageKey(TOKEN_KEY, [`momeo.sylius.jwt.${TENANT_SLUG}`])
@@ -62,13 +64,24 @@ async function request(method, path, body, contentType, { auth = true } = {}) {
     headers: headers(contentType, auth),
     body: body ? JSON.stringify(body) : undefined,
   })
+  if (res.status === 401 && auth) {
+    setToken(null)
+    if (!redirectingToLogin && typeof window !== 'undefined') {
+      redirectingToLogin = true
+      redirectExpiredAdminSession({
+        storage: window.localStorage,
+        location: window.location,
+        tenant: TENANT_SLUG,
+        loginUrl: import.meta.env?.VITE_WEBSITE_LOGIN_URL || '/fr/connexion',
+      })
+    }
+    const error = new Error('Votre session a expiré. Veuillez vous reconnecter.')
+    error.status = 401
+    throw error
+  }
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
   if (!res.ok) {
-    // JWT expire / invalide : on purge le token stocke pour que la prochaine
-    // tentative de connexion reparte proprement (sinon l'app rejoue un Bearer
-    // mort a l'infini).
-    if (res.status === 401 && auth && token) setToken(null)
     const msg = data?.['hydra:description'] || data?.detail || data?.error || data?.message || `HTTP ${res.status}`
     const err = new Error(msg)
     err.status = res.status

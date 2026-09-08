@@ -5,16 +5,20 @@ import AppNavbar from '@/components/AppNavbar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 import CatalogError from '@/components/ui/CatalogError.vue'
 import { useTenantStore } from '@/stores/tenant'
+import { TENANT_SLUG } from '@/api/config'
 
 const route = useRoute()
 const tenantStore = useTenantStore()
 
 // Le back-office (admin) fournit sa propre ossature : on masque le chrome public.
 const isAdmin = computed(() => route.meta?.layout === 'admin')
+// Sans centre dans l'URL, seules les routes « centre invalide » existent : le
+// chrome public (dont les liens vers tenant-home) n'a rien a pointer.
+const hasTenant = !!TENANT_SLUG
 const retryCatalog = () => tenantStore.retryPublicCatalog().catch(() => {})
 
 onMounted(async () => {
-  if (!tenantStore.current && !tenantStore.loading) {
+  if (hasTenant && !tenantStore.current && !tenantStore.loading) {
     await tenantStore.loadDefaultTenant().catch(() => {})
   }
 })
@@ -22,7 +26,7 @@ onMounted(async () => {
 
 <template>
   <div class="flex min-h-screen flex-col bg-slate-50">
-    <template v-if="isAdmin">
+    <template v-if="isAdmin || !hasTenant">
       <RouterView />
     </template>
     <template v-else>

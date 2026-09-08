@@ -20,8 +20,6 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/v2/admin/staff-members')]
 final class AdminStaffMemberApiController
 {
-    private const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
     public function __construct(
         private readonly StaffMemberRepository $repository,
         private readonly EntityManagerInterface $entityManager,
@@ -126,7 +124,11 @@ final class AdminStaffMemberApiController
             static fn (mixed $code): string => mb_substr(trim((string) $code), 0, 255),
             $serviceCodes,
         ))));
-        $member->setWorkingHours($this->normalizeWorkingHours($payload['workingHours'] ?? []));
+        try {
+            $member->setWorkingHours(\App\Staff\WorkingHours::normalize($payload['workingHours'] ?? $member->getWorkingHours()));
+        } catch (\InvalidArgumentException $e) {
+            return $e->getMessage();
+        }
 
         return null;
     }
@@ -139,21 +141,6 @@ final class AdminStaffMemberApiController
         }
 
         return $length === null ? $value : mb_substr($value, 0, $length);
-    }
-
-    /** @return array<string, array{enabled: bool, start: string, end: string}> */
-    private function normalizeWorkingHours(mixed $value): array
-    {
-        $input = \is_array($value) ? $value : [];
-        $hours = [];
-        foreach (self::DAYS as $day) {
-            $row = \is_array($input[$day] ?? null) ? $input[$day] : [];
-            $start = preg_match('/^\d{2}:\d{2}$/', (string) ($row['start'] ?? '')) ? (string) $row['start'] : '09:00';
-            $end = preg_match('/^\d{2}:\d{2}$/', (string) ($row['end'] ?? '')) ? (string) $row['end'] : '18:00';
-            $hours[$day] = ['enabled' => (bool) ($row['enabled'] ?? false), 'start' => $start, 'end' => $end];
-        }
-
-        return $hours;
     }
 
     /** @param array<string, mixed> $payload */

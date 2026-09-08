@@ -26,11 +26,25 @@ final class JwtTenantIsolationTest extends TestCase
 
     public function testIssuedTokenIsBoundToCurrentTenant(): void
     {
-        $event = new JWTCreatedEvent(['username' => 'owner@example.test'], new \stdClass());
+        $event = new JWTCreatedEvent(['username' => 'owner@example.test'], $this->createStub(\Symfony\Component\Security\Core\User\UserInterface::class));
 
         $this->listener->onJwtCreated($event);
 
         self::assertSame('demo', $event->getData()['tenant']);
+    }
+
+    public function testAdminTokenLastsTwelveHours(): void
+    {
+        $event = new JWTCreatedEvent(['iat' => 1000, 'exp' => 1900], new \App\Entity\User\AdminUser());
+        $this->listener->onJwtCreated($event);
+        self::assertSame(44200, $event->getData()['exp']);
+    }
+
+    public function testCustomerTokenKeepsItsOriginalLifetime(): void
+    {
+        $event = new JWTCreatedEvent(['iat' => 1000, 'exp' => 1900], $this->createStub(\Symfony\Component\Security\Core\User\UserInterface::class));
+        $this->listener->onJwtCreated($event);
+        self::assertSame(1900, $event->getData()['exp']);
     }
 
     public function testTokenFromAnotherTenantIsRejected(): void

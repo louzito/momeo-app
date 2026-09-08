@@ -129,9 +129,10 @@ final class V1EndToEndSmokeTest extends WebTestCase
         $this->originalAccountVerificationRequired = $channel->isAccountVerificationRequired();
         $this->channelHostname = sprintf('smoke-%s.todatempo.test', $this->runId);
         $channel->setHostname($this->channelHostname);
-        // Un centre fraîchement initialisé exige la vérification d'email avant
-        // connexion (valeur par défaut Sylius) ; ce scénario inscrit et connecte le
-        // client dans la foulée, comme le fait déjà l'admin via son propre compte.
+        // Ce scénario inscrit et connecte le client dans la foulée : la vérification
+        // d'email est désactivée à l'initialisation du centre (voir
+        // MinimalSyliusInitializer), on la force ici pour rester indépendant d'une
+        // base de test provisionnée avant ce changement.
         $channel->setAccountVerificationRequired(false);
 
         $stripeMethod = $this->entityManager->getRepository(PaymentMethod::class)->findOneBy(['code' => 'stripe_web_elements']);

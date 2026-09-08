@@ -4,6 +4,7 @@ import api from '@/api'
 import { useAdminStore } from '@/stores/admin'
 import Spinner from '@/components/ui/Spinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { weekDays as days, slotsFromHours, hoursFromSlots, validateSlots } from '@/utils/staffHours'
 
 const admin = useAdminStore()
 const members = ref([])
@@ -14,24 +15,6 @@ const error = ref('')
 const editingId = ref(null)
 const editorOpen = ref(false)
 const archiveId = ref(null)
-
-const days = [
-  ['monday', 'Lundi'],
-  ['tuesday', 'Mardi'],
-  ['wednesday', 'Mercredi'],
-  ['thursday', 'Jeudi'],
-  ['friday', 'Vendredi'],
-  ['saturday', 'Samedi'],
-  ['sunday', 'Dimanche'],
-]
-
-function defaultHours() {
-  return Object.fromEntries(days.map(([key], index) => [key, {
-    enabled: index < 5,
-    start: '09:00',
-    end: '18:00',
-  }]))
-}
 
 function emptyForm() {
   return {
@@ -47,7 +30,7 @@ function emptyForm() {
     active: true,
     bookable: true,
     serviceCodes: [],
-    workingHours: defaultHours(),
+    slots: [{ start: '09:00', end: '18:00', days: days.slice(0, 5).map(([key]) => key) }],
     position: members.value.length,
   }
 }
@@ -56,9 +39,18 @@ const form = ref(emptyForm())
 const activeCount = computed(() => members.value.filter((member) => member.active).length)
 const bookableCount = computed(() => members.value.filter((member) => member.active && member.bookable).length)
 
-function hydrateHours(value = {}) {
-  const defaults = defaultHours()
-  return Object.fromEntries(days.map(([key]) => [key, { ...defaults[key], ...(value[key] || {}) }]))
+const slotErrors = computed(() => validateSlots(form.value.slots))
+let nextSlotId = 0
+const slotIds = new WeakMap()
+function slotId(slot) {
+  if (!slotIds.has(slot)) slotIds.set(slot, ++nextSlotId)
+  return slotIds.get(slot)
+}
+function addSlot() {
+  form.value.slots.push({ start: '', end: '', days: days.slice(0, 5).map(([key]) => key) })
+}
+function toggleDay(slot, day) {
+  slot.days = slot.days.includes(day) ? slot.days.filter((key) => key !== day) : [...slot.days, day]
 }
 
 async function load() {
@@ -98,7 +90,7 @@ function editMember(member) {
     active: member.active !== false,
     bookable: member.bookable !== false,
     serviceCodes: [...(member.serviceCodes || [])],
-    workingHours: hydrateHours(member.workingHours),
+    slots: slotsFromHours(member.workingHours),
     position: member.position || 0,
   }
   error.value = ''
@@ -114,12 +106,18 @@ function closeEditor() {
 
 async function save() {
   error.value = ''
+  if (slotErrors.value.some(Boolean)) {
+    error.value = 'Corrigez les disponibilités avant d’enregistrer.'
+    return
+  }
+  const { slots, ...details } = form.value
+  const payload = { ...details, workingHours: hoursFromSlots(slots) }
   saving.value = true
   try {
     if (editingId.value) {
-      await api.updateStaffMember(admin.tenantId, editingId.value, form.value)
+      await api.updateStaffMember(admin.tenantId, editingId.value, payload)
     } else {
-      await api.createStaffMember(admin.tenantId, form.value)
+      await api.createStaffMember(admin.tenantId, payload)
     }
     closeEditor()
     await load()
@@ -255,23 +253,32 @@ onMounted(load)
           </section>
         </div>
 
-        <section>
-          <h3 class="text-sm font-bold text-slate-800">Horaires habituels</h3>
-          <p class="mt-1 text-xs text-slate-500">Cette base servira à construire les disponibilités individuelles.</p>
-          <div class="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-            <div v-for="([key, label]) in days" :key="key" class="grid grid-cols-[105px_1fr] items-center gap-3 px-3 py-3 sm:grid-cols-[120px_1fr]">
-              <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-                <input v-model="form.workingHours[key].enabled" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-                {{ label }}
-              </label>
-              <div v-if="form.workingHours[key].enabled" class="flex items-center gap-2">
-                <input v-model="form.workingHours[key].start" type="time" class="input min-w-0 flex-1 px-2 py-1.5 text-sm" />
-                <span class="text-xs text-slate-400">à</span>
-                <input v-model="form.workingHours[key].end" type="time" class="input min-w-0 flex-1 px-2 py-1.5 text-sm" />
+        <section class="min-w-0" aria-labelledby="availability-title">
+          <h3 id="availability-title" class="text-sm font-bold text-slate-800">Disponibilités</h3>
+          <p class="mt-1 text-sm text-slate-500">Ajoutez plusieurs créneaux par jour pour prévoir les pauses. Le temps entre deux créneaux reste indisponible.</p>
+          <div class="mt-4 space-y-3">
+            <fieldset v-for="(slot, index) in form.slots" :key="slotId(slot)" class="min-w-0 rounded-2xl border bg-white p-4" :class="slotErrors[index] ? 'border-rose-300' : 'border-slate-200'" :aria-describedby="slotErrors[index] ? `slot-error-${slotId(slot)}` : undefined">
+              <legend class="px-1 text-sm font-semibold text-slate-700">Créneau {{ index + 1 }}</legend>
+              <div class="flex items-end gap-2">
+                <label class="min-w-0 flex-1 text-xs font-medium text-slate-600">Début
+                  <input v-model="slot.start" type="time" required class="input mt-1 w-full min-w-0 px-2" />
+                </label>
+                <label class="min-w-0 flex-1 text-xs font-medium text-slate-600">Fin
+                  <input v-model="slot.end" type="time" required class="input mt-1 w-full min-w-0 px-2" />
+                </label>
+                <button type="button" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-rose-600 hover:bg-rose-50 focus-visible:outline-brand-600" :aria-label="`Supprimer le créneau ${index + 1}`" @click="form.slots.splice(index, 1)">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg>
+                </button>
               </div>
-              <span v-else class="text-sm text-slate-400">Indisponible</span>
-            </div>
+              <div class="mt-3 flex flex-wrap gap-1.5" role="group" :aria-label="`Jours du créneau ${index + 1}`">
+                <button v-for="([key, label, fullLabel]) in days" :key="key" type="button" class="min-h-11 min-w-11 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-brand-600" :class="slot.days.includes(key) ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-brand-300'" :aria-label="fullLabel" :aria-pressed="slot.days.includes(key)" @click="toggleDay(slot, key)">{{ label }}</button>
+              </div>
+              <p v-if="slotErrors[index]" :id="`slot-error-${slotId(slot)}`" role="alert" class="mt-3 text-xs text-rose-700">{{ slotErrors[index] }}</p>
+            </fieldset>
           </div>
+          <p v-if="!form.slots.length" class="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucun créneau : ce collaborateur est indisponible toute la semaine.</p>
+          <button type="button" class="btn-outline mt-4 w-full" @click="addSlot">+ Ajouter un créneau</button>
+          <p class="mt-3 text-xs text-slate-500">Un jour sans créneau est un jour indisponible.</p>
         </section>
       </div>
 

@@ -256,6 +256,12 @@ export const mockApi = {
     db.customers.push(c)
     return delay(publicUser(c), 480)
   },
+  async updateCustomerPhone(customerId, phone) {
+    const c = db.customers.find((x) => x.id === customerId)
+    if (!c) throw new NotFound('Client introuvable')
+    c.phone = String(phone || '').trim()
+    return delay(publicUser(c))
+  },
   async getCustomerOrders(customerId) {
     return delay(db.orders.filter((o) => o.customerId === customerId).sort(byDateDesc('createdAt')))
   },

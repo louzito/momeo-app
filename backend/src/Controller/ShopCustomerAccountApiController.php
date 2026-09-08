@@ -301,16 +301,8 @@ final class ShopCustomerAccountApiController extends AbstractController
     private function assertStaffHours(StaffMember $staff, Planning $planning, \DateTimeImmutable $start, \DateTimeImmutable $end): void
     {
         $timezone = new \DateTimeZone($planning->getTimezone());
-        $localStart = $start->setTimezone($timezone);
-        $localEnd = $end->setTimezone($timezone);
-        $hours = $staff->getWorkingHours()[strtolower($localStart->format('l'))] ?? null;
-        if (!\is_array($hours) || !($hours['enabled'] ?? false)) {
-            throw new SlotUnavailable('Ce créneau est en dehors des horaires du collaborateur.');
-        }
-        $opening = new \DateTimeImmutable($localStart->format('Y-m-d').' '.($hours['start'] ?? '09:00'), $timezone);
-        $closing = new \DateTimeImmutable($localStart->format('Y-m-d').' '.($hours['end'] ?? '18:00'), $timezone);
-        if ($localStart < $opening || $localEnd > $closing) {
-            throw new SlotUnavailable('Ce créneau est en dehors des horaires du collaborateur.');
+        if (!\App\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
+            throw new SlotUnavailable('Ce créneau est en dehors des horaires du collaborateur ou empiète sur une pause.');
         }
     }
 

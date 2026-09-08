@@ -42,6 +42,15 @@ export const useSessionStore = defineStore('session', {
       try {
         await api.register(payload)
         this.customer = await loginCustomer(payload.email, payload.password)
+        // Le telephone ne fait pas partie des champs d'inscription Sylius : il
+        // est enregistre sur la fiche client une fois la session ouverte.
+        const phone = String(payload.phone || '').trim()
+        if (phone && this.customer?.id) {
+          try {
+            await api.updateCustomerPhone(this.customer.id, phone)
+            this.customer = { ...this.customer, phone }
+          } catch { /* Le compte est cree : le telephone reste modifiable plus tard. */ }
+        }
         return this.customer
       } catch (e) {
         this.error = e.message

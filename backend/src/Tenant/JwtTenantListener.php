@@ -7,6 +7,8 @@ namespace App\Tenant;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTCreatedEvent;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTDecodedEvent;
 use Lexik\Bundle\JWTAuthenticationBundle\Events;
+use App\Entity\User\AdminUser;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
@@ -20,13 +22,19 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 #[AsEventListener(event: Events::JWT_DECODED, method: 'onJwtDecoded')]
 final class JwtTenantListener
 {
-    public function __construct(private readonly TenantContext $tenantContext)
+    public function __construct(
+        private readonly TenantContext $tenantContext,
+        #[Autowire('%env(int:TODATEMPO_ADMIN_JWT_TTL)%')] private readonly int $adminTokenTtl = 43200,
+    )
     {
     }
 
     public function onJwtCreated(JWTCreatedEvent $event): void
     {
         $payload = $event->getData();
+        if ($event->getUser() instanceof AdminUser) {
+            $payload['exp'] = ($payload['iat'] ?? time()) + $this->adminTokenTtl;
+        }
         $payload['tenant'] = $this->tenantContext->getSlug();
         $event->setData($payload);
     }

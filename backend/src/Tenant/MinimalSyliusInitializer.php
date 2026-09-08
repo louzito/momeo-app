@@ -115,6 +115,10 @@ final class MinimalSyliusInitializer
         }
         $channel->setName($name);
         $channel->setEnabled(true);
+        // Le parcours client (front Vue) inscrit puis connecte dans la foulee :
+        // sans ceci, Sylius cree un compte desactive tant que l'email n'est pas
+        // verifie et la connexion qui suit echoue en « Invalid credentials ».
+        $channel->setAccountVerificationRequired(false);
         $channel->setBaseCurrency($currency);
         $channel->addCurrency($currency);
         $channel->setDefaultLocale($locale);

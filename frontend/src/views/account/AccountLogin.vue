@@ -71,25 +71,26 @@ async function requestPasswordReset() {
       <form v-else @submit.prevent="mode === 'forgot' ? requestPasswordReset() : submit()" class="space-y-4">
         <div v-if="mode === 'register'" class="grid grid-cols-2 gap-3">
           <div>
-            <label class="label">Prenom</label>
-            <input v-model="form.firstName" class="input" />
+            <label class="label" for="account-first-name">Prenom</label>
+            <!-- Sylius refuse un prenom ou un nom de moins de 2 caracteres. -->
+            <input id="account-first-name" v-model="form.firstName" required minlength="2" class="input" />
           </div>
           <div>
-            <label class="label">Nom</label>
-            <input v-model="form.lastName" class="input" />
+            <label class="label" for="account-last-name">Nom</label>
+            <input id="account-last-name" v-model="form.lastName" required minlength="2" class="input" />
           </div>
         </div>
         <div>
-          <label class="label">Email</label>
-          <input v-model="form.email" required type="email" class="input" placeholder="vous@example.com" />
+          <label class="label" for="account-email">Email</label>
+          <input id="account-email" v-model="form.email" required type="email" class="input" placeholder="vous@example.com" />
         </div>
         <div v-if="mode !== 'forgot'">
-          <label class="label">Mot de passe</label>
-          <input v-model="form.password" required type="password" class="input" placeholder="••••••" />
+          <label class="label" for="account-password">Mot de passe</label>
+          <input id="account-password" v-model="form.password" required minlength="4" type="password" class="input" placeholder="••••••" />
         </div>
         <div v-if="mode === 'register'">
-          <label class="label">Telephone (optionnel)</label>
-          <input v-model="form.phone" class="input" />
+          <label class="label" for="account-phone">Telephone (optionnel)</label>
+          <input id="account-phone" v-model="form.phone" class="input" />
         </div>
         <p v-if="error" class="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-600">{{ error }}</p>
         <button class="btn-primary w-full py-3" :disabled="loading">

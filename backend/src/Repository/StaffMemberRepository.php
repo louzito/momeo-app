@@ -19,11 +19,11 @@ final class StaffMemberRepository extends ServiceEntityRepository
     /** @return list<StaffMember> */
     public function findForAdministration(): array
     {
-        return $this->createQueryBuilder('member')
-            ->orderBy('member.active', 'DESC')
-            ->addOrderBy('member.position', 'ASC')
-            ->addOrderBy('member.lastName', 'ASC')
-            ->addOrderBy('member.firstName', 'ASC')
+        return $this->createQueryBuilder('staff')
+            ->orderBy('staff.active', 'DESC')
+            ->addOrderBy('staff.position', 'ASC')
+            ->addOrderBy('staff.lastName', 'ASC')
+            ->addOrderBy('staff.firstName', 'ASC')
             ->getQuery()
             ->getResult();
     }

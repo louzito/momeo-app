@@ -453,12 +453,20 @@ async function buildAdminSession(identity = {}) {
 
 // --- API reelle -------------------------------------------------------------
 export const httpApi = {
-  async register({ email, password, firstName, lastName, phone }) {
+  // Sylius 2.2 : POST /shop/customers attend `password` (et non `plainPassword`,
+  // nom historique du champ) et n'accepte que firstName/lastName/email/password
+  // /subscribedToNewsletter. Le telephone est enregistre apres connexion.
+  async register({ email, password, firstName, lastName }) {
     return customerRequest('POST', '/shop/customers', {
-      email: String(email || '').trim(), plainPassword: password,
+      email: String(email || '').trim(), password: String(password || ''),
       firstName: String(firstName || '').trim(), lastName: String(lastName || '').trim(),
-      phoneNumber: String(phone || '').trim() || null,
     }, { auth: false })
+  },
+
+  async updateCustomerPhone(customerId, phone) {
+    return customerRequest('PUT', `/shop/customers/${encodeURIComponent(customerId)}`, {
+      phoneNumber: String(phone || '').trim() || null,
+    })
   },
 
   async requestPasswordReset(email) {
