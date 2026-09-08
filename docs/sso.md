@@ -1,5 +1,33 @@
 # Connexion du website à l'application
 
+## Connexion depuis l'application
+
+Le compte du website est distinct de l'administrateur local Sylius : le
+provisioning génère un mot de passe local aléatoire. Le formulaire de connexion
+local ne peut donc pas vérifier le mot de passe du website. La connexion du
+compte central passe par le website et le SSO existant ; aucune copie de son
+mot de passe n'est conservée dans l'app.
+
+Configurer dans `frontend/.env.local` les URL publiques exactes du website :
+
+```dotenv
+VITE_WEBSITE_LOGIN_URL=https://<website>/<page-de-connexion>
+VITE_WEBSITE_PASSWORD_RESET_URL=https://<website>/<page-mot-de-passe-oublie>
+```
+
+Ces valeurs sont intégrées au build frontend. Le bouton principal ouvre le
+website ; après connexion, l'utilisateur y ouvre son établissement via le
+SSO. Le lien « Mot de passe oublié ? » ouvre la réinitialisation du compte
+central : le nouveau mot de passe s'utilise ensuite sur le même parcours.
+L'accès local reste disponible séparément pour les comptes d'équipe créés
+dans l'établissement. Sans URL configurée, l'écran invite à ouvrir le website
+et n'invente pas de route de connexion ou de réinitialisation.
+
+Vérifier avec un compte website : connexion, ouverture du bon établissement,
+déconnexion, réinitialisation depuis le website puis nouvelle connexion SSO.
+
+## Échange SSO
+
 Le website crée un ticket via un appel serveur authentifié à
 `TODATEMPO_PROVISIONING_URL/internal/todatempo/admin-login-tickets`.
 `TODATEMPO_PROVISIONING_SECRET` doit correspondre sur les deux applications.

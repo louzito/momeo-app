@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
+import { WEBSITE_LOGIN_URL, WEBSITE_PASSWORD_RESET_URL } from '@/api/config'
 
 const router = useRouter()
 const route = useRoute()
@@ -12,6 +13,7 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 const automaticLogin = ref(false)
+const localLogin = ref(false)
 
 async function goToDashboard(target = null) {
   await router.replace(target || { name: 'admin-dashboard' })
@@ -85,7 +87,7 @@ onMounted(async () => {
             {{ automaticLogin ? 'Connexion à votre espace…' : 'Connexion à TodaTempo' }}
           </h2>
           <p class="mt-3 text-sm leading-6 text-slate-500">
-            {{ automaticLogin ? 'Votre espace sécurisé est en cours d’ouverture.' : 'Utilisez vos identifiants professionnels pour continuer.' }}
+            {{ automaticLogin ? 'Votre espace sécurisé est en cours d’ouverture.' : 'Connectez-vous depuis le website avec votre compte TodaTempo, puis ouvrez votre établissement.' }}
           </p>
 
           <div v-if="automaticLogin" class="mt-8 flex items-center gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900" role="status">
@@ -93,7 +95,24 @@ onMounted(async () => {
             Vérification de votre accès…
           </div>
 
-          <form v-else class="mt-8 space-y-5" @submit.prevent="submit">
+          <div v-else class="mt-8 space-y-5">
+            <a v-if="WEBSITE_LOGIN_URL" :href="WEBSITE_LOGIN_URL" class="btn-primary flex w-full justify-center py-3">
+              Se connecter avec mon compte TodaTempo
+            </a>
+            <p v-else class="text-sm leading-6 text-slate-600">
+              Ouvrez le website TodaTempo pour vous connecter et accéder à votre établissement.
+            </p>
+            <a v-if="WEBSITE_PASSWORD_RESET_URL" :href="WEBSITE_PASSWORD_RESET_URL" class="block text-center text-sm font-medium text-slate-600 underline underline-offset-4">
+              Mot de passe oublié ?
+            </a>
+            <p v-if="error && !localLogin" class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ error }}</p>
+            <button type="button" class="block w-full text-center text-sm text-slate-500 underline underline-offset-4" :aria-expanded="localLogin" aria-controls="local-admin-login" @click="localLogin = !localLogin">
+              Connexion avec un compte local de l’établissement
+            </button>
+          </div>
+
+          <form v-if="localLogin && !automaticLogin" id="local-admin-login" class="mt-8 space-y-5" @submit.prevent="submit">
+            <p class="text-sm leading-6 text-slate-500">Cet accès utilise le mot de passe fourni par votre établissement. Pour votre compte website, utilisez la connexion TodaTempo ci-dessus.</p>
             <div>
               <label class="label" for="admin-email">Email professionnel</label>
               <input id="admin-email" v-model="email" type="email" autocomplete="username" class="input" placeholder="vous@etablissement.fr" required />

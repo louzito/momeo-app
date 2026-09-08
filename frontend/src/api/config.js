@@ -45,6 +45,10 @@ export const JWT_AUTH_HEADER = import.meta.env?.VITE_JWT_AUTH_HEADER || 'Authori
 
 export const API_BASE = import.meta.env?.VITE_API_BASE || '/api/v2'
 
+// Pages du compte central : le website authentifie puis ouvre l'app via SSO.
+export const WEBSITE_LOGIN_URL = import.meta.env?.VITE_WEBSITE_LOGIN_URL || ''
+export const WEBSITE_PASSWORD_RESET_URL = import.meta.env?.VITE_WEBSITE_PASSWORD_RESET_URL || ''
+
 // Base des medias Sylius (fallback si un chemin d'image n'est pas absolu).
 // Racine PARTAGEE : les chemins d'images des tenants contiennent deja le slug
 // (public/media/image/{slug}/... — voir TenantImagePathGenerator cote back).
