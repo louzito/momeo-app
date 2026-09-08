@@ -48,6 +48,7 @@ dans la [checklist de mise en production V1](docs/production-checklist.md).
 make build   # Compile Vue et les assets Sylius avec les dépendances installées
 make test    # Tests unitaires frontend et contrôle du bundle de production
 make deploy  # Installe les dépendances verrouillées et déploie les deux parties
+make deploy-backend # Déploie uniquement Sylius, migrations BDD incluses
 ```
 
 Prérequis : PHP et ses extensions compatibles avec `backend/composer.lock`,
@@ -83,6 +84,23 @@ pool et template compris. Après sauvegarde des bases :
 ```bash
 MIGRATE=1 make deploy
 ```
+
+Pour déployer uniquement le backend, après sauvegarde des bases :
+
+```bash
+make deploy-backend
+```
+
+Cette commande installe les dépendances PHP et JavaScript du backend, valide
+la configuration de production, compile les assets Sylius, vide et réchauffe
+le cache Symfony, installe les assets des bundles, puis applique les migrations
+sur **tous les tenants du registre, pool et template compris**. Elle demande
+ensuite l'arrêt propre des workers Messenger pour que leur superviseur les
+relance. Les migrations sont systématiques pour cette commande, sans variable
+`MIGRATE` à définir. Elle ne réinitialise pas les bases et ne supprime pas leurs
+données ; les modifications de schéma et de données dépendent des migrations.
+Le frontend n'est ni installé ni compilé. Les prérequis serveur et le déploiement
+sur place décrits ci-dessus restent applicables.
 
 La commande s'arrête à la première étape en échec. Une configuration de production
 incomplète bloque la publication ; suivre la checklist ci-dessus pour les clés,

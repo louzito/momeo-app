@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'todatempo_gdpr_audit_log')]
 #[ORM\Index(name: 'idx_gdpr_audit_created', columns: ['created_at'])]
 #[ORM\UniqueConstraint(name: 'uniq_gdpr_audit_operation', columns: ['operation_id'])]
-final class GdprAuditLog
+class GdprAuditLog
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;

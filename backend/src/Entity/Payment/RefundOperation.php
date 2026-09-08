@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'todatempo_refund_operation')]
 #[ORM\UniqueConstraint(name: 'uniq_todatempo_refund_key', columns: ['idempotency_key'])]
-final class RefundOperation
+class RefundOperation
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;

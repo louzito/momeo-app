@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'todatempo_stripe_webhook_event')]
 #[ORM\UniqueConstraint(name: 'uniq_stripe_webhook_event_id', columns: ['event_id'])]
-final class StripeWebhookEvent
+class StripeWebhookEvent
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]

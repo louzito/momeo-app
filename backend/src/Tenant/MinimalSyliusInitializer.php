@@ -108,6 +108,9 @@ final class MinimalSyliusInitializer
             $channel = new Channel();
             // Kept for compatibility with the existing shop and provisioning clients.
             $channel->setCode('FASHION_WEB');
+            // Non-null en base, sans valeur par défaut : le pool cloné depuis le
+            // template l'a déjà, mais un tenant créé de zéro (skyline) ne l'a pas.
+            $channel->setTaxCalculationStrategy('order_items_based');
             $this->entityManager->persist($channel);
         }
         $channel->setName($name);
