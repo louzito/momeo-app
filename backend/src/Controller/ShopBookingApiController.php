@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Staff\WorkingHours;
 use App\Availability\AvailabilitySlotGenerator;
 use App\Availability\CenterTimeZoneProvider;
 use App\Availability\PlanningProvider;
@@ -111,18 +112,9 @@ final class ShopBookingApiController
             } catch (\DomainException) {
                 continue;
             }
-            $dayKey = strtolower($plannedSlot['localStart']->format('l'));
             $matchedStaffCount = 0;
             foreach ($eligibleStaff as $staff) {
-                $hours = $staff->getWorkingHours()[$dayKey] ?? null;
-                if (!\is_array($hours) || !($hours['enabled'] ?? false)) {
-                    continue;
-                }
-
-                $date = $plannedSlot['localStart']->format('Y-m-d');
-                $workStart = new \DateTimeImmutable($date.' '.($hours['start'] ?? '09:00'), $timezone);
-                $workEnd = new \DateTimeImmutable($date.' '.($hours['end'] ?? '18:00'), $timezone);
-                if ($plannedSlot['localStart'] >= $workStart && $plannedSlot['end'] <= $workEnd->setTimezone(new \DateTimeZone('UTC'))) {
+                if (WorkingHours::contains($staff->getWorkingHours(), $plannedSlot['start'], $plannedSlot['end'], $timezone)) {
                     $startUtc = $plannedSlot['start'];
                     $endUtc = $plannedSlot['end'];
                     if (!$this->isBlocked($staff, $startUtc, $endUtc, $blocking, $timeOffs)) {
@@ -522,14 +514,10 @@ final class ShopBookingApiController
         }
         $timezone = $this->timeZoneProvider->get();
         $localStart = $start->setTimezone($timezone);
-        $localEnd = $end->setTimezone($timezone);
-        $hours = $staff->getWorkingHours()[strtolower($localStart->format('l'))] ?? null;
-        if (!\is_array($hours) || !($hours['enabled'] ?? false) || $localStart->format('Y-m-d') !== $localEnd->format('Y-m-d')) {
-            return 'Ce créneau est en dehors des horaires du collaborateur.';
+        if (!WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
+            return 'Ce créneau empiète sur une pause ou est en dehors des horaires du collaborateur.';
         }
-        $opening = new \DateTimeImmutable($localStart->format('Y-m-d').' '.($hours['start'] ?? '09:00'), $timezone);
-        $closing = new \DateTimeImmutable($localStart->format('Y-m-d').' '.($hours['end'] ?? '18:00'), $timezone);
-        if ($localStart < $opening || $localEnd > $closing || ($end->getTimestamp() - $start->getTimestamp()) !== $this->serviceDuration($serviceCode) * 60) {
+        if (($end->getTimestamp() - $start->getTimestamp()) !== $this->serviceDuration($serviceCode) * 60) {
             return 'Ce créneau ne correspond plus aux disponibilités de cette prestation.';
         }
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $localStart->format('Y-m-d'), $timezone);

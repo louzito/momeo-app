@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import api from '@/api'
+import { days, hydrateHours, validateHours } from '@/utils/workingHours'
 import { useAdminStore } from '@/stores/admin'
 import Spinner from '@/components/ui/Spinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -15,22 +16,12 @@ const editingId = ref(null)
 const editorOpen = ref(false)
 const archiveId = ref(null)
 
-const days = [
-  ['monday', 'Lundi'],
-  ['tuesday', 'Mardi'],
-  ['wednesday', 'Mercredi'],
-  ['thursday', 'Jeudi'],
-  ['friday', 'Vendredi'],
-  ['saturday', 'Samedi'],
-  ['sunday', 'Dimanche'],
-]
-
 function defaultHours() {
-  return Object.fromEntries(days.map(([key], index) => [key, {
-    enabled: index < 5,
-    start: '09:00',
-    end: '18:00',
-  }]))
+  return [{ start: '09:00', end: '18:00', days: days.slice(0, 5).map(([key]) => key) }]
+}
+
+function toggleDay(range, day) {
+  range.days = range.days.includes(day) ? range.days.filter(value => value !== day) : [...range.days, day]
 }
 
 function emptyForm() {
@@ -55,11 +46,6 @@ function emptyForm() {
 const form = ref(emptyForm())
 const activeCount = computed(() => members.value.filter((member) => member.active).length)
 const bookableCount = computed(() => members.value.filter((member) => member.active && member.bookable).length)
-
-function hydrateHours(value = {}) {
-  const defaults = defaultHours()
-  return Object.fromEntries(days.map(([key]) => [key, { ...defaults[key], ...(value[key] || {}) }]))
-}
 
 async function load() {
   loading.value = true
@@ -113,7 +99,8 @@ function closeEditor() {
 }
 
 async function save() {
-  error.value = ''
+  error.value = validateHours(form.value.workingHours)
+  if (error.value) return
   saving.value = true
   try {
     if (editingId.value) {
@@ -174,7 +161,7 @@ onMounted(load)
       </div>
     </div>
 
-    <p v-if="error" class="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</p>
+    <p v-if="error && !editorOpen" role="alert" class="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</p>
 
     <form v-if="editorOpen" class="card mt-6 overflow-hidden" @submit.prevent="save">
       <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
@@ -257,25 +244,31 @@ onMounted(load)
 
         <section>
           <h3 class="text-sm font-bold text-slate-800">Horaires habituels</h3>
-          <p class="mt-1 text-xs text-slate-500">Cette base servira à construire les disponibilités individuelles.</p>
-          <div class="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
-            <div v-for="([key, label]) in days" :key="key" class="grid grid-cols-[105px_1fr] items-center gap-3 px-3 py-3 sm:grid-cols-[120px_1fr]">
-              <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-                <input v-model="form.workingHours[key].enabled" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-                {{ label }}
-              </label>
-              <div v-if="form.workingHours[key].enabled" class="flex items-center gap-2">
-                <input v-model="form.workingHours[key].start" type="time" class="input min-w-0 flex-1 px-2 py-1.5 text-sm" />
-                <span class="text-xs text-slate-400">à</span>
-                <input v-model="form.workingHours[key].end" type="time" class="input min-w-0 flex-1 px-2 py-1.5 text-sm" />
+          <p class="mt-1 text-xs text-slate-500">Ajoutez plusieurs créneaux pour prévoir des pauses. Un jour sans créneau est indisponible.</p>
+          <div class="mt-3 space-y-3">
+            <fieldset v-for="(range, index) in form.workingHours" :key="index" class="min-w-0 rounded-2xl border border-slate-200 bg-white p-3">
+              <legend class="px-1 text-sm font-semibold text-slate-700">Créneau {{ index + 1 }}</legend>
+              <div class="grid grid-cols-2 gap-3">
+                <label class="min-w-0 text-sm text-slate-700">Début
+                  <input v-model="range.start" required type="time" class="input mt-1 w-full min-w-0 px-2" />
+                </label>
+                <label class="min-w-0 text-sm text-slate-700">Fin
+                  <input v-model="range.end" required type="time" class="input mt-1 w-full min-w-0 px-2" />
+                </label>
               </div>
-              <span v-else class="text-sm text-slate-400">Indisponible</span>
-            </div>
+              <div class="mt-3 flex flex-wrap gap-2" role="group" :aria-label="`Jours du créneau ${index + 1}`">
+                <button v-for="([key, label]) in days" :key="key" type="button" :aria-pressed="range.days.includes(key)" class="min-h-11 rounded-lg border px-3 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-brand-500" :class="range.days.includes(key) ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-brand-300'" @click="toggleDay(range, key)">{{ label }}</button>
+              </div>
+              <button type="button" class="btn-ghost mt-2 text-sm text-rose-600 hover:bg-rose-50" :aria-label="`Supprimer le créneau ${index + 1}`" @click="form.workingHours.splice(index, 1)">Supprimer ce créneau</button>
+            </fieldset>
+            <p v-if="!form.workingHours.length" class="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">Aucun créneau : le collaborateur est indisponible toute la semaine.</p>
           </div>
+          <button type="button" class="btn-outline mt-3 w-full" @click="form.workingHours.push({ start: '13:00', end: '19:00', days: [] })">+ Ajouter un créneau</button>
         </section>
       </div>
 
-      <div class="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
+      <p v-if="error" role="alert" class="mx-5 mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</p>
+      <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
         <button type="button" class="btn-outline" @click="closeEditor">Annuler</button>
         <button type="submit" class="btn-primary" :disabled="saving">
           {{ saving ? 'Enregistrement…' : editingId ? 'Enregistrer les modifications' : 'Ajouter à l’équipe' }}

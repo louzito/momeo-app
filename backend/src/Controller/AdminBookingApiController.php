@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Staff\WorkingHours;
+use App\Availability\CenterTimeZoneProvider;
 use App\Booking\BookingSlotGuard;
 use App\Booking\SlotUnavailable;
 use App\Email\BookingEmailDispatcher;
@@ -37,6 +39,7 @@ final class AdminBookingApiController
         private readonly BookingEmailDispatcher $emailDispatcher,
         private readonly ResourceAvailability $resourceAvailability,
         private readonly WaitlistNotifier $waitlistNotifier,
+        private readonly CenterTimeZoneProvider $timeZoneProvider,
     ) {
     }
 
@@ -82,6 +85,9 @@ final class AdminBookingApiController
             }
             if (!\in_array($serviceCode, $staff->getServiceCodes(), true)) {
                 throw new \DomainException('Ce collaborateur ne réalise pas cette prestation.');
+            }
+            if (!WorkingHours::contains($staff->getWorkingHours(), $start, $end, $this->timeZoneProvider->get())) {
+                throw new SlotUnavailable('Ce créneau empiète sur une pause ou est en dehors des horaires du collaborateur.');
             }
             if ($this->bookingRepository->hasOverlap($staff, $start, $end)) {
                 throw new SlotUnavailable('Ce créneau est déjà occupé.');
@@ -148,7 +154,10 @@ final class AdminBookingApiController
         $this->entityManager->lock($booking, LockMode::PESSIMISTIC_WRITE);
         $this->entityManager->refresh($booking);
         $staff = null;
-        $staffId = (int) ($payload['staffMemberId'] ?? 0);
+        $staffId = (int) ($payload['staffMemberId'] ?? $booking->getStaffMember()?->getId() ?? 0);
+        if ($staffId <= 0 && $booking->getStaffMember() !== null) {
+            $staffId = $booking->getStaffMember()->getId();
+        }
         if ($staffId > 0) {
             $staff = $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE);
             if (!$staff instanceof StaffMember || !$staff->isActive() || !$staff->isBookable()) {
@@ -158,6 +167,10 @@ final class AdminBookingApiController
             if (!\in_array($booking->getServiceCode(), $staff->getServiceCodes(), true)) {
                 $connection->rollBack();
                 return new JsonResponse(['error' => 'Ce collaborateur ne réalise pas cette prestation.'], Response::HTTP_CONFLICT);
+            }
+            if (!WorkingHours::contains($staff->getWorkingHours(), $start, $end, $this->timeZoneProvider->get())) {
+                $connection->rollBack();
+                return new JsonResponse(['error' => 'Ce créneau empiète sur une pause ou est en dehors des horaires du collaborateur.'], Response::HTTP_CONFLICT);
             }
             if ($this->bookingRepository->hasOverlap($staff, $start, $end, $booking)) {
                 $connection->rollBack();

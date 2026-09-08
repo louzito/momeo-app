@@ -50,7 +50,7 @@ class StaffMember
     #[ORM\Column(name: 'service_codes', type: Types::JSON)]
     private array $serviceCodes = [];
 
-    /** @var array<string, array{enabled: bool, start: string, end: string}> */
+    /** @var array<string, array{enabled: bool, start: string, end: string}>|list<array{start: string, end: string, days: list<string>}> */
     #[ORM\Column(name: 'working_hours', type: Types::JSON)]
     private array $workingHours = [];
 
@@ -92,9 +92,9 @@ class StaffMember
     public function getServiceCodes(): array { return $this->serviceCodes; }
     /** @param list<string> $serviceCodes */
     public function setServiceCodes(array $serviceCodes): void { $this->serviceCodes = array_values(array_unique($serviceCodes)); }
-    /** @return array<string, array{enabled: bool, start: string, end: string}> */
+    /** @return array<string, array{enabled: bool, start: string, end: string}>|list<array{start: string, end: string, days: list<string>}> */
     public function getWorkingHours(): array { return $this->workingHours; }
-    /** @param array<string, array{enabled: bool, start: string, end: string}> $workingHours */
+    /** @param array<string, array{enabled: bool, start: string, end: string}>|list<array{start: string, end: string, days: list<string>}> $workingHours */
     public function setWorkingHours(array $workingHours): void { $this->workingHours = $workingHours; }
     public function getPosition(): int { return $this->position; }
     public function setPosition(int $position): void { $this->position = $position; }

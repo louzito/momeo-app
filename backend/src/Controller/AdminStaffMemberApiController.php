@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Staff\WorkingHours;
 use App\Entity\StaffMember;
 use App\Entity\User\AdminUser;
 use App\Repository\StaffMemberRepository;
@@ -20,8 +21,6 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/v2/admin/staff-members')]
 final class AdminStaffMemberApiController
 {
-    private const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
     public function __construct(
         private readonly StaffMemberRepository $repository,
         private readonly EntityManagerInterface $entityManager,
@@ -110,6 +109,12 @@ final class AdminStaffMemberApiController
             return 'La couleur doit être au format #RRGGBB.';
         }
 
+        try {
+            $hours = WorkingHours::normalize($payload['workingHours'] ?? $member->getWorkingHours());
+        } catch (\DomainException $exception) {
+            return $exception->getMessage();
+        }
+
         $member->setFirstName(mb_substr($firstName, 0, 100));
         $member->setLastName(mb_substr($lastName, 0, 100));
         $member->setEmail($email !== '' ? mb_substr($email, 0, 180) : null);
@@ -126,7 +131,7 @@ final class AdminStaffMemberApiController
             static fn (mixed $code): string => mb_substr(trim((string) $code), 0, 255),
             $serviceCodes,
         ))));
-        $member->setWorkingHours($this->normalizeWorkingHours($payload['workingHours'] ?? []));
+        $member->setWorkingHours($hours);
 
         return null;
     }
@@ -139,21 +144,6 @@ final class AdminStaffMemberApiController
         }
 
         return $length === null ? $value : mb_substr($value, 0, $length);
-    }
-
-    /** @return array<string, array{enabled: bool, start: string, end: string}> */
-    private function normalizeWorkingHours(mixed $value): array
-    {
-        $input = \is_array($value) ? $value : [];
-        $hours = [];
-        foreach (self::DAYS as $day) {
-            $row = \is_array($input[$day] ?? null) ? $input[$day] : [];
-            $start = preg_match('/^\d{2}:\d{2}$/', (string) ($row['start'] ?? '')) ? (string) $row['start'] : '09:00';
-            $end = preg_match('/^\d{2}:\d{2}$/', (string) ($row['end'] ?? '')) ? (string) $row['end'] : '18:00';
-            $hours[$day] = ['enabled' => (bool) ($row['enabled'] ?? false), 'start' => $start, 'end' => $end];
-        }
-
-        return $hours;
     }
 
     /** @param array<string, mixed> $payload */
