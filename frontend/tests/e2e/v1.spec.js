@@ -62,3 +62,21 @@ test('les pages de disponibilité et les états erreur sont adressables', async 
   await page.goto('/centre-e2e/status/eligibility-blocked')
   await expect(page.getByText(/éligibilité|conditions/i).first()).toBeVisible()
 })
+
+
+test('la connexion professionnelle renvoie au website sans formulaire local', async ({ page }) => {
+  const requests = await isolatedApi(page)
+  await page.goto('/centre-e2e/admin/login')
+  await expect(page.getByRole('link', { name: 'Aller sur le site TodaTempo' })).toBeVisible()
+  await expect(page.locator('input[type="password"]')).toHaveCount(0)
+  await expect(page.locator('input[type="email"]')).toHaveCount(0)
+  expect(requests.some((request) => request.path.endsWith('/administrators/token'))).toBeFalsy()
+})
+
+test('un ticket expiré propose de revenir sur le website', async ({ page }) => {
+  await isolatedApi(page)
+  await page.goto('/centre-e2e/admin/login?sso=error')
+  await expect(page.getByRole('alert')).toContainText('Le lien de connexion a expiré')
+  await expect(page.getByRole('link', { name: 'Aller sur le site TodaTempo' })).toBeVisible()
+  await expect(page).not.toHaveURL(/sso=/)
+})

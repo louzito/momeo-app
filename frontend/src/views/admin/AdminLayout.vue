@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
+import { WEBSITE_URL } from '@/api/config'
 import { applyBranding } from '@/composables/useBranding'
 
 const admin = useAdminStore()
@@ -63,6 +64,9 @@ function logout() {
       </nav>
 
       <div class="space-y-1 border-t border-white/10 p-3">
+        <a :href="WEBSITE_URL" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/60 transition hover:bg-white/10 hover:text-white">
+          <span aria-hidden="true">⇄</span>Changer d’espace
+        </a>
         <RouterLink
           v-if="admin.tenant"
           :to="{ name: 'tenant-home', params: { slug: admin.tenant.slug } }"

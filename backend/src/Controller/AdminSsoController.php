@@ -43,7 +43,7 @@ final class AdminSsoController
         }
 
         $admin = $this->entityManager->getRepository(AdminUser::class)->findOneBy(['email' => $ticket['email']]);
-        if (!$admin instanceof AdminUser || !$admin->isEnabled()) {
+        if (!$admin instanceof AdminUser || !$admin->isEnabled() || ($admin->getStaffMember() !== null && !$admin->getStaffMember()->isActive())) {
             return new JsonResponse(['error' => 'admin_not_found'], JsonResponse::HTTP_UNAUTHORIZED);
         }
 

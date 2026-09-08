@@ -8,6 +8,7 @@ use App\Entity\StaffMember;
 use App\Entity\User\AdminUser;
 use App\Repository\StaffMemberRepository;
 use App\Security\TeamRole;
+use App\Team\WebsiteMembershipClient;
 use App\Security\TeamPermission;
 use App\Security\TeamPermissions;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +27,7 @@ final class AdminStaffMemberApiController
         private readonly StaffMemberRepository $repository,
         private readonly EntityManagerInterface $entityManager,
         private readonly Security $security,
+        private readonly WebsiteMembershipClient $websiteMemberships,
     ) {
     }
 
@@ -76,8 +78,19 @@ final class AdminStaffMemberApiController
     #[Route('/{id<\d+>}', name: 'momeo_api_admin_staff_archive', methods: ['DELETE'])]
     public function archive(StaffMember $member): Response
     {
+        $account = $this->entityManager->getRepository(AdminUser::class)->findOneBy(['staffMember' => $member]);
+        if ($account instanceof AdminUser && !$this->canRemoveOwner($account)) {
+            return new JsonResponse(['error' => 'Le dernier propriétaire actif ne peut pas être archivé.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         $member->setActive(false);
         $member->setBookable(false);
+        if ($account instanceof AdminUser) {
+            try {
+                $this->websiteMemberships->sync($account, $member);
+            } catch (\RuntimeException $exception) {
+                return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_SERVICE_UNAVAILABLE);
+            }
+        }
         $this->entityManager->flush();
 
         return new Response(status: Response::HTTP_NO_CONTENT);
@@ -101,7 +114,7 @@ final class AdminStaffMemberApiController
         }
 
         $email = trim((string) ($payload['email'] ?? ''));
-        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if ($email === '' || strlen($email) > 180 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return 'L’adresse email est invalide.';
         }
 
@@ -159,43 +172,52 @@ final class AdminStaffMemberApiController
     /** @param array<string, mixed> $payload */
     private function syncAccount(StaffMember $member, array $payload): ?string
     {
-        if (!array_key_exists('accountEmail', $payload) && !array_key_exists('role', $payload)) {
-            return null;
-        }
-
-        $role = TeamRole::tryFrom((string) ($payload['role'] ?? TeamRole::Practitioner->value));
+        $repository = $this->entityManager->getRepository(AdminUser::class);
+        $currentlyLinked = $member->getId() === null ? null : $repository->findOneBy(['staffMember' => $member]);
+        $role = TeamRole::tryFrom((string) ($payload['role'] ?? $currentlyLinked?->getTeamRole()->value ?? TeamRole::Practitioner->value));
         if ($role === null) {
             return 'Le rôle doit être owner, manager, reception ou practitioner.';
         }
 
-        $repository = $this->entityManager->getRepository(AdminUser::class);
-        $currentlyLinked = $repository->findOneBy(['staffMember' => $member]);
-        $email = mb_strtolower(trim((string) ($payload['accountEmail'] ?? '')));
-        if ($email === '') {
-            if ($currentlyLinked instanceof AdminUser && !$this->canRemoveOwner($currentlyLinked)) {
-                return 'Le dernier propriétaire ne peut pas être dissocié.';
-            }
-            $currentlyLinked?->setStaffMember(null);
-            return null;
+        $email = mb_strtolower(trim((string) (($payload['accountEmail'] ?? '') ?: $member->getEmail())));
+        if (strlen($email) > 180 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 'Une adresse email de connexion valide est obligatoire.';
+        }
+        if ($currentlyLinked instanceof AdminUser && mb_strtolower((string) $currentlyLinked->getEmail()) !== $email) {
+            return 'L’adresse du compte lié ne peut pas être remplacée. Conservez son adresse de connexion.';
         }
 
         $admin = $repository->findOneBy(['email' => $email]);
-        if (!$admin instanceof AdminUser || !$admin->isEnabled()) {
-            return 'Aucun compte actif ne correspond à cette adresse email.';
+        if ($admin instanceof AdminUser && $admin->getStaffMember() !== null && $admin->getStaffMember() !== $member) {
+            return 'Ce compte est déjà lié à un autre membre de cet établissement.';
         }
-        $otherLink = $repository->findOneBy(['staffMember' => $member]);
-        if ($otherLink instanceof AdminUser && $otherLink !== $admin) {
-            if (!$this->canRemoveOwner($otherLink)) {
-                return 'Le dernier propriétaire ne peut pas être remplacé.';
-            }
-            $otherLink->setStaffMember(null);
+        if ($admin instanceof AdminUser && !$admin->isEnabled()) {
+            return 'Ce compte est désactivé. Réactivez-le avant de le lier.';
+        }
+        if (!$admin instanceof AdminUser) {
+            $admin = new AdminUser();
+            $admin->setEmail($email);
+            $admin->setUsername($email);
+            $admin->setEnabled(true);
+            $admin->setLocaleCode('fr_FR');
+            // Aucun mot de passe communiqué : l’authentification passe par le website.
+            $admin->setPlainPassword(bin2hex(random_bytes(32)));
+            $this->entityManager->persist($admin);
         }
         if ($admin->getTeamRole() === TeamRole::Owner && $role !== TeamRole::Owner && !$this->canRemoveOwner($admin)) {
             return 'Au moins un propriétaire actif est obligatoire.';
         }
 
+        if (!$member->isActive() && !$this->canRemoveOwner($admin)) {
+            return 'Le dernier propriétaire actif ne peut pas être désactivé.';
+        }
         $admin->setStaffMember($member);
         $admin->setTeamRole($role);
+        try {
+            $this->websiteMemberships->sync($admin, $member);
+        } catch (\RuntimeException $exception) {
+            return $exception->getMessage();
+        }
         return null;
     }
 
@@ -205,10 +227,12 @@ final class AdminStaffMemberApiController
             return true;
         }
 
-        return count($this->entityManager->getRepository(AdminUser::class)->findBy([
-            'teamRole' => TeamRole::Owner,
-            'enabled' => true,
-        ])) > 1;
+        foreach ($this->entityManager->getRepository(AdminUser::class)->findBy(['teamRole' => TeamRole::Owner, 'enabled' => true]) as $owner) {
+            if ($owner !== $admin && ($owner->getStaffMember()?->isActive() ?? true)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** @return array<string, mixed> */

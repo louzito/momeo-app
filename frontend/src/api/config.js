@@ -72,3 +72,6 @@ export function displayImageUrl(path) {
   }
   return abs.replace(/\/media\/cache\/(?:resolve\/)?sylius_\w+\//, '/media/cache/resolve/photo/')
 }
+
+// Adresse publique du website où l’utilisateur choisit son espace.
+export const WEBSITE_URL = import.meta.env?.VITE_WEBSITE_URL || 'https://todatempo.fr'

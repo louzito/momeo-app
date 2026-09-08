@@ -205,15 +205,15 @@ onMounted(load)
                   <span class="font-mono text-xs text-slate-500">{{ form.color }}</span>
                 </span>
               </label>
-              <label class="block text-sm font-medium text-slate-700">Email
-                <input v-model.trim="form.email" class="input mt-1 w-full" type="email" maxlength="180" autocomplete="email" />
+              <label class="block text-sm font-medium text-slate-700">Email *
+                <input v-model.trim="form.email" required class="input mt-1 w-full" type="email" maxlength="180" autocomplete="email" />
               </label>
               <label class="block text-sm font-medium text-slate-700">Téléphone
                 <input v-model.trim="form.phone" class="input mt-1 w-full" type="tel" maxlength="40" autocomplete="tel" />
               </label>
-              <label class="block text-sm font-medium text-slate-700">Compte professionnel lié
+              <label class="block text-sm font-medium text-slate-700">Email de connexion TodaTempo
                 <input v-model.trim="form.accountEmail" class="input mt-1 w-full" type="email" maxlength="180" placeholder="compte@etablissement.fr" />
-                <span class="mt-1 block text-xs font-normal text-slate-400">Laissez vide si cette personne ne se connecte pas.</span>
+                <span class="mt-1 block text-xs font-normal text-slate-400">Si vide, l’email du membre sera utilisé. Le compte sera créé sur le site TodaTempo ou rattaché à cet espace s’il existe déjà.</span>
               </label>
               <label class="block text-sm font-medium text-slate-700">Rôle d’accès
                 <select v-model="form.role" class="input mt-1 w-full">

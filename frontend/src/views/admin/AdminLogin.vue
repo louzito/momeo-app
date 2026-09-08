@@ -2,32 +2,17 @@
 import { onMounted, ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
+import { WEBSITE_URL } from '@/api/config'
 
 const router = useRouter()
 const route = useRoute()
 const admin = useAdminStore()
 
-const email = ref('')
-const password = ref('')
 const error = ref('')
-const loading = ref(false)
 const automaticLogin = ref(false)
 
 async function goToDashboard(target = null) {
   await router.replace(target || { name: 'admin-dashboard' })
-}
-
-async function submit() {
-  error.value = ''
-  loading.value = true
-  try {
-    await admin.login(email.value, password.value)
-    await goToDashboard(route.query.redirect)
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
 }
 
 onMounted(async () => {
@@ -42,7 +27,6 @@ onMounted(async () => {
   }
 
   automaticLogin.value = true
-  loading.value = true
   try {
     await admin.loginWithSso()
     await goToDashboard(redirect)
@@ -50,7 +34,6 @@ onMounted(async () => {
     error.value = 'La connexion automatique a expiré. Ouvrez à nouveau votre espace depuis TodaTempo.'
   } finally {
     automaticLogin.value = false
-    loading.value = false
   }
 })
 </script>
@@ -85,7 +68,7 @@ onMounted(async () => {
             {{ automaticLogin ? 'Connexion à votre espace…' : 'Connexion à TodaTempo' }}
           </h2>
           <p class="mt-3 text-sm leading-6 text-slate-500">
-            {{ automaticLogin ? 'Votre espace sécurisé est en cours d’ouverture.' : 'Utilisez vos identifiants professionnels pour continuer.' }}
+            {{ automaticLogin ? 'Votre espace sécurisé est en cours d’ouverture.' : 'Connectez-vous sur le site TodaTempo, choisissez votre établissement puis cliquez sur « Ouvrir mon espace ».' }}
           </p>
 
           <div v-if="automaticLogin" class="mt-8 flex items-center gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900" role="status">
@@ -93,22 +76,12 @@ onMounted(async () => {
             Vérification de votre accès…
           </div>
 
-          <form v-else class="mt-8 space-y-5" @submit.prevent="submit">
-            <div>
-              <label class="label" for="admin-email">Email professionnel</label>
-              <input id="admin-email" v-model="email" type="email" autocomplete="username" class="input" placeholder="vous@etablissement.fr" required />
-            </div>
-            <div>
-              <label class="label" for="admin-password">Mot de passe</label>
-              <input id="admin-password" v-model="password" type="password" autocomplete="current-password" class="input" placeholder="••••••••" required />
-            </div>
+          <div v-else class="mt-8 space-y-5">
             <p v-if="error" class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ error }}</p>
-            <button class="btn-primary w-full py-3" :disabled="loading">
-              {{ loading ? 'Connexion…' : 'Accéder à mon espace' }}
-            </button>
-          </form>
+            <a :href="WEBSITE_URL" class="btn-primary w-full py-3">Aller sur le site TodaTempo</a>
+            <p class="text-sm text-slate-500">Un même compte peut accéder à plusieurs espaces, avec un rôle propre à chaque établissement.</p>
+          </div>
 
-          <p v-if="automaticLogin && error" class="mt-6 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ error }}</p>
           <p class="mt-7 text-center text-sm text-slate-400">
             <RouterLink :to="{ name: 'home' }" class="font-medium text-slate-600 underline underline-offset-4">Retour au site</RouterLink>
           </p>

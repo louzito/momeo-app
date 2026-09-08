@@ -34,7 +34,7 @@ final class AdminLoginTicketStore
             $this->connection->close();
         }
         $admin = $this->entityManager->getRepository(AdminUser::class)->findOneBy(['email' => $email]);
-        if (!$admin instanceof AdminUser || !$admin->isEnabled()) {
+        if (!$admin instanceof AdminUser || !$admin->isEnabled() || ($admin->getStaffMember() !== null && !$admin->getStaffMember()->isActive())) {
             throw new \InvalidArgumentException('Administrateur introuvable.');
         }
 

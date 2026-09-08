@@ -33,6 +33,10 @@ final class AdminApiPermissionSubscriber
             return; // Le firewall produit le 401/403 d'authentification.
         }
 
+        if ($user->getStaffMember() !== null && !$user->getStaffMember()->isActive()) {
+            throw new AccessDeniedHttpException('Cet accès à l’établissement est désactivé.');
+        }
+
         $permission = $this->permissionFor($path, $request->getMethod());
         if ($permission !== null && !TeamPermissions::allows($user->getTeamRole(), $permission)) {
             throw new AccessDeniedHttpException(sprintf('Permission "%s" requise.', $permission->value));

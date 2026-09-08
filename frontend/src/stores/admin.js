@@ -39,20 +39,6 @@ export const useAdminStore = defineStore('admin', {
         /* ignore */
       }
     },
-    async login(email, password) {
-      this.loading = true
-      this.error = null
-      try {
-        this.session = await api.adminLogin(email, password)
-        this.persist()
-        return this.session
-      } catch (e) {
-        this.error = e.message
-        throw e
-      } finally {
-        this.loading = false
-      }
-    },
     async loginWithSso() {
       this.loading = true
       this.error = null

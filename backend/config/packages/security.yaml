@@ -51,12 +51,6 @@ security:
             user_checker: security.user_checker.chain.api_admin
             stateless: true
             entry_point: jwt
-            json_login:
-                check_path: "%sylius.security.api_admin_route%/administrators/token"
-                username_path: email
-                password_path: password
-                success_handler: lexik_jwt_authentication.handler.authentication_success
-                failure_handler: lexik_jwt_authentication.handler.authentication_failure
             jwt: true
 
         api_shop:
@@ -130,7 +124,6 @@ security:
         - { path: "%sylius.security.api_admin_route%/administrators/reset-password", role: PUBLIC_ACCESS }
         - { path: ^/api/v2/admin/(todatempo|momeo)/sso/(handoff|session)$, role: PUBLIC_ACCESS }
         - { path: "%sylius.security.api_admin_regex%/.*", role: ROLE_API_ACCESS }
-        - { path: "%sylius.security.api_admin_route%/administrators/token", role: PUBLIC_ACCESS }
         - { path: "%sylius.security.api_shop_account_regex%/.*", role: ROLE_USER }
         - { path: ^/api/v2/shop/account(?:/.*)?$, role: ROLE_USER }
         - { path: '^/api/v2/shop/bookings/[0-9a-f]{32}$', role: ROLE_USER }

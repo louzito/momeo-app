@@ -79,22 +79,6 @@ async function request(method, path, body, contentType, { auth = true } = {}) {
 }
 
 // --- Auth ------------------------------------------------------------------
-export async function login(email, password) {
-  // IMPORTANT : pas de header Authorization sur la route du token. Si on rejoue
-  // un vieux JWT expire ici, Sylius repond 401 "Expired JWT Token" AVANT de
-  // verifier email / mot de passe, et la connexion devient impossible.
-  const data = await request(
-    'POST',
-    '/admin/administrators/token',
-    { email, password },
-    'application/json',
-    { auth: false },
-  )
-  if (!data?.token) throw new Error('Authentification echouee (pas de token).')
-  setToken(data.token)
-  return { email, token: data.token }
-}
-
 /** Finalise la connexion TodaTempo depuis le cookie temporaire HttpOnly. */
 export async function exchangeSsoSession() {
   const data = await request(

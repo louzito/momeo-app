@@ -1060,12 +1060,6 @@ export const httpApi = {
   },
 
   // --- ADMIN : connexion + CRUD produit via l'API admin Sylius ---
-  async adminLogin(email, password) {
-    await sylius.login(email, password)
-    const identity = await sylius.getTeamSession()
-    return buildAdminSession(identity)
-  },
-
   async adminSsoLogin() {
     const identity = await sylius.exchangeSsoSession()
     return buildAdminSession(identity)
