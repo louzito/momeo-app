@@ -138,7 +138,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/AdminClientApiContractTest | CRUD et historique du dossier ; à convertir lors de Customer |
 | Controller/ObservabilityContractTest | Contrôleur et HealthChecker ; converti en appels contrôleur/sondes dans #99 |
 | Controller/BookableResourceContractTest | Contrôleurs et verrou de capacité ; à convertir lors de Resource |
-| Controller/CustomerBookingChangesContractTest | Contrôleur et politique de changement ; à convertir lors de Booking |
+| Controller/CustomerBookingChangesContractTest | Converti en #102 : contrôleurs/services réels, transactions Doctrine isolées, propriété, historique, conflits, rollback et effets après commit |
 | Email/TransactionalEmailContractTest | Twig, dispatcher, contrôleurs et transports ; à convertir lors de Email (rendu et messages interceptés) |
 | Gdpr/GdprContractTest | Manager, commande et documentation ; à convertir lors de Gdpr |
 | Controller/AdminPlanningApiContractTest | Réflexion des routes et noms des actions, pas de lecture PHP ; conserver le contrat de route, compléter CRUD comportemental lors de Planning |
@@ -518,3 +518,81 @@ Contrôles effectués dans cet environnement :
   Runtime absent. L’autoload ne valide pas la DI. Les suites ciblées, les
   verrous concurrents et la DI restent à exécuter avec les dépendances et
   l’instance MySQL jetable décrites plus haut. Aucune connexion de production.
+
+
+## Livraison #102 — mutations admin et client
+
+Prérequis constatés : #97 à #101 présents dans l’historique, tête initiale
+`b42a203` (#101). Aucun changement de branche, commit, activation du ticket
+suivant ou déploiement effectué.
+
+| Points d’entrée conservés | Services extraits sous `src/Service/Booking` |
+| --- | --- |
+| `AdminBookingApiController::create` | `ManualBookingCreator` : création manuelle transactionnelle, sélection staff/planning/ressource, garde de capacité, confirmation après commit |
+| `AdminBookingApiController::reschedule`, `ShopCustomerAccountApiController::reschedule` | `BookingRescheduler` : politiques admin/client distinctes, allocation, historique client et email après commit |
+| `AdminBookingApiController::{postpone,complete,noShow,cancel}`, `ShopCustomerAccountApiController::cancel` | `BookingLifecycle` : transitions autorisées, délais client, historique client, annulation et liste d’attente après commit |
+| Transactions des mutations existantes | `BookingMutation` : verrou pessimiste de réservation, relecture, contrôle de propriété client avant transaction et après relecture, flush/commit/rollback |
+| Identifiants des créations publique/cadeau/manuelle | `BookingIdentity` : primitive commune extraite de `BookingCreationService`, référence MOM et jeton public inchangés |
+
+Les deux contrôleurs ne contiennent plus de transaction, flush, changement de
+statut ou historique. Ils conservent routes, authentification, parsing et
+sérialisation. Les exceptions `BookingMutationFailed` (message/code métier) et
+`BookingNotOwned` restent sans dépendance HTTP ; les adaptateurs traduisent
+respectivement en 409 et 404. La création conserve son refus prestation en 422.
+`PlanningSlotPolicy`, `ServiceDuration`, `BookingSlotGuard`, les repositories
+et `ResourceAvailability` sont réutilisés ; aucun changement de résolution
+tenant, mapping, migration ou workflow Sylius.
+
+Les transitions simples admin sont désormais protégées par la même transaction
+et relecture verrouillée que les déplacements. Les erreurs restaurent si
+possible la réservation depuis la base puis la détachent pour écarter aussi
+les mises à jour déjà planifiées par un flush échoué. Un appel réutilisable
+qui échoue doit donc recharger la réservation avant une nouvelle tentative.
+La création manuelle détache également son objet en cas de rollback.
+
+Compatibilités préservées : pas d’historique admin ajouté ; acteur `customer`
+et contenu ancien/nouveau créneau identiques ; pas de notification nouvelle
+sur report/réalisation/absence ; annulation libérant la capacité par son statut,
+email puis liste d’attente après commit, erreur de liste d’attente tolérée.
+Le code historique `change_deadline_passed` reste présent même pour une
+DomainException de choix de ressource côté client. Les différences des règles
+admin et client ne sont pas uniformisées. Le subscriber admin reste la
+frontière d’autorisation Agenda ; tous les rôles d’équipe actuels la possèdent.
+
+Tests de comportement ajoutés/remplacés dans
+`CustomerBookingChangesContractTest` : transitions admin et rejeu, annulation
+d’un report, création manuelle, annulation client et historique, déplacement
+admin/client, refus de ressource, conflit de capacité, échecs injectés sur
+flush, délai client, 404 propriétaire différent, appels réutilisables avec
+mauvais propriétaire avant transaction et après relecture, libération de
+créneau, emails et liste d’attente après commit (transport intercepté, y compris
+erreur de liste d’attente). La fixture conserve une transaction externe pour
+nettoyage. Le contrat exact de délai existant reste couvert.
+
+Les assertions PHP de ressources et d’emails admin ont été remplacées par ces
+scénarios, sans déplacer leurs recherches de chaînes dans les services.
+`AdminApiPermissionContractTest` couvre maintenant aussi chaque route de
+mutation et chaque rôle. La suite business inclut déjà les fichiers concernés.
+`BookingRulesContractTest` et `BookingSlotConcurrencyTest` restent inchangés :
+le second demeure la preuve requise à deux processus sur MySQL/InnoDB, que les
+fixtures transactionnelles ne remplacent pas.
+
+Contrôles réellement effectués :
+
+- `php -l` : succès sur les 14 fichiers PHP ajoutés/modifiés.
+- `git diff --check` : succès ; recherche des transactions/flush/statuts/historique
+  dans les deux contrôleurs : aucune occurrence.
+- Depuis `backend/`, `composer dump-autoload --optimize --strict-psr --no-scripts` :
+  succès, 222 classes ; chargement effectif des sept nouvelles classes : succès.
+- Installation verrouillée `timeout 25 composer install --no-interaction
+  --no-scripts --no-plugins --prefer-dist` : échec des téléchargements curl 6
+  (DNS `api.github.com` inaccessible), arrêt à la borne (124).
+- `php vendor/bin/phpunit --configuration phpunit.business.xml --filter
+  'CustomerBookingChangesContractTest|BookingRulesContractTest|BookingSlotConcurrencyTest|AdminApiPermissionContractTest|BookableResourceContractTest|GiftVoucherRedemptionContractTest|TransactionalEmailContractTest|ShopCustomerAccountSecurityContractTest'` :
+  non exécutable, `vendor/bin/phpunit` absent. Aucun résultat PHPUnit validé.
+- `APP_ENV=test php bin/console lint:container` : non exécutable, Symfony Runtime
+  absent (255). L’autoload ne constitue pas une validation DI.
+
+Les tests ciblés, la concurrence MySQL et la DI restent à exécuter dans
+l’environnement jetable décrit plus haut après installation des dépendances.
+Aucun appel email/SMS/paiement réel ni accès aux données de production.

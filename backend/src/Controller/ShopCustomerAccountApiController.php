@@ -3,27 +3,17 @@
 declare(strict_types=1);
 
 namespace App\Controller;
-
-use App\Service\Availability\PlanningSlotPolicy;
-use App\Service\Booking\BookingSlotGuard;
+use App\Service\Booking\BookingRescheduler;
+use App\Service\Booking\BookingLifecycle;
+use App\Service\Booking\BookingMutationFailed;
+use App\Service\Booking\BookingNotOwned;
 use App\Service\Booking\CustomerBookingChangePolicy;
-use App\Service\Booking\SlotUnavailable;
-use App\Service\Email\BookingEmailDispatcher;
-use App\Service\Waitlist\WaitlistNotifier;
 use App\Entity\Booking;
-use App\Entity\Planning;
-use App\Entity\Product\Product;
-use App\Entity\StaffMember;
 use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
 use App\Service\Gdpr\CustomerDataManager;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
-use App\Repository\PlanningRepository;
-use App\Repository\StaffMemberRepository;
-use App\Repository\StaffTimeOffRepository;
-use App\Service\Resource\ResourceAvailability;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
 use Sylius\InvoicingPlugin\Entity\InvoiceInterface;
@@ -42,18 +32,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ShopCustomerAccountApiController extends AbstractController
 {
     public function __construct(
-        private readonly PlanningSlotPolicy $planningSlots,
+        private readonly BookingLifecycle $lifecycle,
+        private readonly BookingRescheduler $rescheduler,
         private readonly BookingRepository $bookingRepository,
         private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly PlanningRepository $planningRepository,
-        private readonly StaffMemberRepository $staffRepository,
-        private readonly StaffTimeOffRepository $timeOffRepository,
-        private readonly BookingSlotGuard $slotGuard,
         private readonly CustomerBookingChangePolicy $changePolicy,
-        private readonly BookingEmailDispatcher $emailDispatcher,
-        private readonly WaitlistNotifier $waitlistNotifier,
-        private readonly ResourceAvailability $resourceAvailability,
         private readonly CustomerDataManager $customerDataManager,
         #[Autowire(service: 'sylius_invoicing.repository.invoice')]
         private readonly InvoiceRepositoryInterface $invoiceRepository,
@@ -118,33 +102,14 @@ final class ShopCustomerAccountApiController extends AbstractController
     public function cancel(string $publicToken, #[CurrentUser] ShopUser $user): JsonResponse
     {
         $booking = $this->ownedBooking($publicToken, $user);
-        $connection = $this->entityManager->getConnection();
-        $connection->beginTransaction();
         try {
-            $this->entityManager->lock($booking, LockMode::PESSIMISTIC_WRITE);
-            $this->entityManager->refresh($booking);
-            $this->changePolicy->assertAllowed($booking, 'cancel');
-            $booking->recordChange([
-                'action' => 'cancelled', 'actor' => 'customer',
-                'at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
-                'previousStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
-                'previousEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
-            ]);
-            $booking->setStatus(Booking::STATUS_CANCELLED);
-            $this->entityManager->flush();
-            $connection->commit();
-        } catch (\DomainException $exception) {
-            $connection->rollBack();
-            return $this->json(['error' => $exception->getMessage(), 'code' => 'change_deadline_passed'], Response::HTTP_CONFLICT);
-        } catch (\Throwable) {
-            $connection->rollBack();
-            return $this->json(['error' => 'L’annulation n’a pas pu être enregistrée.'], Response::HTTP_CONFLICT);
-        }
-        $this->emailDispatcher->cancellation($booking);
-        try {
-            $this->waitlistNotifier->notify($booking->getServiceCode(), $booking->getSlotStart(), $booking->getSlotEnd());
-        } catch (\Throwable) {
-            // Ne pas invalider l'annulation si le transport d'email est indisponible.
+            $this->lifecycle->cancelByCustomer($booking, (string) $user->getEmail());
+        } catch (BookingNotOwned $exception) {
+            throw $this->createNotFoundException($exception->getMessage());
+        } catch (BookingMutationFailed $exception) {
+            $error = ['error' => $exception->getMessage()];
+            if ($exception->errorCode !== null) $error['code'] = $exception->errorCode;
+            return $this->json($error, Response::HTTP_CONFLICT);
         }
 
         return $this->json($this->normalizeBooking($booking));
@@ -162,61 +127,15 @@ final class ShopCustomerAccountApiController extends AbstractController
         } catch (\Throwable) {
             return $this->json(['error' => 'Le nouveau créneau est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        if ($end <= $start || $start <= new \DateTimeImmutable()) {
-            return $this->json(['error' => 'Ce créneau n’est plus disponible.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
-        }
-
-        $connection = $this->entityManager->getConnection();
-        $connection->beginTransaction();
         try {
-            $this->entityManager->lock($booking, LockMode::PESSIMISTIC_WRITE);
-            $this->entityManager->refresh($booking);
-            $this->changePolicy->assertAllowed($booking, 'reschedule');
-            $planning = $this->planningRepository->findOneBy(['code' => trim((string) ($payload['planningCode'] ?? '')), 'active' => true]);
-            $staff = $this->staffRepository->find((int) ($payload['staffMemberId'] ?? 0));
-            if (!$planning instanceof Planning || ($planning->getServiceCodes() !== [] && !\in_array($booking->getServiceCode(), $planning->getServiceCodes(), true))) {
-                throw new SlotUnavailable('Ce créneau ne figure plus au planning.');
-            }
-            $this->planningSlots->assertPlannedSlot($planning, $booking, $start, $end);
-            if (!$staff instanceof StaffMember || !$staff->isActive() || !$staff->isBookable() || !\in_array($booking->getServiceCode(), $staff->getServiceCodes(), true)) {
-                throw new SlotUnavailable('Ce collaborateur n’est plus disponible.');
-            }
-            $this->planningSlots->assertStaffHours($staff, $planning, $start, $end);
-            if ($this->timeOffRepository->hasOverlap($staff, $start, $end)) {
-                throw new SlotUnavailable('Ce collaborateur est indisponible sur ce créneau.');
-            }
-            $previousStart = $booking->getSlotStart();
-            $previousEnd = $booking->getSlotEnd();
-            $booking->setPlanningCode($planning->getCode());
-            $booking->setStaffMember($staff);
-            $booking->setStaffName(trim($staff->getFirstName().' '.$staff->getLastName()));
-            $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $booking->getServiceCode()]);
-            if (!$product instanceof Product) throw new SlotUnavailable('Cette prestation n’est plus disponible.');
-            $resource = $this->resourceAvailability->choose($product, $start, $end, $this->bookingRepository->findBlockingBetween($start, $end), $this->nullableText($payload['resourceCode'] ?? null), $booking);
-            $booking->setResourceCode($resource?->getCode());
-            $booking->setSlotStart($start);
-            $booking->setSlotEnd($end);
-            $this->slotGuard->assertAvailable($booking, $planning->getCapacity(), $booking);
-            $booking->recordChange([
-                'action' => 'rescheduled', 'actor' => 'customer',
-                'at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
-                'previousStart' => $previousStart->format(\DateTimeInterface::ATOM),
-                'previousEnd' => $previousEnd->format(\DateTimeInterface::ATOM),
-                'newStart' => $start->format(\DateTimeInterface::ATOM), 'newEnd' => $end->format(\DateTimeInterface::ATOM),
-            ]);
-            $this->entityManager->flush();
-            $connection->commit();
-        } catch (SlotUnavailable $exception) {
-            $connection->rollBack();
-            return $this->json(['error' => $exception->getMessage(), 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
-        } catch (\DomainException $exception) {
-            $connection->rollBack();
-            return $this->json(['error' => $exception->getMessage(), 'code' => 'change_deadline_passed'], Response::HTTP_CONFLICT);
-        } catch (\Throwable) {
-            $connection->rollBack();
-            return $this->json(['error' => 'Ce créneau vient d’être réservé.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
+            $this->rescheduler->customer($booking, (string) $user->getEmail(), $payload, $start, $end);
+        } catch (BookingNotOwned $exception) {
+            throw $this->createNotFoundException($exception->getMessage());
+        } catch (BookingMutationFailed $exception) {
+            $error = ['error' => $exception->getMessage()];
+            if ($exception->errorCode !== null) $error['code'] = $exception->errorCode;
+            return $this->json($error, Response::HTTP_CONFLICT);
         }
-        $this->emailDispatcher->rescheduled($booking);
 
         return $this->json($this->normalizeBooking($booking));
     }
@@ -273,12 +192,6 @@ final class ShopCustomerAccountApiController extends AbstractController
             throw $this->createNotFoundException('Réservation introuvable.');
         }
         return $booking;
-    }
-
-    private function nullableText(mixed $value): ?string
-    {
-        $value = trim((string) $value);
-        return $value === '' ? null : mb_substr($value, 0, 255);
     }
 
     /** @return array<string, mixed> */

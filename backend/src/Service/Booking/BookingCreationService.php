@@ -23,6 +23,7 @@ use Doctrine\DBAL\LockMode;
 final class BookingCreationService
 {
     public function __construct(
+        private readonly BookingIdentity $identity,
         private readonly PublicStaffSlot $publicStaffSlot,
         private readonly BookingRepository $bookingRepository,
         private readonly PlanningRepository $planningRepository,
@@ -68,8 +69,7 @@ final class BookingCreationService
             }
 
             $booking = new Booking();
-            $booking->setReference($this->newReference());
-            $booking->setPublicToken(bin2hex(random_bytes(16)));
+            $this->identity->initialize($booking);
             $cardPayment = $order->getLastPayment()?->getMethod()?->getCode() === 'stripe_web_elements';
             $booking->setStatus($cardPayment ? Booking::STATUS_AWAITING_PAYMENT : Booking::STATUS_CONFIRMED);
             $booking->setSource(\in_array($payload['source'] ?? '', ['direct', 'voucher'], true) ? $payload['source'] : 'direct');
@@ -168,8 +168,7 @@ final class BookingCreationService
             }
 
             $booking = new Booking();
-            $booking->setReference($this->newReference());
-            $booking->setPublicToken(bin2hex(random_bytes(16)));
+            $this->identity->initialize($booking);
             $booking->setStatus(Booking::STATUS_CONFIRMED);
             $booking->setSource('voucher');
             $booking->setServiceCode($voucher->getServiceCode());
@@ -239,14 +238,4 @@ final class BookingCreationService
 
         return $length === null ? $value : mb_substr($value, 0, $length);
     }
-
-    private function newReference(): string
-    {
-        do {
-            $reference = 'MOM-'.strtoupper(bin2hex(random_bytes(4)));
-        } while ($this->bookingRepository->findOneBy(['reference' => $reference]) instanceof Booking);
-
-        return $reference;
-    }
-
 }

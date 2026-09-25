@@ -103,13 +103,10 @@ final class TransactionalEmailContractTest extends TestCase
     public function testEveryBusinessTransitionDispatchesItsEmail(): void
     {
         $shop = file_get_contents($this->projectDir.'/src/Controller/ShopBookingApiController.php');
-        $admin = file_get_contents($this->projectDir.'/src/Controller/AdminBookingApiController.php');
+        // Admin mutation delivery is exercised by CustomerBookingChangesContractTest.
         $stripe = file_get_contents($this->projectDir.'/src/Controller/ShopStripePaymentController.php');
 
         self::assertSame(2, substr_count((string) $shop, 'emailDispatcher->confirmation($booking)'));
-        self::assertStringContainsString('emailDispatcher->confirmation($booking)', (string) $admin);
-        self::assertStringContainsString('emailDispatcher->rescheduled($booking)', (string) $admin);
-        self::assertStringContainsString('emailDispatcher->cancellation($booking)', (string) $admin);
         self::assertStringContainsString('emailDispatcher->paymentConfirmation($booking)', (string) $stripe);
     }
 

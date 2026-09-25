@@ -8,16 +8,6 @@ use PHPUnit\Framework\TestCase;
 
 final class BookableResourceContractTest extends TestCase
 {
-    public function testRemainingBookingControllersValidateResources(): void
-    {
-        // Public order/voucher behavior is covered by GiftVoucherRedemptionContractTest::testUnassociatedResourceIsRejected.
-        foreach (['AdminBookingApiController.php', 'ShopCustomerAccountApiController.php'] as $file) {
-            $source = (string) file_get_contents(__DIR__.'/../../src/Controller/'.$file);
-            self::assertStringContainsString('resourceAvailability->choose', $source, $file);
-        }
-
-    }
-
     public function testResourceCapacityIsEnforcedInsideTheTransaction(): void
     {
         $connection = $this->createMock(\Doctrine\DBAL\Connection::class);
