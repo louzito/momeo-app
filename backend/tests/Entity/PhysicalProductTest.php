@@ -25,6 +25,13 @@ final class PhysicalProductTest extends TestCase
         self::assertSame(750, $product->getDeliveryFee());
     }
 
+    public function testNegativeDeliveryFeeIsClampedLocally(): void
+    {
+        $product = new Product();
+        $product->setDeliveryFee(-750);
+        self::assertSame(0, $product->getDeliveryFee());
+    }
+
     public function testUnknownProductTypeIsRejected(): void
     {
         $this->expectException(\InvalidArgumentException::class);

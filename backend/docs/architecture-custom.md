@@ -89,7 +89,7 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | `Service/GiftVoucher/{GiftVoucherAccess,GiftVoucherView,GiftOrderMarking}` : accès, projections et marquage — **fait #108** |
 | ShopWaitlistApi, AdminWaitlistApi | Waitlist |
 | ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF conservés pour le ticket dédié |
-| ShopPhysicalOrderApi, AdminPhysicalCommerceApi | Commerce : orchestration commande et catalogue Sylius |
+| ShopPhysicalOrderApi, AdminPhysicalCommerceApi | `Service/Commerce/{PhysicalCheckoutService,PhysicalProductManagementService,PhysicalPreparationService,PhysicalProductReadService}` : remise, catalogue et préparation — **fait #109** |
 | AdminInvoiceApi | Invoice : sélection et génération/téléchargement, stockage tenant conservé |
 | AdminDashboardApi | Dashboard |
 | InternalProvisioning, InternalAdminLoginTicket, AdminSso, AdminSsoHandoff, AdminTeamSession | Tenant / Security |
@@ -135,7 +135,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/WaitlistContractTest | Création, autorisation et migration ; à convertir lors de Waitlist |
 | Controller/InvoiceSecurityContractTest | Listener, propriété du client, configuration PDF ; à convertir lors de Invoice |
 | Controller/GiftVoucherRedemptionContractTest | Converti en #101 : créations commande/cadeau réelles, rejeu, refus, relecture verrouillée, rollback et emails interceptés |
-| Controller/PhysicalCheckoutContractTest | Checkout physique ; à convertir lors de Commerce |
+| Controller/PhysicalCheckoutContractTest | Converti #109 : appels HTTP directs avec services réels, réponses et erreurs checkout/admin, projection publique ; doubles Doctrine |
 | Controller/AdminRefundContractTest | Contrôleur, fournisseur, opération, permission et migration ; à convertir lors de Payment |
 | Controller/AdminClientApiContractTest | Converti #105 : agrégations, historique, filtres/tri, modification du profil et stabilité de la clé email |
 | Controller/ObservabilityContractTest | Contrôleur et HealthChecker ; converti en appels contrôleur/sondes dans #99 |
@@ -1052,3 +1052,72 @@ Contrôles non exécutables pour motif environnemental :
 Les tests avec kernel et la concurrence doivent être exécutés sur l’instance
 MySQL jetable avec registre tenant isolé décrite plus haut. Aucune commande de
 préparation destructive ni test connecté à une base de production n’a été lancé.
+
+
+## Livraison #109 — commerce physique et règles de remise
+
+Prérequis #97 à #108 présents dans l’historique, tête fournie `8b12d99`.
+Aucune opération Git de branche/commit/push, activation de #110 ou déploiement.
+
+- `PhysicalCheckoutService` reprend la transaction configure : début, lookup
+  par token, refus completed, verrou pessimiste commande puis variantes dans
+  l’ordre du panier, validations, flush et commit ; rollback puis propagation
+  des exceptions. Aucun changement au workflow checkout, aucune réservation ou
+  décrémentation directe de stock. Le stock disponible reste onHand - onHold,
+  et une variante non suivie reste refusée.
+- Le panier physique doit être homogène et chaque produit doit autoriser le
+  mode choisi. La livraison exige toujours une adresse non nulle (aucune
+  nouvelle validation des champs). Les frais restent le maximum des frais
+  produits, jamais la somme. Les ajustements todatempo_delivery sont remplacés
+  à chaque configuration, supprimés au retrait ; les autres sont conservés.
+- `PhysicalProductManagementService` conserve le lookup code et les mutations
+  du type, modes, frais et de toutes les variantes (shippingRequired, tracked,
+  stock optionnel borné à zéro), avec un seul flush sans nouvelle transaction.
+- `PhysicalPreparationService` conserve lookup token, exigence d’un état de
+  préparation non nul, les quatre états autorisés et le flush. Aucune nouvelle
+  restriction de transition ni de paiement n’est ajoutée.
+- `PhysicalProductReadService` conserve la sélection physical/enabled et la
+  projection publique, première variante et premier prix de canal compris.
+- Les contrôleurs gardent routes, parsing JSON et traduction HTTP (422/404/409).
+  `InvalidPhysicalCommerce` distingue les refus admin des erreurs techniques de
+  persistence, qui continuent à se propager. Les invariants locaux et constantes
+  restent dans Product/Order ; aucune modification Entity ni migration.
+
+Les repositories et l’EntityManager tenant existants sont réutilisés : aucune
+nouvelle connexion ou modification des adaptateurs d’autorisation. La découverte
+App/autowiring existante enregistre les nouveaux services sans configuration dédiée.
+
+### Vérification #109
+
+Tests inscrits dans phpunit.business.xml : PhysicalCheckoutContractTest remplacé
+par des appels de contrôleurs/services réels avec Request/JsonResponse ; tests
+PhysicalCheckoutServiceTest et PhysicalManagementServiceTest ajoutés ;
+PhysicalProductTest complété pour les frais négatifs. Couverture : configure
+répété sans cumul, montants et autres ajustements préservés, ordre des verrous,
+retrait sans adresse, livraison gratuite, stock insuffisant/non suivi, panier
+absent/finalisé/vide/mixte, variante invalide, mode indisponible, adresse absente,
+rollback sur refus et échec flush, variantes multiples et stock optionnel,
+préparation répétée et refus, priorité 404, erreurs HTTP et catalogue public.
+
+Ces tests utilisent des doubles Doctrine et des entités Sylius réelles. Ils
+vérifient commit/rollback et absence de flush sur refus ; ils ne prouvent ni
+rollback SQL, ni concurrence InnoDB, ni routage/firewall complet ou isolation
+multi-tenant réelle. Comme avant, un rollback ne restaure pas les objets PHP.
+
+Contrôles exécutés avec succès :
+- `php -l` sur les 11 fichiers PHP concernés ; `git diff --check`.
+- `composer dump-autoload --working-dir=backend --optimize --strict-psr --no-scripts --no-plugins` : 252 classes.
+- Chargement effectif des quatre services Commerce et de leur exception via
+  `backend/vendor/autoload.php`.
+
+Contrôles non exécutables dans cet environnement :
+- `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml --filter 'Physical|AdminApiPermissionContractTest'` : binaire absent,
+  aucun test PHPUnit annoncé réussi.
+- `APP_ENV=test php backend/bin/console lint:container` : Symfony Runtime absent,
+  compilation DI non validée par l’autoload.
+- `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts --no-plugins --prefer-dist` : installation non aboutie, curl 6,
+  résolution api.github.com impossible. Aucun changement au lock.
+
+Reprendre PHPUnit et lint:container dans l’environnement équipé, puis les
+contrôles transactionnels et tenant sur base jetable isolée. Aucun test avec
+base de production, paiement, email/SMS réel ou déploiement n’a été effectué.

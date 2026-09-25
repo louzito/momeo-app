@@ -24,6 +24,10 @@
             <file>tests/Controller/AdminClientApiContractTest.php</file>
             <file>tests/Controller/ShopCustomerAccountSecurityContractTest.php</file>
             <file>tests/Entity/ClientProfileTest.php</file>
+            <file>tests/Controller/PhysicalCheckoutContractTest.php</file>
+            <file>tests/Entity/PhysicalProductTest.php</file>
+            <file>tests/Commerce/PhysicalCheckoutServiceTest.php</file>
+            <file>tests/Commerce/PhysicalManagementServiceTest.php</file>
             <file>tests/Controller/StaffPreferenceContractTest.php</file>
             <file>tests/Controller/BookableResourceContractTest.php</file>
             <file>tests/Controller/AdminRefundContractTest.php</file>
