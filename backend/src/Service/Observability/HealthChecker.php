@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Observability;
+namespace App\Service\Observability;
 
-use App\Tenant\TenantContext;
-use App\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantRegistry;
 use Doctrine\DBAL\Connection;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 

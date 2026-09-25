@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
-use App\Observability\MetricsRegistry;
-use App\Tenant\TenantContext;
+use App\Service\Observability\MetricsRegistry;
+use App\Service\Tenant\TenantContext;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerStartedEvent;

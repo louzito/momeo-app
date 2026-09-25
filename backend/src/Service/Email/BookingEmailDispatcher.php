@@ -7,8 +7,8 @@ namespace App\Service\Email;
 use App\Service\Availability\CenterTimeZoneProvider;
 use App\Entity\Booking;
 use App\Entity\Channel\Channel;
-use App\Tenant\TenantContext;
-use App\Tenant\TenantUrlGenerator;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantUrlGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Mailer\Sender\SenderInterface;
 

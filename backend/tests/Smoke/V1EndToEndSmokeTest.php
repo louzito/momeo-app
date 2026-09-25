@@ -13,7 +13,7 @@ use App\Entity\Product\Product;
 use App\Entity\StaffMember;
 use App\Entity\StripeWebhookEvent;
 use App\Entity\User\AdminUser;
-use App\Tenant\MinimalSyliusInitializer;
+use App\Service\Tenant\MinimalSyliusInitializer;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
 use Sylius\InvoicingPlugin\Entity\InvoiceInterface;

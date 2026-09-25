@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tenant;
 
+use App\Service\Tenant\TenantContext;
+
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTCreatedEvent;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTDecodedEvent;
 use Lexik\Bundle\JWTAuthenticationBundle\Events;

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\User\AdminUser;
-use App\Tenant\AdminLoginTicketStore;
-use App\Security\TeamPermissions;
+use App\Service\Tenant\AdminLoginTicketStore;
+use App\Service\Security\TeamPermissions;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Psr\Log\LoggerInterface;

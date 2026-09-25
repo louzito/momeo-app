@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Tenant\TenantDatabaseCloner;
-use App\Tenant\TenantRegistryWriter;
+use App\Service\Tenant\TenantDatabaseCloner;
+use App\Service\Tenant\TenantRegistryWriter;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

@@ -7,7 +7,7 @@ Branche commune prévue : `autoticket/todatempo-back-refacto-controller-entity-s
 Mise à jour AutoTicket #98 : le prérequis #97 est présent dans le commit
 `a45137f`. Les 29 classes/interfaces des 12 domaines ci-dessous sont maintenant
 sous `App\Service`. Les domaines Tenant, Observability, Security et Reminder
-restent réservés à #99. Aucun ticket suivant n’est activé.
+sont traités dans #99 (voir livraison ci-dessous). Aucun ticket suivant n’est activé.
 
 ## Responsabilités
 
@@ -39,7 +39,7 @@ existantes lorsqu’elles représentent une véritable frontière externe.
 ## Cartographie source → destination
 
 Tous les chemins de cette table sont relatifs à `backend/src`. La première
-colonne garde les emplacements historiques. Les lignes marquées **fait #98**
+colonne garde les emplacements historiques. Les lignes marquées **fait #98** ou **fait #99**
 utilisent désormais la destination ; les autres extractions restent **à faire**. `Entity`, `Repository` et les adaptateurs indiqués
 « conservé » restent à leur emplacement, avec délégation à compléter si besoin.
 
@@ -54,21 +54,21 @@ utilisent désormais la destination ; les autres extractions restent **à faire*
 | `GiftVoucher/*` | `Service/GiftVoucher/` : création, activation, codes, QR, marquage de commande et envoi — **fait #98** |
 | `Email/BookingEmailDispatcher` | `Service/Email/` : préparation et déclenchement des emails transactionnels — **fait #98** |
 | `Waitlist/WaitlistNotifier` | `Service/Waitlist/` : sélection et notification des demandes — **fait #98** |
-| `Reminder/ReminderConfiguration`, `Reminder/Sms/*` | `Service/Reminder/` : règles des rappels et frontière SMS existante |
-| `Reminder/Message/SendBookingReminder`, `Reminder/MessageHandler/SendBookingReminderHandler` | Adaptateurs Messenger conservés ; extraire l’orchestration du handler vers `Service/Reminder/` |
+| `Reminder/ReminderConfiguration`, `Reminder/Sms/*` | `Service/Reminder/` : règles des rappels et frontière SMS existante — **fait #99** |
+| `Reminder/Message/SendBookingReminder`, `Reminder/MessageHandler/SendBookingReminderHandler` | Adaptateurs Messenger conservés ; orchestration dans `Service/Reminder/BookingReminderSender` — **fait #99** |
 | `Gdpr/{CustomerDataManager,RetentionPolicy}` | `Service/Gdpr/` : export, anonymisation, purge et rétention — **fait #98** |
 | `Dashboard/DashboardMetricsCalculator` | `Service/Dashboard/` : calcul des indicateurs — **fait #98** |
 | `Configuration/{SiteConfigDocument,ProductionConfigurationValidator}` | `Service/Configuration/` : lecture publiée et validation de configuration — **fait #98** |
-| `Tenant/{TenantProvisioner,TenantDatabaseCloner,MinimalSyliusInitializer,ProvisionedTenant}` | `Service/Tenant/` : provisionnement et résultat non persisté ; préserver les étapes de reprise |
-| `Tenant/{TenantContext,TenantRegistry,TenantRegistryWriter,TenantIdentifierResolver,TenantUrlGenerator}` | `Service/Tenant/` : identité courante, registre, résolution et URLs ; préserver cache et portée du contexte |
-| `Tenant/{CustomDomainManager,DomainName,DomainOwnershipVerifier,CaddyConfigDumper}` | `Service/Tenant/` : domaines et génération Caddy ; aucune nouvelle entité pour un objet non persisté |
-| `Tenant/{AdminLoginTicketStore,TenantDoctor,TenantDoctorInterface,TenantWorkerGuard}` | `Service/Tenant/` : SSO à usage unique, diagnostic et garde worker |
-| `Tenant/{TenantConnectionMiddleware,TenantAwareCachePool,TenantImagePathGenerator,TenantInvoicePdfStorageFactory,JwtTenantListener}` | Adaptateurs DBAL/cache/Sylius/JWT conservés et documentés ; règles déléguées à `Service/Tenant/` |
-| `Observability/{HealthChecker,MetricsRegistry}` | `Service/Observability/` : sondes et métriques |
-| `Observability/{CorrelationIdListener,LogContextProcessor}` | Adaptateurs événements/Monolog conservés |
-| `Security/{TeamPermissions,TeamPermission,TeamRole}` | Politique dans `Service/Security/` ; enums gardés près de la politique, références Entity à mettre à jour ensemble |
-| `Security/{ImageUploadValidator,SensitiveEndpointRateLimiter}` | Validation métier dans `Service/Security/` ; intégration Request/RateLimiter fine si nécessaire |
-| `Security/{AdminApiPermissionSubscriber,HttpSecurityHeadersSubscriber}` | Adaptateurs HTTP conservés : sélection de permission, rejet et en-têtes |
+| `Tenant/{TenantProvisioner,TenantDatabaseCloner,MinimalSyliusInitializer,ProvisionedTenant}` | `Service/Tenant/` : provisionnement et résultat non persisté ; préserver les étapes de reprise — **fait #99** |
+| `Tenant/{TenantContext,TenantRegistry,TenantRegistryWriter,TenantIdentifierResolver,TenantUrlGenerator}` | `Service/Tenant/` : identité courante, registre, résolution et URLs ; préserver cache et portée du contexte — **fait #99** |
+| `Tenant/{CustomDomainManager,DomainName,DomainOwnershipVerifier,CaddyConfigDumper}` | `Service/Tenant/` : domaines et génération Caddy ; aucune nouvelle entité pour un objet non persisté — **fait #99** |
+| `Tenant/{AdminLoginTicketStore,TenantDoctor,TenantDoctorInterface,TenantWorkerGuard}` | `Service/Tenant/` : SSO à usage unique, diagnostic et garde worker — **fait #99** |
+| `Tenant/{TenantConnectionMiddleware,TenantAwareCachePool,TenantImagePathGenerator,TenantInvoicePdfStorageFactory,JwtTenantListener}` | Adaptateurs DBAL/cache/Sylius/JWT conservés et documentés ; règles déléguées à `Service/Tenant/` — **fait #99** |
+| `Observability/{HealthChecker,MetricsRegistry}` | `Service/Observability/` : sondes et métriques — **fait #99** |
+| `Observability/{CorrelationIdListener,LogContextProcessor}` | Adaptateurs événements/Monolog conservés — **fait #99** |
+| `Security/{TeamPermissions,TeamPermission,TeamRole}` | Politique dans `Service/Security/` ; enums gardés près de la politique, références Entity à mettre à jour ensemble — **fait #99** |
+| `Security/{ImageUploadValidator,SensitiveEndpointRateLimiter}` | Validation métier dans `Service/Security/` ; intégration Request/RateLimiter conservée dans les listeners HTTP — **fait #99** |
+| `Security/{AdminApiPermissionSubscriber,HttpSecurityHeadersSubscriber}` | Adaptateurs HTTP conservés : sélection de permission, rejet et en-têtes — **fait #99** |
 | `Command/*`, `EventListener/*`, `Twig/SkybookEmailExtension` | Adaptateurs conservés ; cas d’usage dans les services de leur domaine |
 | `Entity/*`, dont Booking, BookingLock, StripeWebhookEvent, GiftVoucher, RefundOperation, AdminUser et extensions Sylius | Conservé : mapping, état persistant, invariants locaux ; aucune migration de table induite par le rangement |
 | `Repository/*` | Conservé : accès persistants et requêtes tenant-scopées |
@@ -127,7 +127,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/StripePaymentContractTest | Controller + Payment/StripeCheckout : remplacé dans #97 par appels réels au webhook avec HMAC, réponses JSON, états, transitions, rejeu et ordre commit/email |
 | Controller/BookingRulesContractTest | Controller + BookingSlotGuard : remplacé par fixtures Doctrine transactionnelles, résultat disponibilité, erreur 409 booking_rule_violation et conflits avec buffers |
 | Security/AdminApiPermissionContractTest | Subscriber : remplacé par événements RequestEvent et décisions 403/autorisations ; assertion PHP du provisionneur remplacée dans Integration/Tenant/MinimalSyliusInitializerTest par rôle Owner après deux initialisations ; assertion migration conservée |
-| Security/SecurityHardeningContractTest | Rate limiter, upload, headers et configuration JWT/firewall ; à convertir lors du ticket Security |
+| Security/SecurityHardeningContractTest | Rate limiter, upload, headers et configuration JWT/firewall ; converti en appels des listeners/services dans #99 |
 | Controller/ShopCustomerAccountSecurityContractTest | Propriété du client et accès booking ; à convertir lors de Customer/Booking |
 | Controller/StaffPreferenceContractTest | Affectation et StaffEligibility ; à convertir lors de Staff/Booking |
 | Controller/WaitlistContractTest | Création, autorisation et migration ; à convertir lors de Waitlist |
@@ -136,7 +136,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/PhysicalCheckoutContractTest | Checkout physique ; à convertir lors de Commerce |
 | Controller/AdminRefundContractTest | Contrôleur, fournisseur, opération, permission et migration ; à convertir lors de Payment |
 | Controller/AdminClientApiContractTest | CRUD et historique du dossier ; à convertir lors de Customer |
-| Controller/ObservabilityContractTest | Contrôleur et HealthChecker ; à convertir lors de Observability |
+| Controller/ObservabilityContractTest | Contrôleur et HealthChecker ; converti en appels contrôleur/sondes dans #99 |
 | Controller/BookableResourceContractTest | Contrôleurs et verrou de capacité ; à convertir lors de Resource |
 | Controller/CustomerBookingChangesContractTest | Contrôleur et politique de changement ; à convertir lors de Booking |
 | Email/TransactionalEmailContractTest | Twig, dispatcher, contrôleurs et transports ; à convertir lors de Email (rendu et messages interceptés) |
@@ -299,3 +299,90 @@ Contrôles réellement exécutés dans cet environnement :
 Les suites métier et le lint du conteneur restent à exécuter dans l’environnement
 jetable décrit plus haut, une fois les dépendances disponibles. Aucune connexion
 DB, aucun email/SMS/paiement réel, aucune migration ni aucun déploiement effectués.
+
+## Livraison du ticket #99
+
+Prérequis présents : #97 (`a45137f`) et #98 (`117ef31`) à la tête fournie.
+Aucune opération de branche/commit/push, activation du ticket suivant ou action
+sur le site. 26 classes/interfaces/enums déplacés dans Service : 17 Tenant,
+2 Observability, 3 Security et 4 Reminder. Trois services extraits en plus :
+`Service/Reminder/BookingReminderSender`, `Service/Security/ImageUploadValidator`
+et `Service/Security/SensitiveEndpointRateLimiter`.
+
+Les imports (y compris Entity/AdminUser et fixtures), alias TenantDoctor/SMS et
+arguments de HealthChecker/MetricsRegistry suivent les nouveaux namespaces.
+Les valeurs scalaires persistées de TeamRole et le mapping Doctrine restent
+identiques. `Security/TeamRole.php` conserve un alias de compatibilité pour les
+enums déjà sérialisés dans les sessions ; le test utilise un payload historique
+littéral. Pas d’alias systématique pour les autres services internes.
+
+### Exceptions techniques conservées
+
+| Emplacement | Contrat conservé |
+| --- | --- |
+| Tenant/TenantConnectionMiddleware | Adaptateur DBAL `doctrine.middleware` autoconfiguré ; résolution de dbname au connect, aucune modification des connexions sans dbname |
+| Tenant/TenantAwareCachePool | Décorateur `cache.app`, préfixe recalculé à chaque appel, sous-namespaces et délégation reset inchangés |
+| Tenant/TenantImagePathGenerator | Décorateur Sylius `sylius.generator.image_path`, préfixe et exception tenant par défaut inchangés |
+| Tenant/TenantInvoicePdfStorageFactory | Factory Sylius/Gaufrette toujours référencée dans services.yaml ; racine historique du tenant par défaut, préfixe et cache PDF par slug inchangés |
+| Tenant/JwtTenantListener | Adaptation Lexik, claim tenant obligatoire, rejet cross-tenant et TTL administrateur inchangés |
+| EventListener/TenantRequestListener, TenantSessionNameListener | Adaptation HTTP, fermeture de connexion lors du changement, priorités 512/500 et nom de cookie conservés |
+| EventListener/TenantMessengerWorkerListener | Priorité console 1024 ; garde dans Service/Tenant, tenant explicite figé pendant la vie du worker |
+| Observability/CorrelationIdListener, LogContextProcessor, EventListener/ObservabilityWorkerListener | Événements HTTP/Messenger et tag monolog.processor conservés ; corrélation request à priorité 1024 |
+| Security/AdminApiPermissionSubscriber, HttpSecurityHeadersSubscriber | Sélection des ressources HTTP, 403, en-têtes ; politique dans Service/Security |
+| Security/ImageUploadValidator, SensitiveEndpointRateLimiter | Sélection des requêtes/fichiers et réponses 422/429 ; règles déléguées aux services, priorités 48/40 conservées |
+| Reminder/Message/SendBookingReminder | **FQCN et propriété deliveryId inchangés**, routage Messenger async inchangé ; compatible avec les messages déjà en file |
+| Reminder/MessageHandler/SendBookingReminderHandler | Unique attribut AsMessageHandler ; délègue l’identifiant au service, qui garde ordre des effets/flush, états, tentative et propagation des erreurs |
+| Twig/SkybookEmailExtension | Adaptateur Twig conservé ; extraction propre à Email hors de #99 |
+
+Le contexte tenant ne reçoit pas de nouveau reset : le worker existant reste
+lié à son tenant explicite. Les resets Symfony/Doctrine existants et le reset
+par délégation du cache ne sont ni retirés ni déplacés. La factory PDF conserve
+sa durée de vie existante ; ces tests ne prétendent pas ajouter un worker qui
+changerait de tenant entre deux messages.
+
+### Couverture
+
+Les tests Tenant unitaires/intégration, TenantWorkerGuard, ReminderMessenger,
+Observability et permissions utilisent les nouveaux services. La suite métier
+inclut désormais les tests techniques concernés. Ajouts/comportements vérifiés
+par les tests (leur exécution effective est détaillée ci-dessous) :
+
+- message PHP historique littéral relu puis décodé par PhpSerializer et passé
+  au vrai handler : email/SMS envoyé une fois malgré rejeu, annulation/consentement,
+  fournisseur désactivé, erreur persistée puis propagée à chaque tentative ;
+- cache et connexion doublée successivement alpha/beta/alpha, fermeture avant
+  reconnexion, clés identiques isolées, clear limité au tenant et accès après
+  reset ; cookie session alpha puis beta dans un processus séparé ;
+- limites login (5) et voucher (30), séparation des tenants/clients, réponse
+  429 et Retry-After ; upload PNG accepté, extensions incompatibles et taille
+  excessive refusées, en-têtes HTTP ;
+- vraies réponses de santé, tenant inconnu, connexion fermée avant SELECT 1,
+  erreurs DB/HTTP rendues sans secrets ; tests de métriques et corrélation
+  conservés ; ancien enum de rôle encore désérialisable.
+
+Les tests utilisent des doubles DB/réseau/SMS/email et des fichiers temporaires.
+Ils ne prouvent pas une connexion MySQL réelle, le stockage PDF réel ou la
+compilation DI. L’inventaire de sécurité frontend pointe vers le nouveau fichier
+Caddy ; aucun code frontend fonctionnel n’est modifié.
+
+### Contrôles exécutés pour #99 (25 septembre 2026)
+
+| Commande / contrôle | Résultat observé |
+| --- | --- |
+| `composer install --no-interaction --no-scripts --no-plugins --prefer-dist` (backend/) | Échec code 1 : GitHub inaccessible (curl 6 DNS, puis curl 7), repli source bloqué par cache non inscriptible ; 268 dépendances non installées |
+| `composer dump-autoload --optimize --strict-psr --no-scripts --no-plugins` (backend/) | Succès, 209 classes indexées ; ne valide pas les dépendances tierces |
+| Chargement via vendor/autoload.php des 29 symboles des quatre domaines | Succès (`class_exists`/`interface_exists`/`enum_exists`), avec lecture des payloads PHP historiques message/enum |
+| Contrôles PHP locaux sans framework | Succès : registre/context/guard alpha puis beta puis alpha, compteurs métriques séparés, permissions owner/practitioner et refus du fournisseur SMS désactivé ; ne remplacent pas PHPUnit |
+| Comparaison avec HEAD des 26 éléments déplacés | Corps identiques après normalisation namespaces/imports ; les trois extractions ont été relues séparément |
+| `php -l` sur src/ et tests/ | 264 fichiers valides ; fichiers modifiés ensuite relintés |
+| `git diff --check` | Succès |
+| `php vendor/bin/phpunit --configuration phpunit.xml.dist --filter 'Tenant\|Reminder\|Observability\|Security\|TeamPermissions'` | Impossible, binaire vendor/bin/phpunit absent ; aucun test PHPUnit exécuté |
+| `php vendor/bin/phpunit --configuration phpunit.business.xml` | Impossible pour la même raison ; aucun test exécuté |
+| `APP_ENV=test php bin/console lint:container` | Échec code 255 : Symfony Runtime absent ; conteneur non compilé/non validé |
+| `node --test frontend/test/security-config.test.mjs` | Impossible code 127 : Node absent ; ce test d’inventaire n’a pas été exécuté |
+
+Après installation des dépendances, exécuter les deux commandes PHPUnit et le
+lint du conteneur ci-dessus dans l’environnement jetable décrit plus haut. Les
+tests d’intégration qui démarrent le kernel nécessitent également .env, clés de
+test et registre/base MySQL exclusivement de test. Aucune connexion à une base,
+aucun envoi réel, paiement, déploiement ou migration n’a été effectué ici.

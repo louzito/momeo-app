@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Reminder;
+namespace App\Service\Reminder;
 
 use App\Service\Configuration\SiteConfigDocument;
 use App\Entity\Taxonomy\Taxon;

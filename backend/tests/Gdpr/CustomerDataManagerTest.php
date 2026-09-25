@@ -6,9 +6,9 @@ namespace App\Tests\Gdpr;
 
 use App\Service\Gdpr\CustomerDataManager;
 use App\Service\Gdpr\RetentionPolicy;
-use App\Tenant\TenantContext;
-use App\Tenant\TenantIdentifierResolver;
-use App\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantIdentifierResolver;
+use App\Service\Tenant\TenantRegistry;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\ORM\EntityManagerInterface;

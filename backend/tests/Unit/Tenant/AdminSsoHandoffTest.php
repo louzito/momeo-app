@@ -6,12 +6,12 @@ namespace App\Tests\Unit\Tenant;
 
 use App\Controller\AdminSsoHandoffController;
 use App\Entity\User\AdminUser;
-use App\Tenant\AdminLoginTicketStore;
+use App\Service\Tenant\AdminLoginTicketStore;
 use App\Tenant\TenantAwareCachePool;
-use App\Tenant\TenantContext;
-use App\Tenant\TenantIdentifierResolver;
-use App\Tenant\TenantRegistry;
-use App\Tenant\TenantUrlGenerator;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantIdentifierResolver;
+use App\Service\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantUrlGenerator;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;

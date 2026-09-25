@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Observability;
 
-use App\Tenant\TenantContext;
+use App\Service\Tenant\TenantContext;
 use Monolog\LogRecord;
 use Symfony\Component\HttpFoundation\RequestStack;
 

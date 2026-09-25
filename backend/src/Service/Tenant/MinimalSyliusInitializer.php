@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tenant;
+namespace App\Service\Tenant;
 
 use App\Entity\Addressing\Country;
 use App\Entity\Addressing\Zone;
@@ -14,7 +14,7 @@ use App\Entity\Payment\GatewayConfig;
 use App\Entity\Payment\PaymentMethod;
 use App\Entity\Shipping\ShippingMethod;
 use App\Entity\User\AdminUser;
-use App\Security\TeamRole;
+use App\Service\Security\TeamRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Addressing\Model\ZoneInterface;
 

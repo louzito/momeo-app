@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tenant;
 
+use App\Service\Tenant\TenantContext;
+
 use Gaufrette\Filesystem as GaufretteFilesystem;
 use Sylius\PdfGenerationBundle\Filesystem\Gaufrette\GaufrettePdfStorage;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

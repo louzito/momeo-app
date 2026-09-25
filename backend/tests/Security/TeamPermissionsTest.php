@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace App\Tests\Security;
 
-use App\Security\TeamPermission;
-use App\Security\TeamPermissions;
-use App\Security\TeamRole;
+use App\Service\Security\TeamPermission;
+use App\Service\Security\TeamPermissions;
+use App\Service\Security\TeamRole;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class TeamPermissionsTest extends TestCase
 {
+    public function testPreviouslySerializedSessionRoleRemainsReadable(): void
+    {
+        self::assertSame(TeamRole::Owner, unserialize('E:27:"App\\Security\\TeamRole:Owner";'));
+    }
+
     /** @return iterable<string, array{TeamRole, TeamPermission, bool}> */
     public static function decisions(): iterable
     {

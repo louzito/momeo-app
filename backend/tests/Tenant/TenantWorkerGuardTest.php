@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Tenant;
 
-use App\Tenant\TenantContext;
-use App\Tenant\TenantRegistry;
-use App\Tenant\TenantWorkerGuard;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantWorkerGuard;
 use PHPUnit\Framework\TestCase;
 
 final class TenantWorkerGuardTest extends TestCase
@@ -64,7 +64,7 @@ final class TenantWorkerGuardTest extends TestCase
     private function guardAndContext(): array
     {
         $registry = new TenantRegistry($this->registryFile, false);
-        $context = new TenantContext($registry, new \App\Tenant\TenantIdentifierResolver(), 'skyline');
+        $context = new TenantContext($registry, new \App\Service\Tenant\TenantIdentifierResolver(), 'skyline');
 
         return [new TenantWorkerGuard($context, $registry), $context];
     }

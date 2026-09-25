@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\User;
 
 use App\Entity\StaffMember;
-use App\Security\TeamRole;
+use App\Service\Security\TeamRole;
 use Doctrine\ORM\Mapping as ORM;
 use Sylius\Component\Core\Model\AdminUser as BaseAdminUser;
 use Sylius\MolliePlugin\Entity\OnboardingStatusAwareInterface;

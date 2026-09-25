@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Tenant\AdminLoginTicketStore;
-use App\Tenant\TenantContext;
-use App\Tenant\TenantUrlGenerator;
+use App\Service\Tenant\AdminLoginTicketStore;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantUrlGenerator;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Tenant;
 
 use App\Tenant\JwtTenantListener;
-use App\Tenant\TenantContext;
-use App\Tenant\TenantIdentifierResolver;
-use App\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantIdentifierResolver;
+use App\Service\Tenant\TenantRegistry;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTCreatedEvent;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTDecodedEvent;
 use PHPUnit\Framework\TestCase;

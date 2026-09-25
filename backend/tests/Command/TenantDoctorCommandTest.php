@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Command;
 
 use App\Command\TenantDoctorCommand;
-use App\Tenant\TenantDoctorInterface;
+use App\Service\Tenant\TenantDoctorInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;

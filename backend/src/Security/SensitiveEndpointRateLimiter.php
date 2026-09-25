@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Security;
 
-use App\Tenant\TenantContext;
-use Psr\Cache\CacheItemPoolInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,11 +14,7 @@ use Symfony\Component\HttpKernel\KernelEvents;
 #[AsEventListener(event: KernelEvents::REQUEST, method: 'onKernelRequest', priority: 40)]
 final class SensitiveEndpointRateLimiter
 {
-    public function __construct(
-        #[Autowire(service: 'cache.app')] private readonly CacheItemPoolInterface $cache,
-        private readonly TenantContext $tenantContext,
-    ) {
-    }
+    public function __construct(private readonly \App\Service\Security\SensitiveEndpointRateLimiter $limiter) {}
 
     public function onKernelRequest(RequestEvent $event): void
     {
@@ -37,16 +30,9 @@ final class SensitiveEndpointRateLimiter
 
         [$bucket, $limit, $window] = $rule;
         $identity = $request->getClientIp() ?? 'unknown';
-        $key = 'security.rate.'.hash('sha256', $this->tenantContext->getSlug().'|'.$bucket.'|'.$identity);
-        $item = $this->cache->getItem($key);
-        $attempts = $item->isHit() ? (int) $item->get() : 0;
-        if ($attempts >= $limit) {
+        if (!$this->limiter->consume($bucket, $identity, $limit, $window)) {
             $event->setResponse($this->rejected($window));
-            return;
         }
-        $item->set($attempts + 1);
-        $item->expiresAfter($window);
-        $this->cache->save($item);
     }
 
     /** @return array{string, int, int}|null */

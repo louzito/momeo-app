@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tenant;
+namespace App\Service\Tenant;
 
 use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

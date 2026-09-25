@@ -34,6 +34,19 @@
             <file>tests/Configuration/ProductionConfigurationValidatorTest.php</file>
             <file>tests/Configuration/SiteConfigDocumentTest.php</file>
             <file>tests/Unit/Tenant/TenantContextTest.php</file>
+            <file>tests/Tenant/TenantAdapterIsolationTest.php</file>
+            <file>tests/Tenant/TenantWorkerGuardTest.php</file>
+            <file>tests/Unit/Tenant/TenantIdentifierResolverTest.php</file>
+            <file>tests/Unit/Tenant/CustomDomainTest.php</file>
+            <file>tests/Unit/Tenant/AdminSsoHandoffTest.php</file>
+            <file>tests/Command/TenantDoctorCommandTest.php</file>
+            <file>tests/Reminder/ReminderMessengerTest.php</file>
+            <file>tests/Reminder/BookingReminderSenderTest.php</file>
+            <file>tests/Observability/CorrelationIdListenerTest.php</file>
+            <file>tests/Observability/MetricsRegistryTest.php</file>
+            <file>tests/Controller/ObservabilityContractTest.php</file>
+            <file>tests/Security/SecurityHardeningContractTest.php</file>
+            <file>tests/Security/TeamPermissionsTest.php</file>
             <file>tests/Integration/Tenant/JwtTenantIsolationTest.php</file>
             <file>tests/Integration/Booking/BookingSlotConcurrencyTest.php</file>
             <file>tests/Controller/StripePaymentContractTest.php</file>

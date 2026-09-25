@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tenant;
+namespace App\Service\Tenant;
 
 use App\Entity\User\AdminUser;
 use Doctrine\DBAL\Connection;

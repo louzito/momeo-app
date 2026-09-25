@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Gdpr;
 
 use App\Entity\GdprAuditLog;
-use App\Tenant\TenantContext;
+use App\Service\Tenant\TenantContext;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 

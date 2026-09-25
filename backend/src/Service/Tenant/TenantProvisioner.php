@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tenant;
+namespace App\Service\Tenant;
 
 use App\Entity\Taxonomy\Taxon;
 use Doctrine\DBAL\Connection;

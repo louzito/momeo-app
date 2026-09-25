@@ -59,8 +59,8 @@ final class TransactionalEmailContractTest extends TestCase
 
     public function testDispatcherSendsEveryTransitionWithCurrentTenantAndEncodedToken(): void
     {
-        $registry = new \App\Tenant\TenantRegistry(__DIR__.'/../Fixtures/tenants.json', false);
-        $context = new \App\Tenant\TenantContext($registry, new \App\Tenant\TenantIdentifierResolver(), 'demo');
+        $registry = new \App\Service\Tenant\TenantRegistry(__DIR__.'/../Fixtures/tenants.json', false);
+        $context = new \App\Service\Tenant\TenantContext($registry, new \App\Service\Tenant\TenantIdentifierResolver(), 'demo');
         $context->setSlug('other');
         $em = $this->createMock(EntityManagerInterface::class);
         $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
@@ -92,7 +92,7 @@ final class TransactionalEmailContractTest extends TestCase
         );
         $dispatcher = new \App\Service\Email\BookingEmailDispatcher(
             $sender, $em, $context, new \App\Service\Availability\CenterTimeZoneProvider($em),
-            new \App\Tenant\TenantUrlGenerator($registry, 'https://example.test'),
+            new \App\Service\Tenant\TenantUrlGenerator($registry, 'https://example.test'),
         );
         foreach (['confirmation', 'paymentConfirmation', 'cancellation', 'rescheduled', 'reminder'] as $method) {
             $dispatcher->$method($booking);

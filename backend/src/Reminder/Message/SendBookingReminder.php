@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Reminder\Message;
 
+/** Stable wire contract: retain this FQCN and deliveryId for messages already queued. */
 final readonly class SendBookingReminder
 {
     public function __construct(public int $deliveryId)

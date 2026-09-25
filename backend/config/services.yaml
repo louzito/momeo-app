@@ -65,15 +65,15 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    App\Tenant\TenantDoctorInterface: '@App\Tenant\TenantDoctor'
+    App\Service\Tenant\TenantDoctorInterface: '@App\Service\Tenant\TenantDoctor'
     App\Service\Payment\RefundProvider: '@App\Service\Payment\ConfiguredRefundProvider'
-    App\Reminder\Sms\SmsProvider: '@App\Reminder\Sms\DisabledSmsProvider'
+    App\Service\Reminder\Sms\SmsProvider: '@App\Service\Reminder\Sms\DisabledSmsProvider'
 
-    App\Observability\HealthChecker:
+    App\Service\Observability\HealthChecker:
         arguments:
             $requiredDependencies: '%todatempo.required_dependencies%'
 
-    App\Observability\MetricsRegistry:
+    App\Service\Observability\MetricsRegistry:
         arguments:
             $file: '%todatempo.metrics_file%'
 

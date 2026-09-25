@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tenant;
 
+use App\Service\Tenant\TenantContext;
+
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\Connection as DriverConnection;
 use Doctrine\DBAL\Driver\Middleware;

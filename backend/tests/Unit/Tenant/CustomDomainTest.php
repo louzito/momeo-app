@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Tenant;
 
-use App\Tenant\CaddyConfigDumper;
-use App\Tenant\CustomDomainManager;
-use App\Tenant\DomainName;
-use App\Tenant\DomainOwnershipVerifier;
-use App\Tenant\TenantRegistry;
-use App\Tenant\TenantRegistryWriter;
-use App\Tenant\TenantUrlGenerator;
+use App\Service\Tenant\CaddyConfigDumper;
+use App\Service\Tenant\CustomDomainManager;
+use App\Service\Tenant\DomainName;
+use App\Service\Tenant\DomainOwnershipVerifier;
+use App\Service\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantRegistryWriter;
+use App\Service\Tenant\TenantUrlGenerator;
 use PHPUnit\Framework\TestCase;
 
 final class CustomDomainTest extends TestCase

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tenant;
+namespace App\Service\Tenant;
 
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -54,7 +54,7 @@ final class CaddyConfigDumper
 
         $out = [];
         $out[] = '# ============================================================';
-        $out[] = '# GÉNÉRÉ PAR TodaTempo (App\\Tenant\\CaddyConfigDumper) — NE PAS ÉDITER.';
+        $out[] = '# GÉNÉRÉ PAR TodaTempo (App\\Service\\Tenant\\CaddyConfigDumper) — NE PAS ÉDITER.';
         $out[] = '# Regenerer : bin/console skybook:proxy:dump (auto a chaque claim/refill).';
         $out[] = '# Caddy tourne avec --watch : toute regeneration est rechargee seule.';
         $out[] = '# ============================================================';

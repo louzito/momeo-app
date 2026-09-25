@@ -6,7 +6,7 @@ namespace App\Tests\Security;
 
 use App\Entity\User\AdminUser;
 use App\Security\AdminApiPermissionSubscriber;
-use App\Security\TeamRole;
+use App\Service\Security\TeamRole;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;

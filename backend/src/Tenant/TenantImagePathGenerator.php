@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tenant;
 
+use App\Service\Tenant\TenantContext;
+
 use Sylius\Component\Core\Generator\ImagePathGeneratorInterface;
 use Sylius\Component\Core\Model\ImageInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;

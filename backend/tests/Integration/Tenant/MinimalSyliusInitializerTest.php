@@ -12,8 +12,8 @@ use App\Entity\Locale\Locale;
 use App\Entity\Payment\PaymentMethod;
 use App\Entity\Shipping\ShippingMethod;
 use App\Entity\User\AdminUser;
-use App\Tenant\MinimalSyliusInitializer;
-use App\Security\TeamRole;
+use App\Service\Tenant\MinimalSyliusInitializer;
+use App\Service\Security\TeamRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 

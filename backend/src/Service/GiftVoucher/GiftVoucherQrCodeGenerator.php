@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\GiftVoucher;
 
-use App\Tenant\TenantContext;
-use App\Tenant\TenantUrlGenerator;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantUrlGenerator;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\Writer\PngWriter;

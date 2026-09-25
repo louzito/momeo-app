@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tenant;
 
+use App\Service\Tenant\TenantContext;
+
 use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;

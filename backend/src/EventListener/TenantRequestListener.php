@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
-use App\Tenant\TenantContext;
-use App\Tenant\TenantIdentifierResolver;
-use App\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantIdentifierResolver;
+use App\Service\Tenant\TenantRegistry;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Tenant;
 
-use App\Tenant\TenantContext;
-use App\Tenant\TenantIdentifierResolver;
-use App\Tenant\TenantRegistry;
+use App\Service\Tenant\TenantContext;
+use App\Service\Tenant\TenantIdentifierResolver;
+use App\Service\Tenant\TenantRegistry;
 use PHPUnit\Framework\TestCase;
 
 final class TenantContextTest extends TestCase

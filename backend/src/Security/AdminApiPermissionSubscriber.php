@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use App\Service\Security\TeamPermission;
+use App\Service\Security\TeamPermissions;
 use App\Entity\User\AdminUser;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;

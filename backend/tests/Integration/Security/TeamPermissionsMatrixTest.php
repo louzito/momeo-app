@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Security;
 
-use App\Security\TeamPermission;
-use App\Security\TeamPermissions;
-use App\Security\TeamRole;
+use App\Service\Security\TeamPermission;
+use App\Service\Security\TeamPermissions;
+use App\Service\Security\TeamRole;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tenant;
+namespace App\Service\Tenant;
 
 /** Valide le tenant d'un worker avant que Messenger puisse ouvrir Doctrine. */
 final readonly class TenantWorkerGuard

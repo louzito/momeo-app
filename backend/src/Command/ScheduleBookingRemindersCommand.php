@@ -7,7 +7,7 @@ namespace App\Command;
 use App\Service\Availability\CenterTimeZoneProvider;
 use App\Entity\ReminderDelivery;
 use App\Reminder\Message\SendBookingReminder;
-use App\Reminder\ReminderConfiguration;
+use App\Service\Reminder\ReminderConfiguration;
 use App\Repository\BookingRepository;
 use App\Repository\ReminderDeliveryRepository;
 use Doctrine\ORM\EntityManagerInterface;

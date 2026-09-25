@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Tenant;
 
-use App\Tenant\TenantIdentifierResolver;
+use App\Service\Tenant\TenantIdentifierResolver;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 

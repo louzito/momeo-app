@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Observability\HealthChecker;
-use App\Observability\MetricsRegistry;
-use App\Tenant\TenantRegistry;
+use App\Service\Observability\HealthChecker;
+use App\Service\Observability\MetricsRegistry;
+use App\Service\Tenant\TenantRegistry;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;

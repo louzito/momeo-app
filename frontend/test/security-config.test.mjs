@@ -13,7 +13,7 @@ test('normal Vite and Caddy configurations expose no command endpoint', async ()
 
   const configuredFiles = [
     'frontend/vite.config.js',
-    'backend/src/Tenant/CaddyConfigDumper.php',
+    'backend/src/Service/Tenant/CaddyConfigDumper.php',
     'backend/caddy/Caddyfile',
   ]
 
