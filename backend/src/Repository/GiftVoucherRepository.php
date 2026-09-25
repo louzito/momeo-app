@@ -31,6 +31,8 @@ final class GiftVoucherRepository extends ServiceEntityRepository
             ->andWhere('voucher.code = :code')
             ->setParameter('code', $code)
             ->getQuery()
+            // Re-read even if this voucher was already loaded by Doctrine before the lock.
+            ->setHint(\Doctrine\ORM\Query::HINT_REFRESH, true)
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->getOneOrNullResult();
     }

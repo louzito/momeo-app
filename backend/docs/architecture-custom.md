@@ -132,7 +132,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/StaffPreferenceContractTest | Converti en #100 : payload réel, ordre, sélection déterministe et validation de créneau ; fixture DB transactionnelle |
 | Controller/WaitlistContractTest | Création, autorisation et migration ; à convertir lors de Waitlist |
 | Controller/InvoiceSecurityContractTest | Listener, propriété du client, configuration PDF ; à convertir lors de Invoice |
-| Controller/GiftVoucherRedemptionContractTest | Consommation verrouillée, absence de bypass et invariant Entity ; à convertir lors de GiftVoucher |
+| Controller/GiftVoucherRedemptionContractTest | Converti en #101 : créations commande/cadeau réelles, rejeu, refus, relecture verrouillée, rollback et emails interceptés |
 | Controller/PhysicalCheckoutContractTest | Checkout physique ; à convertir lors de Commerce |
 | Controller/AdminRefundContractTest | Contrôleur, fournisseur, opération, permission et migration ; à convertir lors de Payment |
 | Controller/AdminClientApiContractTest | CRUD et historique du dossier ; à convertir lors de Customer |
@@ -453,3 +453,68 @@ Contrôles réellement effectués dans cet environnement :
 - `APP_ENV=test php bin/console lint:container` : impossible, Symfony Runtime
   absent. DI et tests DB/concurrence restent à exécuter avec les dépendances
   et l’instance MySQL jetable décrites plus haut. Aucune connexion de production.
+
+## Livraison #101 — création publique par commande et chèque cadeau
+
+Prérequis : tête `169b750` (#100), précédée de #97–#99. Aucun changement de
+branche, commit, activation du ticket suivant ou déploiement.
+
+| Point d’entrée | Destination et responsabilité |
+| --- | --- |
+| `ShopBookingApiController::create` | `Service/Booking/BookingCreationService::createFromOrder` : validation produit/commande/paiement, sélection staff/ressource, construction, transaction et persistance — **fait #101** |
+| `ShopBookingApiController::createFromVoucher` | `Service/Booking/BookingCreationService::createFromVoucher` : relecture verrouillée, validation du chèque et du bénéficiaire, création et consommation atomiques — **fait #101** |
+| `Repository/GiftVoucherRepository::findOneByCodeForUpdate` | Adaptateur Doctrine conservé ; `HINT_REFRESH` relit aussi l’état d’une entité déjà chargée lors de la prise du verrou pessimiste |
+| `Service/Booking/InvalidBooking` | Erreur métier de commande/produit/modalités de paiement ; traduction explicite en 422 par le contrôleur |
+
+Les deux actions ne contiennent plus de transaction, construction de Booking,
+persist ou flush. Elles conservent parsing/validation de forme, réponses JSON,
+normalisation et notifications après retour du service (donc après commit),
+hors des catches de création : une erreur d’email ne provoque pas de rollback.
+La validation préalable de délai/horizon du parcours commande conserve sa
+priorité HTTP, avant la validation des coordonnées. `PublicStaffSlot`,
+`ResourceAvailability` et `BookingSlotGuard` sont réutilisés sans nouvelle
+politique de créneau. Les sélections sans préférence et les verrous staff,
+chèque et capacité gardent leur ordre. Les exceptions de construction du
+parcours commande sont désormais également couvertes par le rollback.
+
+Contrats conservés : commande invalide en 422 ; indisponibilité en 409 avec
+`slot_unavailable` ; refus métier du chèque en 409 sans code ; différences
+historiques des erreurs de ressources entre commande et chèque ; montants,
+statuts carte/hors carte, champs legacy du chèque, routes et autorisations.
+Aucune nouvelle clé d’idempotence : le rejeu du chèque consommé est refusé,
+les protections existantes de capacité restent en place. Aucun changement
+Entity, migration ou résolution du tenant.
+
+`GiftVoucherRedemptionContractTest` est converti d’assertions sur le PHP en
+appels réels du contrôleur/service avec fixture Doctrine isolée : succès et
+rejeu cadeau, impayé/expiré/consommé, relecture d’un chèque déjà chargé,
+capacité perdante après sélection du staff, commande absente, succès commande
+puis créneau perdu, ressource non associée pour les deux entrées, exception
+injectée sur flush pour les deux entrées. Les effets persistés, payloads,
+statuts, rollback et absence d’email sont vérifiés. Le Sender est doublé ;
+l’email de succès vérifie que le niveau transactionnel du service est terminé
+(la fixture garde sa transaction externe pour nettoyage). Ces tests ne
+prétendent pas prouver une concurrence entre processus.
+
+La couverture publique de BookableResourceContractTest est remplacée par ces
+scénarios comportementaux ; ses contrôles admin/client restent à convertir
+lors de leurs tickets. BookingSlotConcurrencyTest et
+GiftVoucherConcurrentRedemptionTest sont conservés comme preuves InnoDB
+à deux processus. La suite business inclut déjà les fichiers concernés.
+
+Contrôles effectués dans cet environnement :
+
+- `php -l` sur les six fichiers PHP ajoutés/modifiés : succès.
+- `git diff --check` : succès.
+- `composer dump-autoload --optimize --strict-psr --no-scripts` : succès,
+  215 classes. Chargement PHP effectif des deux nouvelles classes : succès.
+- Installation verrouillée tentée avec `timeout 25 composer install
+  --no-interaction --no-scripts --no-plugins --prefer-dist` : interrompue après
+  la borne, téléchargements en échec curl 6 (DNS api.github.com indisponible).
+- `php vendor/bin/phpunit --configuration phpunit.business.xml --filter
+  'BookingSlotConcurrencyTest|GiftVoucherConcurrentRedemptionTest|GiftVoucherRedemptionContractTest|BookingRulesContractTest|BookableResourceContractTest'` :
+  non exécutable, `vendor/bin/phpunit` absent. Aucun test PHPUnit annoncé réussi.
+- `APP_ENV=test php bin/console lint:container` : non exécutable, Symfony
+  Runtime absent. L’autoload ne valide pas la DI. Les suites ciblées, les
+  verrous concurrents et la DI restent à exécuter avec les dépendances et
+  l’instance MySQL jetable décrites plus haut. Aucune connexion de production.
