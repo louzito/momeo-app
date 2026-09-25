@@ -86,7 +86,7 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | AdminStaffMemberApi, AdminStaffTimeOffApi | `Service/Staff/{StaffManagementService,StaffAccountService,StaffTimeOffService}` — **fait #103** |
 | ShopStripePayment, ShopPaymentTerms | `Service/Payment/{StripePaymentService,StripeWebhookProcessor,OrderPaymentTermsService}` : session, annulation, signature, transaction/déduplication, conditions de paiement — **fait #106** |
 | AdminRefundApi | `Service/Payment/{RefundService,RefundView}` : orchestration et projection — **fait #107** |
-| ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | GiftVoucher |
+| ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | `Service/GiftVoucher/{GiftVoucherAccess,GiftVoucherView,GiftOrderMarking}` : accès, projections et marquage — **fait #108** |
 | ShopWaitlistApi, AdminWaitlistApi | Waitlist |
 | ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF conservés pour le ticket dédié |
 | ShopPhysicalOrderApi, AdminPhysicalCommerceApi | Commerce : orchestration commande et catalogue Sylius |
@@ -981,3 +981,74 @@ Commandes de vérification #107 :
 - `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml --filter 'Refund|AdminApiPermissionContractTest'` : non exécuté (binaire absent).
 - `APP_ENV=test php backend/bin/console lint:container` : échec de démarrage (Runtime absent).
 - `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts --no-plugins --prefer-dist` : non abouti ; curl 6, api.github.com non résolu.
+
+
+## Livraison #108 — parcours et listeners chèques cadeaux
+
+Prérequis présents : #97 à #107 dans l’historique ; travail sur la tête fournie
+`3ccdaf4`, qui conserve #107 (`58f400d`). Aucun changement de branche, commit,
+push, activation du ticket suivant ou déploiement.
+
+- `GiftVoucherAccess` porte lookup code/commande/email, comparaison code-email
+  insensible à la casse, profil bénéficiaire et filtrage admin par statut effectif.
+- `GiftVoucherView` conserve les projections distinctes shop/admin et la lecture
+  de la réservation utilisée. Aucun champ ni alias jumpType supprimé ou ajouté.
+- `GiftOrderMarking` sélectionne uniquement via `findCartByTokenValue`, réutilise
+  `GiftOrderMarker` et flush au même moment. Le contrôleur conserve parsing et
+  validation email ; le 404 panier reste prioritaire au 422 payload invalide.
+- `GiftVoucherCreator::createFromMarkedOrder` décode le marqueur et réutilise la
+  création, Config et génération de codes existantes. Le listener Doctrine garde
+  postPersist/postUpdate et la détection du changeset checkoutState completed.
+- `GiftVoucherActivator::activateFromPayment` reprend la sélection de la commande,
+  du marqueur, du voucher et du canal. Le listener garde l’événement
+  `workflow.sylius_payment.completed.complete` et le contrôle de type du sujet.
+  La précondition de cet événement (Payment completed) est explicite dans le
+  service : un appel avec paiement non complété n’active rien. Le passage active,
+  timestamp, flush puis Mailer restent inchangés ; le rejeu n’envoie rien.
+
+Les routes, méthodes, contraintes de code à dix chiffres, erreurs, statut HTTP,
+headers PNG/cache et URL `/{tenant}/beneficiary/login?code=...` sont conservés.
+La connexion code/email accepte encore les chèques expirés, utilisés ou en attente.
+Les lectures publiques par code, numéro de commande et email restent accessibles
+selon le contrat existant : elles ne deviennent pas authentifiées par le login.
+Rate limiting et autorisations admin restent dans leurs adaptateurs actuels.
+Repositories et connexion tenant inchangés ; les nouveaux services utilisent la
+découverte/autowiring App existante, sans nouvelle connexion ni configuration.
+La consommation reste exclusivement dans `BookingCreationService::createFromVoucher`
+(#101 / ticket 05), via ShopBookingApiController : propriété, validation,
+transaction, refresh sous verrou, rollback et emails après commit inchangés.
+Aucun nouveau parcours de réservation, migration ou effet production.
+
+### Tests et contrôles #108
+
+Ajouts comportementaux à phpunit.business.xml :
+- `GiftVoucherAccessContractTest` : contrôleurs/services/repositories réels sur la
+  fixture transactionnelle isolée ; login expiré/utilisé/non payé, code/email
+  erronés, lookup 404, payloads shop/admin complets, projection réservation,
+  filtre/statistiques, URL et PNG/cache, création marquée et rejeu, activation
+  répétée, paiement sans commande/canal/marqueur ou non complété. Sender mocké :
+  aucun email réel. Les tests QR exigent Endroid et GD.
+- `GiftOrderMarkingTest` : Request/JsonResponse et service réels, repository/EM
+  doublés ; sélection par token, priorité du 404, refus email sans mutation ni
+  flush, encodage et normalisation du marqueur, un seul flush en succès.
+
+Contrôles exécutés : syntaxe PHP des 20 fichiers cadeaux (services, contrôleurs,
+listeners, tests) ; `git diff --check` ; autoload optimisé strict PSR sans
+scripts/plugins (247 classes), chargement des cinq services ajoutés/modifiés.
+
+Contrôles non exécutables pour motif environnemental :
+- `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml
+  --filter 'GiftVoucher|GiftOrderMarking|SecurityHardeningContractTest|AdminApiPermissionContractTest'`
+  échoue avant exécution : vendor/bin/phpunit absent. Cela inclut GiftVoucherTest,
+  GiftVoucherRedemptionContractTest et GiftVoucherConcurrentRedemptionTest ;
+  aucun test PHPUnit annoncé réussi.
+- `APP_ENV=test php backend/bin/console lint:container` échoue au démarrage :
+  Symfony Runtime absent. L’autoload ne prouve pas la compilation DI.
+- Installation des dépendances verrouillées tentée avec `timeout 25 composer
+  install --working-dir=backend --no-interaction --no-scripts --no-plugins
+  --prefer-dist` : non aboutie, téléchargement impossible (DNS api.github.com,
+  curl 6). Aucun changement au lock.
+
+Les tests avec kernel et la concurrence doivent être exécutés sur l’instance
+MySQL jetable avec registre tenant isolé décrite plus haut. Aucune commande de
+préparation destructive ni test connecté à une base de production n’a été lancé.

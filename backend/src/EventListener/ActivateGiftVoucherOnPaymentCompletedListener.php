@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
-use App\Entity\GiftVoucher;
-use App\Service\GiftVoucher\GiftOrderMarker;
 use App\Service\GiftVoucher\GiftVoucherActivator;
-use App\Repository\GiftVoucherRepository;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Workflow\Event\CompletedEvent;
@@ -26,7 +23,6 @@ use Webmozart\Assert\Assert;
 final class ActivateGiftVoucherOnPaymentCompletedListener
 {
     public function __construct(
-        private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly GiftVoucherActivator $activator,
     ) {
     }
@@ -36,22 +32,6 @@ final class ActivateGiftVoucherOnPaymentCompletedListener
         $payment = $event->getSubject();
         Assert::isInstanceOf($payment, PaymentInterface::class);
 
-        $order = $payment->getOrder();
-        if ($order === null) {
-            return;
-        }
-        $marker = GiftOrderMarker::decode($order->getNotes());
-        $orderNumber = $order->getNumber();
-        if ($marker === null || $orderNumber === null) {
-            return;
-        }
-
-        $voucher = $this->giftVoucherRepository->findOneByPurchaseOrderNumber($orderNumber);
-        $channel = $order->getChannel();
-        if (!$voucher instanceof GiftVoucher || $channel === null) {
-            return;
-        }
-
-        $this->activator->activate($voucher, $channel);
+        $this->activator->activateFromPayment($payment);
     }
 }

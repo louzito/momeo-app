@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\GiftVoucher;
-use App\Repository\GiftVoucherRepository;
+use App\Service\GiftVoucher\GiftVoucherAccess;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -31,7 +30,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class AdminGiftVoucherApiController
 {
     public function __construct(
-        private readonly GiftVoucherRepository $giftVoucherRepository,
+        private readonly GiftVoucherAccess $access,
     ) {
     }
 
@@ -40,43 +39,6 @@ final class AdminGiftVoucherApiController
     {
         $status = trim((string) $request->query->get('status', ''));
 
-        $vouchers = $this->giftVoucherRepository->findBy([], ['createdAt' => 'DESC']);
-        if ('' !== $status) {
-            $vouchers = array_values(array_filter(
-                $vouchers,
-                static fn (GiftVoucher $v): bool => $v->getEffectiveStatus() === $status,
-            ));
-        }
-
-        return new JsonResponse([
-            'member' => array_map($this->normalize(...), $vouchers),
-            'stats' => $this->giftVoucherRepository->countByEffectiveStatus(),
-        ]);
-    }
-
-    /** @return array<string, mixed> */
-    private function normalize(GiftVoucher $voucher): array
-    {
-        return [
-            'code' => $voucher->getCode(),
-            'status' => $voucher->getEffectiveStatus(),
-            'serviceCode' => $voucher->getServiceCode(),
-            'serviceName' => $voucher->getServiceName(),
-            'jumpTypeCode' => $voucher->getServiceCode(),
-            'jumpTypeName' => $voucher->getServiceName(),
-            'amount' => $voucher->getAmount(),
-            'currencyCode' => $voucher->getCurrencyCode(),
-            'purchaserName' => $voucher->getPurchaserName(),
-            'purchaserEmail' => $voucher->getPurchaserEmail(),
-            'beneficiaryName' => $voucher->getBeneficiaryName(),
-            'beneficiaryEmail' => $voucher->getBeneficiaryEmail(),
-            'personalMessage' => $voucher->getPersonalMessage(),
-            'purchaseOrderNumber' => $voucher->getPurchaseOrderNumber(),
-            'usageOrderNumber' => $voucher->getUsageOrderNumber(),
-            'expiresAt' => $voucher->getExpiresAt()->format(\DateTimeInterface::ATOM),
-            'createdAt' => $voucher->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'activatedAt' => $voucher->getActivatedAt()?->format(\DateTimeInterface::ATOM),
-            'usedAt' => $voucher->getUsedAt()?->format(\DateTimeInterface::ATOM),
-        ];
+        return new JsonResponse($this->access->adminIndex($status));
     }
 }

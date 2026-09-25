@@ -68,6 +68,8 @@
             <file>tests/Integration/Tenant/MinimalSyliusInitializerTest.php</file>
             <file>tests/Integration/Payment/StripeWebhookIdempotencyTest.php</file>
             <file>tests/Unit/GiftVoucher/GiftVoucherTest.php</file>
+            <file>tests/Unit/GiftVoucher/GiftOrderMarkingTest.php</file>
+            <file>tests/Controller/GiftVoucherAccessContractTest.php</file>
             <file>tests/Controller/GiftVoucherRedemptionContractTest.php</file>
             <file>tests/Integration/GiftVoucher/GiftVoucherConcurrentRedemptionTest.php</file>
             <file>tests/Integration/Security/TeamPermissionsMatrixTest.php</file>

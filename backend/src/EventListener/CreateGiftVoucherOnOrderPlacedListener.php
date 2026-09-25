@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
-use App\Service\GiftVoucher\GiftOrderMarker;
 use App\Service\GiftVoucher\GiftVoucherCreator;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PostPersistEventArgs;
@@ -39,7 +38,7 @@ final class CreateGiftVoucherOnOrderPlacedListener
         if (!$order instanceof OrderInterface || $order->getCheckoutState() !== OrderCheckoutStates::STATE_COMPLETED) {
             return;
         }
-        $this->handle($order);
+        $this->giftVoucherCreator->createFromMarkedOrder($order);
     }
 
     public function postUpdate(PostUpdateEventArgs $event): void
@@ -56,15 +55,6 @@ final class CreateGiftVoucherOnOrderPlacedListener
         if (!isset($changeSet['checkoutState']) || $changeSet['checkoutState'][1] !== OrderCheckoutStates::STATE_COMPLETED) {
             return;
         }
-        $this->handle($order);
-    }
-
-    private function handle(OrderInterface $order): void
-    {
-        $marker = GiftOrderMarker::decode($order->getNotes());
-        if ($marker === null) {
-            return;
-        }
-        $this->giftVoucherCreator->createFromOrder($order, $marker);
+        $this->giftVoucherCreator->createFromMarkedOrder($order);
     }
 }

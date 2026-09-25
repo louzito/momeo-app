@@ -32,6 +32,13 @@ final class GiftVoucherCreator
     ) {
     }
 
+    public function createFromMarkedOrder(OrderInterface $order): ?GiftVoucher
+    {
+        $marker = GiftOrderMarker::decode($order->getNotes());
+
+        return $marker === null ? null : $this->createFromOrder($order, $marker);
+    }
+
     public function createFromOrder(OrderInterface $order, GiftOrderMarker $marker): ?GiftVoucher
     {
         $orderNumber = $order->getNumber();

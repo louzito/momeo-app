@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Service\GiftVoucher\GiftOrderMarker;
-use Doctrine\ORM\EntityManagerInterface;
-use Sylius\Component\Core\Repository\OrderRepositoryInterface;
+use App\Service\GiftVoucher\GiftOrderMarking;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,15 +30,14 @@ use Symfony\Component\Routing\Attribute\Route;
 final class ShopGiftOrderMarkerController
 {
     public function __construct(
-        private readonly OrderRepositoryInterface $orderRepository,
-        private readonly EntityManagerInterface $em,
+        private readonly GiftOrderMarking $marking,
     ) {
     }
 
     #[Route('/api/v2/shop/orders/{tokenValue}/gift-marker', name: 'skybook_api_shop_order_gift_marker', methods: ['PATCH'])]
     public function __invoke(string $tokenValue, Request $request): JsonResponse
     {
-        $order = $this->orderRepository->findCartByTokenValue($tokenValue);
+        $order = $this->marking->findCart($tokenValue);
         if ($order === null) {
             return new JsonResponse(['error' => 'Panier introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -54,13 +51,12 @@ final class ShopGiftOrderMarkerController
             return new JsonResponse(['error' => "L'email du bénéficiaire est invalide."], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $marker = GiftOrderMarker::create(
+        $this->marking->mark(
+            $order,
             \is_string($payload['beneficiaryName'] ?? null) ? $payload['beneficiaryName'] : null,
             $beneficiaryEmail,
             \is_string($payload['personalMessage'] ?? null) ? $payload['personalMessage'] : null,
         );
-        $order->setNotes($marker->encode());
-        $this->em->flush();
 
         return new JsonResponse(['ok' => true]);
     }

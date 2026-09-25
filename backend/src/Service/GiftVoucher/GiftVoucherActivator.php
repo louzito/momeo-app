@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Service\GiftVoucher;
 
 use App\Entity\GiftVoucher;
+use App\Repository\GiftVoucherRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Channel\Model\ChannelInterface;
+use Sylius\Component\Core\Model\PaymentInterface;
 
 /**
  * Fait passer un cheque cadeau de `awaiting_payment` a `active` (encaissement
@@ -19,7 +21,26 @@ final class GiftVoucherActivator
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly GiftVoucherMailer $mailer,
+        private readonly GiftVoucherRepository $repository,
     ) {
+    }
+
+    /** Appelé exclusivement après la transition Sylius de paiement complété. */
+    public function activateFromPayment(PaymentInterface $payment): void
+    {
+        if ($payment->getState() !== PaymentInterface::STATE_COMPLETED) {
+            return;
+        }
+        $order = $payment->getOrder();
+        if ($order === null || GiftOrderMarker::decode($order->getNotes()) === null || $order->getNumber() === null) {
+            return;
+        }
+        $voucher = $this->repository->findOneByPurchaseOrderNumber($order->getNumber());
+        $channel = $order->getChannel();
+        if ($voucher === null || $channel === null) {
+            return;
+        }
+        $this->activate($voucher, $channel);
     }
 
     public function activate(GiftVoucher $voucher, ChannelInterface $channel): void
