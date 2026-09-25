@@ -74,6 +74,13 @@ class RefundOperation
     public function getAmount(): int { return $this->amount; }
     public function getIdempotencyKey(): string { return $this->idempotencyKey; }
     public function belongsTo(Payment $payment): bool { return $this->payment === $payment; }
-    /** @return array<string, mixed> */
-    public function normalize(): array { return ['id' => $this->id, 'idempotencyKey' => $this->idempotencyKey, 'amount' => $this->amount, 'currency' => $this->currency, 'status' => $this->status, 'provider' => $this->provider, 'providerReference' => $this->providerReference, 'creditNoteNumber' => $this->creditNoteNumber, 'actor' => $this->actor, 'reason' => $this->reason, 'createdAt' => $this->createdAt->format(DATE_ATOM), 'completedAt' => $this->completedAt?->format(DATE_ATOM)]; }
+    public function getId(): ?int { return $this->id; }
+    public function getCurrency(): string { return $this->currency; }
+    public function getProvider(): string { return $this->provider; }
+    public function getProviderReference(): ?string { return $this->providerReference; }
+    public function getCreditNoteNumber(): ?string { return $this->creditNoteNumber; }
+    public function getActor(): string { return $this->actor; }
+    public function getReason(): ?string { return $this->reason; }
+    public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function getCompletedAt(): ?\DateTimeImmutable { return $this->completedAt; }
 }

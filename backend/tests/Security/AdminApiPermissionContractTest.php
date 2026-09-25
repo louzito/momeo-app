@@ -48,6 +48,9 @@ final class AdminApiPermissionContractTest extends TestCase
         }
         yield 'staff read' => ['/api/v2/admin/staff-members', 'GET', TeamRole::Practitioner, true];
         yield 'staff write' => ['/api/v2/admin/staff-members/1', 'PATCH', TeamRole::Practitioner, false];
+        yield 'refund forbidden' => ['/api/v2/admin/payments/1/refunds', 'POST', TeamRole::Reception, false];
+        yield 'refund history forbidden' => ['/api/v2/admin/payments/1/refunds', 'GET', TeamRole::Practitioner, false];
+        yield 'refund authorized' => ['/api/v2/admin/payments/1/refunds', 'POST', TeamRole::Manager, true];
         yield 'manager finances' => ['/api/v2/admin/payments/1', 'GET', TeamRole::Manager, true];
         yield 'manager catalog' => ['/api/v2/admin/products', 'POST', TeamRole::Manager, true];
         yield 'reception clients' => ['/api/v2/admin/clients', 'GET', TeamRole::Reception, true];

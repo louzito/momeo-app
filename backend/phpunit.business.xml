@@ -36,6 +36,7 @@
             <file>tests/Controller/AdminPlanningApiContractTest.php</file>
             <file>tests/Repository/PlanningRepositoryTest.php</file>
             <file>tests/Payment/ServicePaymentTermsTest.php</file>
+            <file>tests/Payment/RefundServiceTest.php</file>
             <file>tests/Payment/OrderPaymentTermsServiceTest.php</file>
             <file>tests/Payment/StripePaymentServiceTest.php</file>
             <file>tests/Gdpr/RetentionPolicyTest.php</file>

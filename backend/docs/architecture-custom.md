@@ -85,7 +85,7 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | AdminPlanningApi, AdminBookableResourceApi | `Service/Planning/PlanningManagementService`, `Service/Resource/BookableResourceManagementService` — **fait #104** |
 | AdminStaffMemberApi, AdminStaffTimeOffApi | `Service/Staff/{StaffManagementService,StaffAccountService,StaffTimeOffService}` — **fait #103** |
 | ShopStripePayment, ShopPaymentTerms | `Service/Payment/{StripePaymentService,StripeWebhookProcessor,OrderPaymentTermsService}` : session, annulation, signature, transaction/déduplication, conditions de paiement — **fait #106** |
-| AdminRefundApi | Payment : remboursement — à extraire au ticket dédié |
+| AdminRefundApi | `Service/Payment/{RefundService,RefundView}` : orchestration et projection — **fait #107** |
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | GiftVoucher |
 | ShopWaitlistApi, AdminWaitlistApi | Waitlist |
 | ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF conservés pour le ticket dédié |
@@ -906,3 +906,78 @@ Contrôles réellement effectués :
 Les vérifications PHPUnit et DI restent à exécuter avec les dépendances installées ;
 le test d’intégration exige la base MySQL jetable et le registre tenant isolé décrits
 plus haut. Aucun accès production, envoi email/SMS ou paiement effectué.
+
+
+## Livraison #107 — remboursement et projection
+
+Prérequis présents : tête `ca56c24` (#106), précédée de #97 à #105.
+Aucun changement de branche, commit, push ou activation de #108.
+
+- `Controller/AdminRefundApiController` conserve routes, parsing/validation de
+  forme (422), acteur authentifié, traduction des conflits (409), échecs (502),
+  création (201) et rejeu (200).
+- `Service/Payment/RefundService` porte lectures, double contrôle d’idempotence,
+  transaction, verrou pessimiste puis refresh, solde, appel RefundProvider,
+  transitions Sylius et synchronisation commande/réservation, historique et avoir.
+- `Service/Payment/RefundView` remplace RefundOperation::normalize ; les getters
+  exposent uniquement les valeurs nécessaires. Mapping, invariants locaux et
+  transitions de RefundOperation/Payment restent inchangés, sans migration.
+- `RefundFailed` identifie les erreurs techniques interceptées dans la transaction.
+  Le contrôleur choisit le statut HTTP. Les services utilisent la découverte App
+  et l’alias RefundProvider existants ; aucune connexion ou portée tenant ajoutée.
+  Le subscriber de permission Finances reste l’adaptateur HTTP.
+
+### Comportement historique conservé et limites du rejeu
+
+La clé est globale dans la base du tenant. Une clé d’un autre paiement donne 409
+avant transaction. Une opération déjà completed du même paiement donne 200 avant
+le contrôle du montant : un montant différent rejoue donc aussi la réponse initiale.
+Sous verrou, une clé d’un autre montant/paiement donne 409 ; une opération devenue
+completed entre les lectures est rejouée après commit, sans appel fournisseur.
+Les demandes pending/failed du même montant réutilisent l’opération et la clé
+fournisseur ; son acteur et son motif initiaux restent inchangés, tandis que
+l’historique de réservation utilise l’acteur de la demande courante.
+
+Un seul appel fournisseur par tentative : aucun retry automatique. Une DomainException
+du fournisseur reste un 409 ; toute autre erreur dans la transaction reste un 502
+avec le texte JSON historique. Le rollback porte sur la base, pas sur les objets PHP.
+Si le fournisseur a réussi mais que le flush final/commit échoue, le remboursement
+distant n’est pas annulé et l’opération locale peut être absente. Le texte historique
+du 502 ne prouve donc pas l’absence d’effet distant. Une nouvelle requête explicite
+avec la même clé rappelle le fournisseur, auquel ConfiguredRefundProvider transmet
+la même idempotency_key Stripe ; aucune nouvelle clé ni compensation n’est générée.
+Cette extraction ne garantit pas une atomicité distribuée. Après échec, les objets
+managés peuvent être modifiés et ne constituent pas une preuve de persistance ;
+un rejeu doit repartir d’un contexte Doctrine/requête frais.
+
+### Couverture et vérification
+
+Tests de comportement avec faux fournisseur : partiel puis intégral, workflow,
+acteur/motif/avoir, completed avec montant différent, pending incompatible et
+compatible, rejeu observé après verrou, échec distant et échec de flush après succès
+distant (un seul appel, rollback, absence de commit, objets PHP encore modifiés).
+Les tests HTTP directs assemblent contrôleur et service réels : JSON complet et
+types, liste/solde, en-tête prioritaire et clé du payload, 422, dépassement 409,
+autre paiement 409, fournisseur 409/502 et rejeu 200 sans nouvel appel.
+AdminApiPermissionContractTest couvre GET/POST refunds interdits et POST autorisé.
+L’ancien test basé sur les chaînes du contrôleur est supprimé. La suite service
+est ajoutée à phpunit.business.xml.
+
+Ces tests utilisent des doubles Doctrine et des Request/JsonResponse réels :
+ils ne prouvent pas la concurrence InnoDB, le routage/firewall complet ou
+l’isolation entre plusieurs connexions tenant. Aucun fournisseur réel n’est appelé.
+
+Contrôles exécutés : syntaxe PHP des fichiers concernés et git diff --check ;
+autoload Composer optimisé strict PSR sans scripts/plugins (244 classes).
+PHPUnit ciblé non exécutable : vendor/bin/phpunit absent.
+Compilation DI non exécutable : Symfony Runtime absent. L’autoload ne valide pas
+la DI. Ces contrôles doivent être repris dans l’environnement équipé, ainsi que
+les tests d’intégration tenant existants sur base jetable. Aucun accès production,
+paiement réel, email/SMS ou déploiement.
+
+
+Commandes de vérification #107 :
+- `composer dump-autoload --working-dir=backend --optimize --strict-psr --no-scripts --no-plugins` : succès ; chargement effectif de RefundService, RefundView et RefundFailed : succès.
+- `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml --filter 'Refund|AdminApiPermissionContractTest'` : non exécuté (binaire absent).
+- `APP_ENV=test php backend/bin/console lint:container` : échec de démarrage (Runtime absent).
+- `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts --no-plugins --prefer-dist` : non abouti ; curl 6, api.github.com non résolu.
