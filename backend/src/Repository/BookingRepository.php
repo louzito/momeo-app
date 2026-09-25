@@ -17,6 +17,16 @@ final class BookingRepository extends ServiceEntityRepository
         parent::__construct($registry, Booking::class);
     }
 
+    /** Account reads keep their historical case-insensitive, non-trimmed email scope. @return list<Booking> */
+    public function findForCustomerEmail(string $email): array
+    {
+        return $this->createQueryBuilder('booking')
+            ->andWhere('LOWER(booking.customerEmail) = :email')
+            ->setParameter('email', mb_strtolower($email))
+            ->orderBy('booking.slotStart', 'DESC')
+            ->getQuery()->getResult();
+    }
+
     /** @return list<Booking> */
     public function findForAdministration(): array
     {

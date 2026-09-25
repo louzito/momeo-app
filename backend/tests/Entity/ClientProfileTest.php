@@ -22,6 +22,14 @@ final class ClientProfileTest extends TestCase
         self::assertNotEmpty($profile->getConsentHistory()[0]['recordedAt']);
     }
 
+    public function testChangingContactEmailPreservesBookingIdentity(): void
+    {
+        $profile = new ClientProfile(' Original@Example.test ');
+        $profile->setEmail(' New@Example.test ');
+        self::assertSame('original@example.test', $profile->getBookingEmail());
+        self::assertSame('new@example.test', $profile->getEmail());
+    }
+
     public function testTagsAreCleanedAndDeduplicated(): void
     {
         $profile = new ClientProfile('client@example.test');

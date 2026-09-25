@@ -152,7 +152,7 @@ final class ShopBookingApiController
     public function show(string $publicToken, #[CurrentUser] ShopUser $user): JsonResponse
     {
         $booking = $this->bookingRepository->findOneBy(['publicToken' => $publicToken]);
-        if (!$booking instanceof Booking || 0 !== strcasecmp($booking->getCustomerEmail(), (string) $user->getEmail())) {
+        if (!$booking instanceof Booking || !\App\Service\Customer\CustomerAccountAccess::ownsBooking($booking, (string) $user->getEmail())) {
             return new JsonResponse(['error' => 'Réservation introuvable.'], Response::HTTP_NOT_FOUND);
         }
 

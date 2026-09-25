@@ -87,7 +87,7 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | ShopStripePayment, ShopPaymentTerms, AdminRefundApi | Payment : paiement, webhook, idempotence, remboursement |
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | GiftVoucher |
 | ShopWaitlistApi, AdminWaitlistApi | Waitlist |
-| ShopCustomerAccountApi, AdminClientApi | Customer : compte, accès aux réservations/factures, dossier client ; Booking pour les changements de réservation |
+| ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF conservés pour le ticket dédié |
 | ShopPhysicalOrderApi, AdminPhysicalCommerceApi | Commerce : orchestration commande et catalogue Sylius |
 | AdminInvoiceApi | Invoice : sélection et génération/téléchargement, stockage tenant conservé |
 | AdminDashboardApi | Dashboard |
@@ -129,14 +129,14 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/BookingRulesContractTest | Controller + BookingSlotGuard : remplacé par fixtures Doctrine transactionnelles, résultat disponibilité, erreur 409 booking_rule_violation et conflits avec buffers |
 | Security/AdminApiPermissionContractTest | Subscriber : remplacé par événements RequestEvent et décisions 403/autorisations ; assertion PHP du provisionneur remplacée dans Integration/Tenant/MinimalSyliusInitializerTest par rôle Owner après deux initialisations ; assertion migration conservée |
 | Security/SecurityHardeningContractTest | Rate limiter, upload, headers et configuration JWT/firewall ; converti en appels des listeners/services dans #99 |
-| Controller/ShopCustomerAccountSecurityContractTest | Propriété du client et accès booking ; à convertir lors de Customer/Booking |
+| Controller/ShopCustomerAccountSecurityContractTest | Converti #105 : lectures réelles, absence de profil/réservations, refus de propriété (détail et mutations), commandes et factures payées |
 | Controller/StaffPreferenceContractTest | Converti en #100 : payload réel, ordre, sélection déterministe et validation de créneau ; fixture DB transactionnelle |
 | Controller/WaitlistContractTest | Création, autorisation et migration ; à convertir lors de Waitlist |
 | Controller/InvoiceSecurityContractTest | Listener, propriété du client, configuration PDF ; à convertir lors de Invoice |
 | Controller/GiftVoucherRedemptionContractTest | Converti en #101 : créations commande/cadeau réelles, rejeu, refus, relecture verrouillée, rollback et emails interceptés |
 | Controller/PhysicalCheckoutContractTest | Checkout physique ; à convertir lors de Commerce |
 | Controller/AdminRefundContractTest | Contrôleur, fournisseur, opération, permission et migration ; à convertir lors de Payment |
-| Controller/AdminClientApiContractTest | CRUD et historique du dossier ; à convertir lors de Customer |
+| Controller/AdminClientApiContractTest | Converti #105 : agrégations, historique, filtres/tri, modification du profil et stabilité de la clé email |
 | Controller/ObservabilityContractTest | Contrôleur et HealthChecker ; converti en appels contrôleur/sondes dans #99 |
 | Controller/BookableResourceContractTest | Converti en #104 : routes par attributs, CRUD HTTP/Doctrine, affectations, refus, disponibilité calculée ; verrou de capacité conservé |
 | Controller/CustomerBookingChangesContractTest | Converti en #102 : contrôleurs/services réels, transactions Doctrine isolées, propriété, historique, conflits, rollback et effets après commit |
@@ -750,3 +750,77 @@ Contrôles réellement effectués :
 
 Aucun accès production, envoi email/SMS ou paiement effectué. Les vérifications
 PHPUnit et DI restent à exécuter dans l’environnement de test équipé.
+
+
+## Livraison #105 — fiches clients et lectures de l’espace client
+
+Prérequis présents : tête `a21fb5d` (#104), précédée des tickets #97 à #103.
+Aucun changement de branche, commit, push, déploiement ou activation du suivant.
+
+| Point d’entrée | Responsabilité extraite |
+| --- | --- |
+| `AdminClientApiController::index,findBookingForClient` | `Service/Customer/ClientDirectoryService` : rapprochement email, identifiant hash, historique, achats dédupliqués, statistiques, recherche et tri |
+| `AdminClientApiController::update,normalizeProfile` | `Service/Customer/ClientProfileService` : validation, valeurs par défaut, consentements et persistance ; `InvalidClientProfile` traduit en 422 |
+| `ShopCustomerAccountApiController::profile,bookings,orders,normalizeBooking` | `Service/Customer/CustomerAccountReadService` : projections explicites et lectures par repositories ; requête email dans `BookingRepository::findForCustomerEmail` |
+| `ShopCustomerAccountApiController::ownedBooking,ownsInvoice` | `Service/Customer/CustomerAccountAccess` : résolution du token, propriété email, facture payée ; prédicat réutilisé par le détail legacy et `BookingMutation` avant et après verrou/relecture |
+
+La clé `bookingEmail` reste stable lors de la modification de l’email affiché.
+L’annuaire reste issu des réservations : un profil seul ne crée pas de fiche.
+Les emails y sont trim/lowercase, contrairement à la propriété du compte qui
+conserve strcasecmp sans trim. Les lectures du compte ne consultent pas les
+profils admin et n’exposent pas leurs notes internes ou données médicales.
+Les identifiants admin (hash email), compte (token public), les champs JSON,
+montants en centimes des réservations et conversion /100 des commandes restent
+identiques. Les statistiques newThisMonth/withUpcoming/recurring sont calculées
+avant recherche, seul total suit le filtre. Les achats gardent la déduplication
+par numéro de commande et le remplacement dans l’ordre croissant des créneaux.
+
+Les repositories et l’EntityManager tenant existants sont réutilisés ; aucune
+connexion globale, aucun mapping ni migration. La mise à jour du profil garde
+un seul flush, sans nouvelle transaction. Les frontières de transaction et
+verrous des mutations de réservation restent identiques. Les services sont
+chargés par la ressource DI App existante. Les contrôleurs conservent parsing,
+routes, autorisations et traduction HTTP. Les corps RGPD et génération/réponse
+PDF sont conservés ; seule leur résolution de client/propriété est déléguée.
+
+Tests de comportement ajoutés/adaptés :
+
+- `AdminClientApiContractTest` : regroupement casse/espaces, profil absent,
+  historique trié, achats dédupliqués, calculs avec annulation, statistiques
+  avant filtre, recherche tags/email, tri prochains rendez-vous puis noms,
+  email modifié avec id inchangé, consentement rejoué sans doublon, refus 422
+  sans mutation et 404, profil sans réservation absent de l’annuaire.
+- `ClientProfileTest` : email affiché modifiable sans modification de la clé.
+- `ShopCustomerAccountSecurityContractTest` : liste et détail cohérents,
+  projection exacte des réservations, autre email/espaces exclus, 404 avant
+  détail/annulation/déplacement, route legacy, profil absent et listes vides,
+  commandes lues par identité Customer et ordre décroissant, types direct/gift,
+  factures limitées à l’email du compte et au statut payé.
+- `InvoiceSecurityContractTest` : l’ancienne assertion de propriété dans le
+  texte PHP est remplacée par la couverture comportementale ci-dessus ; la
+  route PDF est vérifiée via ses attributs. Aucun changement du générateur PDF.
+- Les trois suites demandées sont ajoutées à phpunit.business.xml. Les fixtures
+  Doctrine sont annulées par rollback et exigent la base de test jetable décrite
+  plus haut. Les doubles des commandes/factures vérifient lecture/propriété ;
+  ils ne constituent pas un parcours complet firewall/PDF ou une preuve tenant
+  multi-connexion. Les tests de mutations existants restent dans la sélection.
+
+Contrôles réellement effectués :
+
+- Syntaxe PHP des fichiers ajoutés/modifiés et `git diff --check` : succès.
+- `composer dump-autoload --optimize --strict-psr --no-scripts --no-plugins` :
+  succès, 235 classes ; chargement effectif des cinq nouvelles classes : succès.
+- Contrôle PHP autonome limité, sans Doctrine/HTTP : projection du profil,
+  clé stable après changement d’email, tags, trace du consentement et prédicat
+  de propriété (casse acceptée, autre email/espaces refusés) : succès.
+- `timeout 25 composer install --no-interaction --no-scripts --no-plugins
+  --prefer-dist` : installation non aboutie, curl 6, DNS api.github.com
+  indisponible, arrêt à la borne (124).
+- `php vendor/bin/phpunit --configuration phpunit.business.xml --filter
+  'AdminClientApiContractTest|ClientProfileTest|ShopCustomerAccountSecurityContractTest|CustomerBookingChangesContractTest|InvoiceSecurityContractTest'` :
+  non exécutable, vendor/bin/phpunit absent. Aucun scénario PHPUnit validé.
+- `APP_ENV=test php bin/console lint:container` : non exécutable, Symfony Runtime
+  absent ; l’autoload ne valide pas la DI. Les deux dernières commandes restent
+  à exécuter avec les dépendances et la base jetable disponibles.
+
+Aucun accès production, envoi email/SMS, paiement ou déploiement réalisé.

@@ -21,6 +21,9 @@
             <file>tests/Availability/AvailabilityServiceTest.php</file>
             <file>tests/Availability/PlanningSlotPolicyTest.php</file>
             <file>tests/Availability/ServiceDurationTest.php</file>
+            <file>tests/Controller/AdminClientApiContractTest.php</file>
+            <file>tests/Controller/ShopCustomerAccountSecurityContractTest.php</file>
+            <file>tests/Entity/ClientProfileTest.php</file>
             <file>tests/Controller/StaffPreferenceContractTest.php</file>
             <file>tests/Controller/BookableResourceContractTest.php</file>
             <file>tests/Controller/AdminRefundContractTest.php</file>

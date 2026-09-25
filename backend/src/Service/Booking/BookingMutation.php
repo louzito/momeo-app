@@ -15,7 +15,7 @@ final class BookingMutation
 
     public function assertOwner(Booking $booking, string $email): void
     {
-        if (0 !== strcasecmp($booking->getCustomerEmail(), $email)) {
+        if (!\App\Service\Customer\CustomerAccountAccess::ownsBooking($booking, $email)) {
             throw new BookingNotOwned('Réservation introuvable.');
         }
     }

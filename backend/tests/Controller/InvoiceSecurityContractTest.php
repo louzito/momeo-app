@@ -17,14 +17,15 @@ final class InvoiceSecurityContractTest extends TestCase
         self::assertStringContainsString('invoiceFileProvider->provide', $source);
     }
 
-    public function testCustomerDownloadChecksOwnershipAndPaidState(): void
+    public function testCustomerDownloadRouteRemainsProtected(): void
     {
-        $source = file_get_contents(__DIR__.'/../../src/Controller/ShopCustomerAccountApiController.php');
-        self::assertIsString($source);
-        self::assertStringContainsString("#[IsGranted('ROLE_USER')]", $source);
-        self::assertStringContainsString('ownsInvoice($invoice, $user)', $source);
-        self::assertStringContainsString("paymentState() === 'paid'", $source);
-        self::assertStringContainsString("'Cache-Control' => 'private, no-store, max-age=0'", $source);
+        // Ownership and paid state are exercised in ShopCustomerAccountSecurityContractTest.
+        $class = new \ReflectionClass(\App\Controller\ShopCustomerAccountApiController::class);
+        self::assertSame('ROLE_USER', $class->getAttributes(\Symfony\Component\Security\Http\Attribute\IsGranted::class)[0]->newInstance()->attribute);
+        $route = $class->getMethod('invoice')->getAttributes(\Symfony\Component\Routing\Attribute\Route::class)[0]->newInstance();
+        self::assertSame('/invoices/{id}/download', $route->getPath());
+        self::assertSame(['GET'], $route->getMethods());
+        self::assertSame('todatempo_api_shop_account_invoice_download', $route->getName());
     }
 
     public function testPdfAdapterHasNoImplicitDockerService(): void
