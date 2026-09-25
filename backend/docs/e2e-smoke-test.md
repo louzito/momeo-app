@@ -92,3 +92,20 @@ erreur HTTP muette.
 Le test est intégré à `phpunit.business.xml` et s'exécute donc dans les mêmes
 pipelines CI que le reste de la suite métier (`ci.yaml` /
 `SyliusLabs/BuildTestAppAction`), sans étape supplémentaire à ajouter.
+
+
+## Validation finale de refactorisation (#114)
+
+Le 25 septembre 2026, à partir de `6e98ec7`, tentative depuis la racine :
+`php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml
+--filter V1EndToEndSmokeTest`.
+Résultat : **non exécuté**, `backend/vendor/bin/phpunit` absent. L’installation
+Composer échoue sur la résolution DNS de api.github.com. Aucun parcours HTTP,
+webhook, email intercepté ou PDF n’est donc annoncé validé pendant ce ticket.
+Les tests frontend unitaires, production et Playwright n’ont pas démarré :
+Node/npm absents. Les résultats et commandes complets sont dans
+[architecture-custom.md](architecture-custom.md#livraison-114--contrôle-transversal-et-convention-finale).
+
+Rejouer exclusivement avec le tenant demo et MySQL jetables, les transports de
+test et les clés fictives décrits ci-dessus. Le contrôle autonome
+`make -C backend test-architecture` réussit, mais ne remplace pas ce smoke.

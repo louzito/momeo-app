@@ -17,6 +17,7 @@
     </php>
     <testsuites>
         <testsuite name="TodaTempo business integration">
+            <file>tests/Architecture/ArchitectureTest.php</file>
             <file>tests/Availability/AvailabilitySlotGeneratorTest.php</file>
             <file>tests/Availability/AvailabilityServiceTest.php</file>
             <file>tests/Availability/PlanningSlotPolicyTest.php</file>

@@ -39,8 +39,8 @@ existantes lorsqu’elles représentent une véritable frontière externe.
 ## Cartographie source → destination
 
 Tous les chemins de cette table sont relatifs à `backend/src`. La première
-colonne garde les emplacements historiques. Les lignes marquées **fait #98** ou **fait #99**
-utilisent désormais la destination ; les autres extractions restent **à faire**. `Entity`, `Repository` et les adaptateurs indiqués
+colonne garde les emplacements historiques. Les destinations décrivent l’état final
+après #113 ; les numéros indiquent le ticket de réalisation. `Entity`, `Repository` et les adaptateurs indiqués
 « conservé » restent à leur emplacement, avec délégation à compléter si besoin.
 
 | Source actuelle | Destination et responsabilité |
@@ -77,12 +77,12 @@ utilisent désormais la destination ; les autres extractions restent **à faire*
 
 ### Extraction des contrôleurs
 
-Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier sont
-à extraire vers les domaines suivants (sans déplacer leurs routes) :
+Les fichiers `Controller/*` restent les points d’entrée. Les extractions réalisées sont
+réparties dans les domaines suivants (routes conservées) :
 
 | Contrôleurs | Domaine destinataire |
 | --- | --- |
-| ShopBookingApi, AdminBookingApi | Availability / Booking : recherche, allocation, création, déplacement, annulation |
+| ShopBookingApi, AdminBookingApi | `Service/Availability`, `Service/Booking` : disponibilité #100, création #101, mutations #102, projections #113 — **fait** |
 | AdminPlanningApi, AdminBookableResourceApi | `Service/Planning/PlanningManagementService`, `Service/Resource/BookableResourceManagementService` — **fait #104** |
 | AdminStaffMemberApi, AdminStaffTimeOffApi | `Service/Staff/{StaffManagementService,StaffAccountService,StaffTimeOffService}` — **fait #103** |
 | ShopStripePayment, ShopPaymentTerms | `Service/Payment/{StripePaymentService,StripeWebhookProcessor,OrderPaymentTermsService}` : session, annulation, signature, transaction/déduplication, conditions de paiement — **fait #106** |
@@ -95,7 +95,7 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | AdminDashboardApi | `Service/Dashboard/DashboardReadService` : plage, repositories et calculator — **fait #111** |
 | InternalProvisioning, InternalAdminLoginTicket | Adaptateurs HTTP des services Tenant existants ; audit **fait #112** |
 | AdminSso, AdminSsoHandoff | `Service/Tenant/AdminSsoSession` : échange et authentification ; cookies/redirections conservés — **fait #112** |
-| AdminTeamSession | Tenant / Security (hors périmètre #112) |
+| AdminTeamSession | Adaptation de l’utilisateur authentifié en JSON ; permissions déléguées à `Service/Security/TeamPermissions`, aucune mutation — **audité #114** |
 | Observability | `Service/Observability/HealthChecker` : sondes, disponibilité tenant et agrégation ; HTTP conservé — **fait #112** |
 
 ## Invariants de chaque extraction
@@ -139,12 +139,12 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/InvoiceSecurityContractTest | Converti #111 : listener appelé, accès admin/client, refus avant provider, tenant simulé, payloads ; assertions de configuration PDF conservées |
 | Controller/GiftVoucherRedemptionContractTest | Converti en #101 : créations commande/cadeau réelles, rejeu, refus, relecture verrouillée, rollback et emails interceptés |
 | Controller/PhysicalCheckoutContractTest | Converti #109 : appels HTTP directs avec services réels, réponses et erreurs checkout/admin, projection publique ; doubles Doctrine |
-| Controller/AdminRefundContractTest | Contrôleur, fournisseur, opération, permission et migration ; à convertir lors de Payment |
+| Controller/AdminRefundContractTest | Converti #107 : contrôleur/service/fournisseur, rejeu, verrous simulés, erreurs et projections ; assertion migration conservée |
 | Controller/AdminClientApiContractTest | Converti #105 : agrégations, historique, filtres/tri, modification du profil et stabilité de la clé email |
 | Controller/ObservabilityContractTest | Contrôleur et HealthChecker ; converti en appels contrôleur/sondes dans #99 |
 | Controller/BookableResourceContractTest | Converti en #104 : routes par attributs, CRUD HTTP/Doctrine, affectations, refus, disponibilité calculée ; verrou de capacité conservé |
 | Controller/CustomerBookingChangesContractTest | Converti en #102 : contrôleurs/services réels, transactions Doctrine isolées, propriété, historique, conflits, rollback et effets après commit |
-| Email/TransactionalEmailContractTest | Twig, dispatcher, contrôleurs et transports ; à convertir lors de Email (rendu et messages interceptés) |
+| Email/TransactionalEmailContractTest | Converti #110 : rendu Twig et dispatcher réels, messages interceptés ; contrats de configuration conservés |
 | Gdpr/GdprContractTest | Converti #111 : manager/repository réels sur SQLite mémoire, export, effacement, rétention, audit et rollback ; limites MySQL décrites dans la livraison |
 | Controller/AdminPlanningApiContractTest | Complété en #104 : routes nommées, CRUD HTTP/Doctrine, refus sans mutation, calendrier historique, portée collaborateur et filtrage repository |
 
@@ -1497,3 +1497,99 @@ Reprendre PHPUnit et lint:container dans l’environnement équipé. Les tests a
 kernel doivent utiliser exclusivement le MySQL jetable et le registre tenant
 isolé décrits plus haut. Aucun accès aux données de production ni envoi réel
 email/SMS, paiement ou déploiement effectué.
+
+## Livraison #114 — contrôle transversal et convention finale
+
+Tête fournie : `6e98ec7` (#113), historique cumulatif #97 à #113 présent.
+Les livrables fonctionnels précédents sont présents ; leurs limites de validation
+restent applicables. Le checkout fourni est détaché (sortie vide de
+`git branch --show-current`) : aucune branche changée, aucun commit créé.
+
+### Convention exécutable
+
+Depuis la racine : `make -C backend test-architecture`. Ce contrôle PHP autonome
+ne requiert ni vendor, ni kernel, ni base. Il fait aussi partie des suites PHPUnit
+complète et métier via `tests/Architecture/ArchitectureTest.php`.
+
+- Tout fichier PHP hors Controller, Entity, Repository et Service/<domaine> doit
+  figurer dans `tests/Architecture/adapters.php`, avec justification. La liste
+  est fermée par fichier, pas par dossier ; un nouvel adaptateur nécessite revue.
+- Les contrôleurs ne peuvent pas réintroduire transactions, flush/persist/remove,
+  verrous, SQL/query builders, setters d’entités, dépendances DBAL, Stripe,
+  Mailer, Messenger ou Workflow. Les règles analysent les tokens PHP, ignorant
+  commentaires et messages littéraux ; alias d’import et appels multilignes
+  restent contrôlés. Les appels aux cas d’usage restent permis.
+- Les entités ne dépendent pas de services/contrôleurs/HTTP. Les imports de
+  repositories pour le mapping Doctrine et la valeur enum TeamRole sont permis.
+- Les références FQCN des anciens domaines et de Service sont contrôlées dans
+  src/config/tests (PHP/YAML/XML, y compris chaînes et sous-processus). Les noms
+  historiques dans la documentation sont volontairement conservés.
+- 19 fixtures positives/négatives exécutent réellement les règles : dispersion,
+  dépendances fournisseurs aliasées, transaction, SQL, mutation, commentaires,
+  chaînes, mapping, enum et cookies. Ce sont des tests du garde architectural,
+  pas des remplacements des tests de comportement métier.
+
+Exceptions et portée : `ShopBookingApiController` garde son EntityManager pour
+la seule lecture du produit de disponibilité ; les écritures restent interdites.
+Les cookies SSO sont une adaptation HTTP autorisée. Les petites projections
+locales et les appels aux politiques de permission restent autorisés. Le shop
+conserve les deux appels de confirmation après retour transactionnel documentés
+par #101/#110 ; le dispatcher porte l’envoi et ses règles. Le contrôle ne déduit
+pas la sémantique de toute chaîne d’appels : l’ordre commit/confirmation est
+couvert par les contrats existants, et une nouvelle orchestration doit être
+revue. Aucun déplacement supplémentaire ni modification de cet ordre ici.
+Les adaptateurs DBAL/cache/JWT/PDF/images, listeners, commandes, Messenger et
+Twig gardent leurs contrats framework décrits dans les livraisons précédentes.
+
+### Nettoyage et références
+
+267 fichiers PHP source : la convention privilégie Controller/Entity/Service,
+avec Repository et l’inventaire explicite des adaptateurs. Aucun ancien dossier
+métier vide à conserver ; le dossier vide ApiResource a été retiré localement
+(les dossiers vides ne sont pas versionnés). Aucune référence obsolète détectée
+par le contrôle dans src/config/tests. Aucun alias de namespace inutile trouvé.
+`Security/TeamRole.php` est **conservé** pour désérialiser les sessions antérieures
+à #99 : absence d’import actif ne signifie pas absence de données sérialisées.
+Les trois alias DI RefundProvider, SmsProvider et TenantDoctorInterface sont des
+contrats fournisseurs actifs. Les aliases routes/commandes et variables legacy
+sont des contrats publics, pas des alias de refactorisation à supprimer.
+
+### Résultats exacts du 25 septembre 2026
+
+Commandes depuis la racine, PHP 8.5.9, Composer 2.9.5 :
+
+| Commande / contrôle | Résultat observé |
+| --- | --- |
+| `make -C backend test-architecture` | Réussi : 267 sources contrôlées, 19 fixtures réussies |
+| `php -l` sur chaque PHP de `backend/src`, `backend/tests`, et `backend/scripts/*.php` (boucle Python subprocess) | Réussi : 349 fichiers, zéro erreur |
+| `composer dump-autoload --working-dir=backend --optimize --strict-psr --no-scripts --no-plugins` | Réussi : 267 classes ; ne valide pas les dépendances vendor ni la DI |
+| `git diff --check` | Réussi |
+| `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts --no-plugins --prefer-dist` | Installation non aboutie : curl 6, résolution api.github.com impossible, interruption au délai ; lock inchangé |
+| `php backend/vendor/bin/phpunit --configuration backend/phpunit.xml.dist` | Non exécuté : binaire absent (`Could not open input file`) |
+| `APP_ENV=test php backend/bin/console lint:container` | Non exécuté : Symfony Runtime absent |
+| `APP_ENV=test php backend/bin/console doctrine:schema:validate --skip-sync` | Non exécuté : Symfony Runtime absent ; aucune migration appliquée |
+| `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml --filter V1EndToEndSmokeTest` | Non exécuté : binaire absent |
+| `npm --prefix frontend run test:unit` | Non exécuté : npm absent ; node également absent |
+| `npm --prefix frontend run test:production` | Non exécuté : npm absent |
+| `npm --prefix frontend run test:e2e` | Non exécuté : npm absent |
+
+Aucun test PHPUnit/backend HTTP ou frontend n’est annoncé réussi. Les contrats
+publics, droits et isolation tenant sont couverts par les suites conservées
+(voir inventaire), mais leur exécution transversale n’est pas prouvée ici.
+Concurrence et idempotence réelles nécessitent notamment les trois intégrations
+BookingSlotConcurrencyTest, StripeWebhookIdempotencyTest et
+GiftVoucherConcurrentRedemptionTest sur MySQL jetable ; un garde statique ou des
+doubles ne prouvent ni verrou ni unicité inter-processus. Aucun échec métier
+observé à corriger ; ces validations sont indisponibles pour environnement absent.
+
+Pour rejouer : installer les dépendances verrouillées, fournir l’environnement
+isolé décrit dans « Prérequis et exécution sûre », puis exécuter les commandes
+ci-dessus et la suite `php backend/vendor/bin/phpunit --configuration
+backend/phpunit.business.xml`. `doctrine:schema:validate --skip-sync` valide le
+mapping sans synchronisation SQL ; sur la base jetable préparée, lancer aussi
+`APP_ENV=test php backend/bin/console doctrine:schema:validate` pour comparer le
+schéma en lecture seule. Ne pas utiliser de base de production ni appliquer de
+migration pour cette validation. Le smoke nécessite JWT, tenant demo et PDF.
+Installer Node/npm et les dépendances frontend verrouillées pour les trois
+commandes frontend, puis Chromium pour Playwright. Aucun frontend refactorisé,
+aucun email/SMS/paiement réel, aucune mutation de production ni déploiement.

@@ -62,3 +62,9 @@ docker-compose-check:
 	@$(DOCKER_COMPOSE) version >/dev/null 2>&1 || (echo "Please install docker compose binary or set DOCKER_COMPOSE=\"docker-compose\" for legacy binary" && exit 1)
 	@echo "You are using \"$(DOCKER_COMPOSE)\" binary"
 	@echo "Current version is \"$$($(DOCKER_COMPOSE) version)\""
+
+# Read-only architecture gate; no vendor, kernel or database required.
+.PHONY: test-architecture
+test-architecture:
+	php scripts/check-architecture.php
+	php -r '$$verify = require "tests/Architecture/rules-cases.php"; echo $$verify()." architecture cases passed\n";'
