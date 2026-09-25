@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
-use App\Availability\CenterTimeZoneProvider;
+use App\Service\Availability\CenterTimeZoneProvider;
 use App\Controller\ShopStripePaymentController;
-use App\Email\BookingEmailDispatcher;
+use App\Service\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\Channel\Channel;
 use App\Entity\Payment\GatewayConfig;
@@ -14,7 +14,7 @@ use App\Entity\Payment\Payment;
 use App\Entity\Payment\PaymentMethod;
 use App\Entity\StripeWebhookEvent;
 use App\Observability\MetricsRegistry;
-use App\Payment\StripeCheckout;
+use App\Service\Payment\StripeCheckout;
 use App\Tenant\TenantContext;
 use App\Tenant\TenantIdentifierResolver;
 use App\Tenant\TenantRegistry;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\GiftVoucher;
-use App\GiftVoucher\GiftVoucherCodeGenerator;
+use App\Service\GiftVoucher\GiftVoucherCodeGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

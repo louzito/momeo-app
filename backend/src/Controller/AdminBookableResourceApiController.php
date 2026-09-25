@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Entity\BookableResource;
 use App\Entity\Product\Product;
-use App\Planning\PlanningInput;
+use App\Service\Planning\PlanningInput;
 use App\Repository\BookableResourceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;

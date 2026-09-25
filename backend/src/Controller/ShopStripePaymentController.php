@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Email\BookingEmailDispatcher;
+use App\Service\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\Order\Order;
 use App\Entity\Payment\Payment;
 use App\Entity\Payment\PaymentMethod;
 use App\Entity\StripeWebhookEvent;
 use App\Observability\MetricsRegistry;
-use App\Payment\StripeCheckout;
+use App\Service\Payment\StripeCheckout;
 use App\Tenant\TenantContext;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;

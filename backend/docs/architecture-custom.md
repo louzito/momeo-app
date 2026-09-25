@@ -4,9 +4,10 @@
 fournie du dépôt. Référence de l’analyse initiale de la série :
 `06886c65241f43cb4a16ba695ccbd997ad1f0ba4` (`autoticket/todatempo-v1`).
 Branche commune prévue : `autoticket/todatempo-back-refacto-controller-entity-service`.
-Ce ticket ne déplace aucune classe de production. Les destinations ci-dessous
-sont des cibles à réaliser progressivement, pas des namespaces déjà disponibles.
-Aucun ticket suivant n’est activé ; #98 vient après succès de #97.
+Mise à jour AutoTicket #98 : le prérequis #97 est présent dans le commit
+`a45137f`. Les 29 classes/interfaces des 12 domaines ci-dessous sont maintenant
+sous `App\Service`. Les domaines Tenant, Observability, Security et Reminder
+restent réservés à #99. Aucun ticket suivant n’est activé.
 
 ## Responsabilités
 
@@ -37,26 +38,27 @@ existantes lorsqu’elles représentent une véritable frontière externe.
 
 ## Cartographie source → destination
 
-Tous les chemins de cette table sont relatifs à `backend/src`. Statut de toutes
-les extractions : **à faire**. `Entity`, `Repository` et les adaptateurs indiqués
+Tous les chemins de cette table sont relatifs à `backend/src`. La première
+colonne garde les emplacements historiques. Les lignes marquées **fait #98**
+utilisent désormais la destination ; les autres extractions restent **à faire**. `Entity`, `Repository` et les adaptateurs indiqués
 « conservé » restent à leur emplacement, avec délégation à compléter si besoin.
 
 | Source actuelle | Destination et responsabilité |
 | --- | --- |
-| `Availability/{AvailabilitySlotGenerator,CenterTimeZoneProvider,PlanningProvider}` | `Service/Availability/` : créneaux, fuseau du centre, lecture du planning publié |
-| `Booking/{BookingRules,BookingSlotGuard,CustomerBookingChangePolicy,SlotUnavailable}` | `Service/Booking/` : règles, annulation/déplacement, capacité et coordination des verrous |
-| `Planning/PlanningInput` | `Service/Planning/` : normalisation métier du planning ; parsing HTTP dans Controller |
-| `Staff/{StaffEligibility,WorkingHours}` | `Service/Staff/` : compétences, affectation et calendrier |
-| `Resource/ResourceAvailability` | `Service/Resource/` : sélection et capacité des ressources |
-| `Payment/{StripeCheckout,ServicePaymentTerms,ConfiguredRefundProvider,RefundProvider}` | `Service/Payment/` : acompte, transitions Sylius, Stripe, remboursement et interface fournisseur existante |
-| `GiftVoucher/*` | `Service/GiftVoucher/` : création, activation, codes, QR, marquage de commande et envoi |
-| `Email/BookingEmailDispatcher` | `Service/Email/` : préparation et déclenchement des emails transactionnels |
-| `Waitlist/WaitlistNotifier` | `Service/Waitlist/` : sélection et notification des demandes |
+| `Availability/{AvailabilitySlotGenerator,CenterTimeZoneProvider,PlanningProvider}` | `Service/Availability/` : créneaux, fuseau du centre, lecture du planning publié — **fait #98** |
+| `Booking/{BookingRules,BookingSlotGuard,CustomerBookingChangePolicy,SlotUnavailable}` | `Service/Booking/` : règles, annulation/déplacement, capacité et coordination des verrous — **fait #98** |
+| `Planning/PlanningInput` | `Service/Planning/` : normalisation métier du planning ; parsing HTTP dans Controller — **fait #98** |
+| `Staff/{StaffEligibility,WorkingHours}` | `Service/Staff/` : compétences, affectation et calendrier — **fait #98** |
+| `Resource/ResourceAvailability` | `Service/Resource/` : sélection et capacité des ressources — **fait #98** |
+| `Payment/{StripeCheckout,ServicePaymentTerms,ConfiguredRefundProvider,RefundProvider}` | `Service/Payment/` : acompte, transitions Sylius, Stripe, remboursement et interface fournisseur existante — **fait #98** |
+| `GiftVoucher/*` | `Service/GiftVoucher/` : création, activation, codes, QR, marquage de commande et envoi — **fait #98** |
+| `Email/BookingEmailDispatcher` | `Service/Email/` : préparation et déclenchement des emails transactionnels — **fait #98** |
+| `Waitlist/WaitlistNotifier` | `Service/Waitlist/` : sélection et notification des demandes — **fait #98** |
 | `Reminder/ReminderConfiguration`, `Reminder/Sms/*` | `Service/Reminder/` : règles des rappels et frontière SMS existante |
 | `Reminder/Message/SendBookingReminder`, `Reminder/MessageHandler/SendBookingReminderHandler` | Adaptateurs Messenger conservés ; extraire l’orchestration du handler vers `Service/Reminder/` |
-| `Gdpr/{CustomerDataManager,RetentionPolicy}` | `Service/Gdpr/` : export, anonymisation, purge et rétention |
-| `Dashboard/DashboardMetricsCalculator` | `Service/Dashboard/` : calcul des indicateurs |
-| `Configuration/{SiteConfigDocument,ProductionConfigurationValidator}` | `Service/Configuration/` : lecture publiée et validation de configuration |
+| `Gdpr/{CustomerDataManager,RetentionPolicy}` | `Service/Gdpr/` : export, anonymisation, purge et rétention — **fait #98** |
+| `Dashboard/DashboardMetricsCalculator` | `Service/Dashboard/` : calcul des indicateurs — **fait #98** |
+| `Configuration/{SiteConfigDocument,ProductionConfigurationValidator}` | `Service/Configuration/` : lecture publiée et validation de configuration — **fait #98** |
 | `Tenant/{TenantProvisioner,TenantDatabaseCloner,MinimalSyliusInitializer,ProvisionedTenant}` | `Service/Tenant/` : provisionnement et résultat non persisté ; préserver les étapes de reprise |
 | `Tenant/{TenantContext,TenantRegistry,TenantRegistryWriter,TenantIdentifierResolver,TenantUrlGenerator}` | `Service/Tenant/` : identité courante, registre, résolution et URLs ; préserver cache et portée du contexte |
 | `Tenant/{CustomDomainManager,DomainName,DomainOwnershipVerifier,CaddyConfigDumper}` | `Service/Tenant/` : domaines et génération Caddy ; aucune nouvelle entité pour un objet non persisté |
@@ -247,3 +249,53 @@ restent à établir dans l’environnement isolé décrit ci-dessus. Ce sont des
 limitations environnementales documentées, pas des tests déclarés réussis.
 Les tickets suivants doivent conserver cette distinction et compléter leur
 périmètre de tests ainsi que cette cartographie à chaque extraction.
+
+## Livraison et vérifications du ticket #98
+
+Les 29 classes/interfaces ont été déplacées sans modification de leurs corps.
+`RefundProvider`, `SlotUnavailable` et `GiftOrderMarker` restent des objets de
+service non persistés. Aucun alias de compatibilité avec les anciens namespaces
+n’est nécessaire : aucune consommation externe documentée n’a été trouvée.
+L’alias DI de remboursement, les imports, les appels statiques, le Kernel,
+les sous-processus du test de concurrence, les commentaires et le contrôle PHP
+du script de déploiement utilisent les nouveaux noms. Le script n’a pas été
+exécuté. Les adaptateurs et repositories conservent leurs emplacements.
+
+Tests de comportement adaptés aux nouveaux imports : disponibilité, règles,
+configuration publiée, métriques, plannings, horaires, éligibilité, conditions de
+paiement, Stripe et concurrence. La suite métier inclut maintenant aussi les
+tests unitaires pertinents des domaines déplacés. Les lectures PHP remplacées
+par des appels réels couvrent :
+
+- cinq types d’email, destinataire, tenant courant, token encodé et fuseau publié,
+  avec un expéditeur doublé, sans envoi ;
+- limite de modification à la seconde précédant l’échéance et à l’échéance ;
+- filtres actif/réservable/compétence du personnel ;
+- capacité de ressource saturée dans une transaction, avec connexion doublée ;
+- remboursement manuel et refus de Stripe sans configuration, sans réseau.
+
+Un test RGPD supplémentaire vérifie les échéances et compteurs du dry-run,
+l’exclusion des réservations déjà anonymisées et l’absence d’écriture/d’audit.
+Les anciens contrôles statiques RGPD restent complémentaires ; ils ne prouvent
+pas l’isolation réelle de la base. Les assertions de contrôleurs non extraits
+restent à convertir lors de leurs tickets respectifs. Les doubles de connexion
+ne valident pas les verrous MySQL ni les contraintes de concurrence.
+
+Contrôles réellement exécutés dans cet environnement :
+
+| Contrôle | Résultat |
+| --- | --- |
+| Syntaxe PHP sur `src/` et `tests/` | 258 fichiers valides |
+| `composer dump-autoload --optimize --strict-psr --no-scripts --no-plugins` | Succès, 206 classes indexées ; dépendances tierces absentes |
+| `class_exists` / `interface_exists` via cet autoloader pour les 29 symboles déplacés | Succès ; ceci ne constitue pas une compilation du conteneur |
+| Comparaison des 205 fichiers PHP de production avec HEAD, après normalisation des seuls namespaces/imports | Identiques ; aucun changement de logique, mapping, route ou transaction |
+| Recherche des anciens namespaces, y compris formes échappées, et chemins actifs | Aucune référence active restante |
+| `git diff --check` | Succès |
+| `composer install --no-interaction --no-scripts --no-plugins --prefer-dist` | Échec code 1 : DNS `api.github.com` indisponible (curl 6), repli source impossible dans le cache non inscriptible |
+| `php vendor/bin/phpunit --configuration phpunit.business.xml` | Échec code 1 : binaire absent, aucun test exécuté |
+| `php vendor/bin/phpunit --configuration phpunit.xml.dist --filter 'Availability\|Booking\|Configuration\|Dashboard\|Email\|GiftVoucher\|Payment\|Planning\|Resource\|Staff\|Waitlist\|Gdpr\|AdminRefund'` | Échec code 1 : binaire absent, aucun test exécuté |
+| `APP_ENV=test php bin/console lint:container` | Échec code 255 : Symfony Runtime absent ; DI non validée |
+
+Les suites métier et le lint du conteneur restent à exécuter dans l’environnement
+jetable décrit plus haut, une fois les dépendances disponibles. Aucune connexion
+DB, aucun email/SMS/paiement réel, aucune migration ni aucun déploiement effectués.

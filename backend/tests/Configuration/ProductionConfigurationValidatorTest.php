@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Configuration;
 
-use App\Configuration\ProductionConfigurationValidator;
+use App\Service\Configuration\ProductionConfigurationValidator;
 use PHPUnit\Framework\TestCase;
 
 final class ProductionConfigurationValidatorTest extends TestCase

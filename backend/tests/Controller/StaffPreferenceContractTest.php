@@ -26,10 +26,18 @@ final class StaffPreferenceContractTest extends TestCase
 
     public function testStaffEligibilityFiltersOnActiveBookableAndCompetent(): void
     {
-        $source = (string) file_get_contents(__DIR__.'/../../src/Staff/StaffEligibility.php');
-
-        self::assertStringContainsString('isActive()', $source);
-        self::assertStringContainsString('isBookable()', $source);
-        self::assertStringContainsString('getServiceCodes()', $source);
+        $eligible = new \App\Entity\StaffMember();
+        $eligible->setActive(true);
+        $eligible->setBookable(true);
+        $eligible->setServiceCodes(['massage']);
+        $inactive = clone $eligible;
+        $inactive->setActive(false);
+        $notBookable = clone $eligible;
+        $notBookable->setBookable(false);
+        $otherService = clone $eligible;
+        $otherService->setServiceCodes(['other']);
+        self::assertSame([$eligible], \App\Service\Staff\StaffEligibility::forService(
+            [$inactive, $notBookable, $otherService, $eligible], 'massage',
+        ));
     }
 }

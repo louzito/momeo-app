@@ -51,15 +51,53 @@ final class TransactionalEmailContractTest extends TestCase
     public function testBookingTemplateRendersConfigurableFieldsAndTenantUrl(): void
     {
         $template = file_get_contents($this->projectDir.'/templates/email/booking_transactional.html.twig');
-        $dispatcher = file_get_contents($this->projectDir.'/src/Email/BookingEmailDispatcher.php');
         self::assertNotFalse($template);
-        self::assertNotFalse($dispatcher);
-
         foreach (['subject', 'intro', 'signature'] as $field) {
             self::assertStringContainsString("emailCode, '{$field}'", $template);
         }
-        self::assertStringContainsString("tenantContext->getSlug()", $dispatcher);
-        self::assertStringContainsString('/account/booking/%s', $dispatcher);
+    }
+
+    public function testDispatcherSendsEveryTransitionWithCurrentTenantAndEncodedToken(): void
+    {
+        $registry = new \App\Tenant\TenantRegistry(__DIR__.'/../Fixtures/tenants.json', false);
+        $context = new \App\Tenant\TenantContext($registry, new \App\Tenant\TenantIdentifierResolver(), 'demo');
+        $context->setSlug('other');
+        $em = $this->createMock(EntityManagerInterface::class);
+        $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $channel = new \App\Entity\Channel\Channel();
+        $repository->method('findOneBy')->willReturn($channel);
+        $configuration = new \App\Entity\Taxonomy\Taxon();
+        $configuration->getTranslation('en_US')->setDescription('{"schemaVersion":1,"published":{"timezone":"Pacific/Tahiti"}}');
+        $configRepository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $configRepository->method('findOneBy')->willReturn($configuration);
+        $em->method('getRepository')->willReturnMap([
+            [\App\Entity\Channel\Channel::class, $repository],
+            [\App\Entity\Taxonomy\Taxon::class, $configRepository],
+        ]);
+        $sender = $this->createMock(\Sylius\Component\Mailer\Sender\SenderInterface::class);
+        $booking = new \App\Entity\Booking();
+        $booking->setCustomerEmail('customer@example.test');
+        $booking->setPublicToken('token/with space');
+        $codes = [];
+        $sender->expects(self::exactly(5))->method('send')->willReturnCallback(
+            static function (string $code, array $recipients, array $data) use (&$codes, $booking, $channel): void {
+                $codes[] = $code;
+                self::assertSame(['customer@example.test'], $recipients);
+                self::assertSame($code, $data['emailCode']);
+                self::assertSame($booking, $data['booking']);
+                self::assertSame($channel, $data['channel']);
+                self::assertSame('https://example.test/other/account/booking/token%2Fwith%20space', $data['bookingUrl']);
+                self::assertSame('Pacific/Tahiti', $data['centerTimezone']);
+            },
+        );
+        $dispatcher = new \App\Service\Email\BookingEmailDispatcher(
+            $sender, $em, $context, new \App\Service\Availability\CenterTimeZoneProvider($em),
+            new \App\Tenant\TenantUrlGenerator($registry, 'https://example.test'),
+        );
+        foreach (['confirmation', 'paymentConfirmation', 'cancellation', 'rescheduled', 'reminder'] as $method) {
+            $dispatcher->$method($booking);
+        }
+        self::assertSame(['booking_confirmation', 'payment_confirmation', 'booking_cancelled', 'booking_rescheduled', 'booking_reminder'], $codes);
     }
 
     public function testEveryBusinessTransitionDispatchesItsEmail(): void

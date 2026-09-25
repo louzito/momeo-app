@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Availability\CenterTimeZoneProvider;
+use App\Service\Availability\CenterTimeZoneProvider;
 use App\Entity\ReminderDelivery;
 use App\Reminder\Message\SendBookingReminder;
 use App\Reminder\ReminderConfiguration;

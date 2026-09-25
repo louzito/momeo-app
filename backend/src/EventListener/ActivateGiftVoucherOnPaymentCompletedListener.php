@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\EventListener;
 
 use App\Entity\GiftVoucher;
-use App\GiftVoucher\GiftOrderMarker;
-use App\GiftVoucher\GiftVoucherActivator;
+use App\Service\GiftVoucher\GiftOrderMarker;
+use App\Service\GiftVoucher\GiftVoucherActivator;
 use App\Repository\GiftVoucherRepository;
 use Sylius\Component\Core\Model\PaymentInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;

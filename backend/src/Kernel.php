@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Configuration\ProductionConfigurationValidator;
+use App\Service\Configuration\ProductionConfigurationValidator;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 

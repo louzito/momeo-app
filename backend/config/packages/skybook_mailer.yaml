@@ -4,7 +4,7 @@
 # commun @SyliusCore/Email/layout.html.twig, textes editables par centre via
 # App\Twig\SkybookEmailExtension) — seule la source du declenchement differe
 # (pas d'evenement Sylius natif pour "cheque cadeau active" : declenchement
-# manuel dans App\GiftVoucher\GiftVoucherMailer).
+# manuel dans App\Service\GiftVoucher\GiftVoucherMailer).
 sylius_mailer:
     emails:
         booking_confirmation:

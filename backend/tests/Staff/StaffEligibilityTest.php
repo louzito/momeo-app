@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Staff;
 
 use App\Entity\StaffMember;
-use App\Staff\StaffEligibility;
+use App\Service\Staff\StaffEligibility;
 use PHPUnit\Framework\TestCase;
 
 final class StaffEligibilityTest extends TestCase

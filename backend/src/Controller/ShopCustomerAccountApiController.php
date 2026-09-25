@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Booking\BookingSlotGuard;
-use App\Booking\CustomerBookingChangePolicy;
-use App\Booking\SlotUnavailable;
-use App\Email\BookingEmailDispatcher;
-use App\Waitlist\WaitlistNotifier;
+use App\Service\Booking\BookingSlotGuard;
+use App\Service\Booking\CustomerBookingChangePolicy;
+use App\Service\Booking\SlotUnavailable;
+use App\Service\Email\BookingEmailDispatcher;
+use App\Service\Waitlist\WaitlistNotifier;
 use App\Entity\Booking;
 use App\Entity\Planning;
 use App\Entity\Product\Product;
 use App\Entity\StaffMember;
 use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
-use App\Gdpr\CustomerDataManager;
+use App\Service\Gdpr\CustomerDataManager;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
-use App\Resource\ResourceAvailability;
+use App\Service\Resource\ResourceAvailability;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
@@ -301,7 +301,7 @@ final class ShopCustomerAccountApiController extends AbstractController
     private function assertStaffHours(StaffMember $staff, Planning $planning, \DateTimeImmutable $start, \DateTimeImmutable $end): void
     {
         $timezone = new \DateTimeZone($planning->getTimezone());
-        if (!\App\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
+        if (!\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
             throw new SlotUnavailable('Ce créneau est en dehors des horaires du collaborateur ou empiète sur une pause.');
         }
     }

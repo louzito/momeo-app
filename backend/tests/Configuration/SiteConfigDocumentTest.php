@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Configuration;
 
-use App\Configuration\SiteConfigDocument;
+use App\Service\Configuration\SiteConfigDocument;
 use PHPUnit\Framework\TestCase;
 
 final class SiteConfigDocumentTest extends TestCase

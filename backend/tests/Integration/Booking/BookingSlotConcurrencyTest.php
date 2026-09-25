@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Booking;
 
-use App\Booking\BookingSlotGuard;
+use App\Service\Booking\BookingSlotGuard;
 use App\Entity\Booking;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -75,10 +75,10 @@ $booking->setSlotStart(new \DateTimeImmutable($argv[4]));
 $booking->setSlotEnd(new \DateTimeImmutable($argv[5]));
 $connection->beginTransaction();
 try {
-    (new \App\Booking\BookingSlotGuard($connection))->assertAvailable($booking, 1);
+    (new \App\Service\Booking\BookingSlotGuard($connection))->assertAvailable($booking, 1);
     $connection->commit();
     echo 'created';
-} catch (\App\Booking\SlotUnavailable) {
+} catch (\App\Service\Booking\SlotUnavailable) {
     $connection->rollBack();
     echo 'slot_unavailable';
 }

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Availability\AvailabilitySlotGenerator;
-use App\Availability\CenterTimeZoneProvider;
-use App\Availability\PlanningProvider;
-use App\Booking\BookingSlotGuard;
-use App\Booking\BookingRules;
-use App\Booking\SlotUnavailable;
-use App\Email\BookingEmailDispatcher;
+use App\Service\Availability\AvailabilitySlotGenerator;
+use App\Service\Availability\CenterTimeZoneProvider;
+use App\Service\Availability\PlanningProvider;
+use App\Service\Booking\BookingSlotGuard;
+use App\Service\Booking\BookingRules;
+use App\Service\Booking\SlotUnavailable;
+use App\Service\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\GiftVoucher;
 use App\Entity\Order\Order;
@@ -23,9 +23,9 @@ use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
-use App\Payment\ServicePaymentTerms;
-use App\Resource\ResourceAvailability;
-use App\Staff\StaffEligibility;
+use App\Service\Payment\ServicePaymentTerms;
+use App\Service\Resource\ResourceAvailability;
+use App\Service\Staff\StaffEligibility;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -113,7 +113,7 @@ final class ShopBookingApiController
             }
             $matchedStaffCount = 0;
             foreach ($eligibleStaff as $staff) {
-                if (\App\Staff\WorkingHours::contains($staff->getWorkingHours(), $plannedSlot['localStart'], $plannedSlot['end'], $timezone)) {
+                if (\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $plannedSlot['localStart'], $plannedSlot['end'], $timezone)) {
                     $startUtc = $plannedSlot['start'];
                     $endUtc = $plannedSlot['end'];
                     if (!$this->isBlocked($staff, $startUtc, $endUtc, $blocking, $timeOffs)) {
@@ -513,7 +513,7 @@ final class ShopBookingApiController
         }
         $timezone = $this->timeZoneProvider->get();
         $localStart = $start->setTimezone($timezone);
-        if (!\App\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
+        if (!\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
             return 'Ce créneau est en dehors des horaires du collaborateur ou empiète sur une pause.';
         }
         if (($end->getTimestamp() - $start->getTimestamp()) !== $this->serviceDuration($serviceCode) * 60) {

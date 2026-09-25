@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Entity\Booking;
 use App\Entity\ClientProfile;
-use App\Gdpr\CustomerDataManager;
+use App\Service\Gdpr\CustomerDataManager;
 use App\Repository\BookingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;

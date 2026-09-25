@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Entity\WaitlistRequest;
 use App\Repository\WaitlistRequestRepository;
-use App\Waitlist\WaitlistNotifier;
+use App\Service\Waitlist\WaitlistNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

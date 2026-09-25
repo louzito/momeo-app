@@ -22,7 +22,7 @@ use Doctrine\ORM\Mapping as ORM;
  * reste `used` meme au-dela de sa date d'expiration).
  *
  * Code : 10 chiffres, genere serveur — aleatoire non sequentiel, unicite
- * verifiee en base (voir App\GiftVoucher\GiftVoucherCodeGenerator). Le front
+ * verifiee en base (voir App\Service\GiftVoucher\GiftVoucherCodeGenerator). Le front
  * l'affiche groupe (123 456 7890) ; stocke sans espaces.
  *
  * jumpTypeCode/jumpTypeName sont DENORMALISES au moment de l'achat : le

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Availability\CenterTimeZoneProvider;
-use App\Dashboard\DashboardMetricsCalculator;
+use App\Service\Availability\CenterTimeZoneProvider;
+use App\Service\Dashboard\DashboardMetricsCalculator;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;

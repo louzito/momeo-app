@@ -125,7 +125,7 @@ final class AdminStaffMemberApiController
             $serviceCodes,
         ))));
         try {
-            $member->setWorkingHours(\App\Staff\WorkingHours::normalize($payload['workingHours'] ?? $member->getWorkingHours()));
+            $member->setWorkingHours(\App\Service\Staff\WorkingHours::normalize($payload['workingHours'] ?? $member->getWorkingHours()));
         } catch (\InvalidArgumentException $e) {
             return $e->getMessage();
         }

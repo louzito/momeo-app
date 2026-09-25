@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Entity\Planning;
 use App\Entity\StaffMember;
-use App\Planning\PlanningInput;
+use App\Service\Planning\PlanningInput;
 use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use Doctrine\ORM\EntityManagerInterface;

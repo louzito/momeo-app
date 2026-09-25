@@ -15,9 +15,23 @@ final class BookableResourceContractTest extends TestCase
             self::assertStringContainsString('resourceAvailability->choose', $source, $file);
         }
 
-        $guard = (string) file_get_contents(__DIR__.'/../../src/Booking/BookingSlotGuard.php');
-        self::assertStringContainsString('SELECT capacity FROM todatempo_bookable_resource', $guard);
-        self::assertStringContainsString("countOverlap('resource_code'", $guard);
+    }
+
+    public function testResourceCapacityIsEnforcedInsideTheTransaction(): void
+    {
+        $connection = $this->createMock(\Doctrine\DBAL\Connection::class);
+        $connection->method('isTransactionActive')->willReturn(true);
+        $connection->expects(self::once())->method('executeStatement')->with(
+            'INSERT IGNORE INTO momeo_booking_lock (lock_key) VALUES (?)', ['resource:room'],
+        )->willReturn(1);
+        $connection->expects(self::exactly(3))->method('fetchOne')->willReturnOnConsecutiveCalls('resource:room', 2, 2);
+        $booking = new \App\Entity\Booking();
+        $booking->setResourceCode('room');
+        $booking->setSlotStart(new \DateTimeImmutable('2026-10-10T12:00:00Z'));
+        $booking->setSlotEnd(new \DateTimeImmutable('2026-10-10T13:00:00Z'));
+        $this->expectException(\App\Service\Booking\SlotUnavailable::class);
+        $this->expectExceptionMessage('La capacité de la ressource');
+        (new \App\Service\Booking\BookingSlotGuard($connection))->assertAvailable($booking);
     }
 
     public function testAdminCrudAndServiceAssociationRoutesExist(): void

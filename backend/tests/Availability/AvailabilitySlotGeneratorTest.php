@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Availability;
 
-use App\Availability\AvailabilitySlotGenerator;
+use App\Service\Availability\AvailabilitySlotGenerator;
 use PHPUnit\Framework\TestCase;
 
 final class AvailabilitySlotGeneratorTest extends TestCase

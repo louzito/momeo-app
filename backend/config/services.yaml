@@ -66,7 +66,7 @@ services:
             - '../src/Kernel.php'
 
     App\Tenant\TenantDoctorInterface: '@App\Tenant\TenantDoctor'
-    App\Payment\RefundProvider: '@App\Payment\ConfiguredRefundProvider'
+    App\Service\Payment\RefundProvider: '@App\Service\Payment\ConfiguredRefundProvider'
     App\Reminder\Sms\SmsProvider: '@App\Reminder\Sms\DisabledSmsProvider'
 
     App\Observability\HealthChecker:

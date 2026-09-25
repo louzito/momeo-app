@@ -21,12 +21,19 @@ final class AdminRefundContractTest extends TestCase
         self::assertStringContainsString('UNIQUE INDEX uniq_todatempo_refund_key', $migration);
     }
 
-    public function testConfiguredProviderUsesStripeIdempotencyAndSupportsManualRefunds(): void
+    public function testConfiguredProviderSupportsManualRefundsAndRejectsUnconfiguredStripe(): void
     {
-        $provider = file_get_contents(__DIR__.'/../../src/Payment/ConfiguredRefundProvider.php');
-        self::assertStringContainsString("['idempotency_key' => \$idempotencyKey]", $provider);
-        self::assertStringContainsString("'payment_intent' => \$intent", $provider);
-        self::assertStringContainsString("'manual-'.\$idempotencyKey", $provider);
+        $payment = new \App\Entity\Payment\Payment();
+        $method = new \App\Entity\Payment\PaymentMethod();
+        $method->setCode('cash');
+        $payment->setMethod($method);
+        $provider = new \App\Service\Payment\ConfiguredRefundProvider();
+        self::assertInstanceOf(\App\Service\Payment\RefundProvider::class, $provider);
+        self::assertSame(['provider' => 'cash', 'reference' => 'manual-refund-42'], $provider->refund($payment, 100, 'refund-42'));
+        $method->setCode('stripe_web_elements');
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Stripe n’est pas configure pour ce centre.');
+        $provider->refund($payment, 100, 'refund-42');
     }
 
     public function testRefundRouteRequiresFinancePermission(): void

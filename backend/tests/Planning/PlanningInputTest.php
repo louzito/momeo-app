@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Planning;
 
-use App\Planning\PlanningInput;
+use App\Service\Planning\PlanningInput;
 use PHPUnit\Framework\TestCase;
 
 final class PlanningInputTest extends TestCase

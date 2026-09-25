@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\EventListener;
 
-use App\GiftVoucher\GiftOrderMarker;
-use App\GiftVoucher\GiftVoucherCreator;
+use App\Service\GiftVoucher\GiftOrderMarker;
+use App\Service\GiftVoucher\GiftVoucherCreator;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Event\PostUpdateEventArgs;
@@ -16,7 +16,7 @@ use Webmozart\Assert\Assert;
 
 /**
  * Cheques cadeaux reels — creation du GiftVoucher (awaiting_payment) des
- * qu'une commande marquee cadeau (App\GiftVoucher\GiftOrderMarker dans
+ * qu'une commande marquee cadeau (App\Service\GiftVoucher\GiftOrderMarker dans
  * Order::$notes) passe en checkoutState=completed. MEME PATTERN que
  * sylius/invoicing-plugin (Sylius\InvoicingPlugin\EventProducer\OrderPlacedProducer) :
  * postPersist couvre une commande deja completee des sa creation, postUpdate

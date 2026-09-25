@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Gdpr;
 
-use App\Gdpr\RetentionPolicy;
+use App\Service\Gdpr\RetentionPolicy;
 use PHPUnit\Framework\TestCase;
 
 final class RetentionPolicyTest extends TestCase

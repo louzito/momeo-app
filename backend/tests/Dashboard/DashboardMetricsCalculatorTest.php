@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Dashboard;
 
-use App\Dashboard\DashboardMetricsCalculator;
+use App\Service\Dashboard\DashboardMetricsCalculator;
 use App\Entity\Booking;
 use App\Entity\GiftVoucher;
 use App\Entity\Planning;

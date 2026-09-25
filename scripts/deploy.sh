@@ -16,7 +16,7 @@ if [[ "$MODE" != build ]]; then
   # Installer avant Encore : ses paquets Sylius proviennent de vendor/.
   (cd backend && composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader --no-scripts)
   # Valider la configuration avant de modifier les fichiers publiés.
-  (cd backend && php -r 'require "vendor/autoload.php"; (new Symfony\Component\Dotenv\Dotenv())->bootEnv(".env"); (new App\Configuration\ProductionConfigurationValidator())->validate(getcwd());')
+  (cd backend && php -r 'require "vendor/autoload.php"; (new Symfony\Component\Dotenv\Dotenv())->bootEnv(".env"); (new App\Service\Configuration\ProductionConfigurationValidator())->validate(getcwd());')
   (cd backend && corepack yarn install --frozen-lockfile --non-interactive --production=false)
   if [[ "$MODE" == deploy ]]; then
     npm --prefix frontend ci --include=dev

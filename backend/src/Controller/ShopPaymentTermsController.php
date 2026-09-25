@@ -7,7 +7,7 @@ namespace App\Controller;
 use App\Entity\Order\Adjustment;
 use App\Entity\Order\Order;
 use App\Entity\Product\Product;
-use App\Payment\ServicePaymentTerms;
+use App\Service\Payment\ServicePaymentTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;

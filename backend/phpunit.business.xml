@@ -18,6 +18,21 @@
     <testsuites>
         <testsuite name="TodaTempo business integration">
             <file>tests/Availability/AvailabilitySlotGeneratorTest.php</file>
+            <file>tests/Controller/StaffPreferenceContractTest.php</file>
+            <file>tests/Controller/BookableResourceContractTest.php</file>
+            <file>tests/Controller/AdminRefundContractTest.php</file>
+            <file>tests/Controller/CustomerBookingChangesContractTest.php</file>
+            <file>tests/Staff/WorkingHoursTest.php</file>
+            <file>tests/Staff/StaffEligibilityTest.php</file>
+            <file>tests/Resource/BookableResourceTest.php</file>
+            <file>tests/Planning/PlanningInputTest.php</file>
+            <file>tests/Payment/ServicePaymentTermsTest.php</file>
+            <file>tests/Gdpr/RetentionPolicyTest.php</file>
+            <file>tests/Gdpr/CustomerDataManagerTest.php</file>
+            <file>tests/Email/TransactionalEmailContractTest.php</file>
+            <file>tests/Dashboard/DashboardMetricsCalculatorTest.php</file>
+            <file>tests/Configuration/ProductionConfigurationValidatorTest.php</file>
+            <file>tests/Configuration/SiteConfigDocumentTest.php</file>
             <file>tests/Unit/Tenant/TenantContextTest.php</file>
             <file>tests/Integration/Tenant/JwtTenantIsolationTest.php</file>
             <file>tests/Integration/Booking/BookingSlotConcurrencyTest.php</file>

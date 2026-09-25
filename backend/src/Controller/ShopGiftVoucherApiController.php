@@ -6,7 +6,7 @@ namespace App\Controller;
 
 use App\Entity\Booking;
 use App\Entity\GiftVoucher;
-use App\GiftVoucher\GiftVoucherQrCodeGenerator;
+use App\Service\GiftVoucher\GiftVoucherQrCodeGenerator;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;

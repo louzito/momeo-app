@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Payment;
 
-use App\Payment\ServicePaymentTerms;
+use App\Service\Payment\ServicePaymentTerms;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

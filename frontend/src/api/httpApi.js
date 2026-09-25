@@ -900,7 +900,7 @@ export const httpApi = {
   // differences : (a) l'email/adresse de commande sont ceux de l'ACHETEUR
   // (payload.gift.purchaserName/Email), pas du sauteur — le beneficiaire n'a
   // pas de compte a ce stade ; (b) un appel dedie POSE le marqueur cadeau
-  // (App\GiftVoucher\GiftOrderMarker, App\Controller\ShopGiftOrderMarkerController)
+  // (App\Service\GiftVoucher\GiftOrderMarker, App\Controller\ShopGiftOrderMarkerController)
   // AVANT le PATCH .../complete, pour que le listener backend
   // (CreateGiftVoucherOnOrderPlacedListener, sur postUpdate/checkoutState=completed)
   // le lise et cree le GiftVoucher (statut awaiting_payment) au moment meme ou

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Staff;
 
-use App\Staff\WorkingHours;
+use App\Service\Staff\WorkingHours;
 use PHPUnit\Framework\TestCase;
 
 final class WorkingHoursTest extends TestCase

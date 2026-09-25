@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Booking\BookingSlotGuard;
-use App\Booking\SlotUnavailable;
-use App\Email\BookingEmailDispatcher;
+use App\Service\Booking\BookingSlotGuard;
+use App\Service\Booking\SlotUnavailable;
+use App\Service\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\Planning;
 use App\Entity\Product\Product;
@@ -15,8 +15,8 @@ use App\Repository\BookingRepository;
 use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
-use App\Resource\ResourceAvailability;
-use App\Waitlist\WaitlistNotifier;
+use App\Service\Resource\ResourceAvailability;
+use App\Service\Waitlist\WaitlistNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -37,7 +37,7 @@ final class AdminBookingApiController
         private readonly BookingEmailDispatcher $emailDispatcher,
         private readonly ResourceAvailability $resourceAvailability,
         private readonly WaitlistNotifier $waitlistNotifier,
-        private readonly \App\Availability\CenterTimeZoneProvider $timeZoneProvider,
+        private readonly \App\Service\Availability\CenterTimeZoneProvider $timeZoneProvider,
     ) {
     }
 
@@ -84,7 +84,7 @@ final class AdminBookingApiController
             if (!\in_array($serviceCode, $staff->getServiceCodes(), true)) {
                 throw new \DomainException('Ce collaborateur ne réalise pas cette prestation.');
             }
-            if (!\App\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $this->timeZoneProvider->get())) {
+            if (!\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $this->timeZoneProvider->get())) {
                 throw new SlotUnavailable('Ce rendez-vous dépasse une plage disponible ou empiète sur une pause.');
             }
             if ($this->bookingRepository->hasOverlap($staff, $start, $end)) {
@@ -163,7 +163,7 @@ final class AdminBookingApiController
                 $connection->rollBack();
                 return new JsonResponse(['error' => 'Ce collaborateur ne réalise pas cette prestation.'], Response::HTTP_CONFLICT);
             }
-            if (!\App\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $this->timeZoneProvider->get())) {
+            if (!\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $this->timeZoneProvider->get())) {
                 $connection->rollBack();
                 return new JsonResponse(['error' => 'Ce rendez-vous dépasse une plage disponible ou empiète sur une pause.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
             }

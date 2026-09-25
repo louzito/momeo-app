@@ -26,7 +26,7 @@ final class GiftVoucherRedemptionContractTest extends TestCase
     public function testThereIsNoConcurrentRedemptionPathAroundTheAtomicOne(): void
     {
         self::assertFileDoesNotExist(
-            __DIR__.'/../../src/GiftVoucher/GiftVoucherRedeemer.php',
+            __DIR__.'/../../src/Service/GiftVoucher/GiftVoucherRedeemer.php',
             'GiftVoucherRedeemer bypassed the real booking/slot logic (it only flipped the voucher status) and could double-book or leave usageOrderNumber unset if ever called again : it must stay removed.',
         );
 

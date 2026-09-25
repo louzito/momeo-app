@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Booking;
 
-use App\Booking\BookingRules;
+use App\Service\Booking\BookingRules;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Reminder\MessageHandler;
 
-use App\Availability\CenterTimeZoneProvider;
-use App\Email\BookingEmailDispatcher;
+use App\Service\Availability\CenterTimeZoneProvider;
+use App\Service\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
 use App\Entity\ReminderDelivery;
 use App\Reminder\Message\SendBookingReminder;

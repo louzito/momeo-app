@@ -10,7 +10,7 @@ final class GdprContractTest extends TestCase
 {
     public function testOperationsStayTenantScopedIdempotentAndAudited(): void
     {
-        $manager = file_get_contents(__DIR__.'/../../src/Gdpr/CustomerDataManager.php');
+        $manager = file_get_contents(__DIR__.'/../../src/Service/Gdpr/CustomerDataManager.php');
         $command = file_get_contents(__DIR__.'/../../src/Command/GdprPurgeCommand.php');
         self::assertStringContainsString('TenantContext', $manager);
         self::assertStringContainsString("customer_email NOT LIKE 'deleted+%@invalid.local'", $manager);
@@ -21,7 +21,7 @@ final class GdprContractTest extends TestCase
 
     public function testInvoicesAreNotDeletedAndLegalQuestionsAreDocumented(): void
     {
-        $manager = file_get_contents(__DIR__.'/../../src/Gdpr/CustomerDataManager.php');
+        $manager = file_get_contents(__DIR__.'/../../src/Service/Gdpr/CustomerDataManager.php');
         self::assertStringNotContainsString('DELETE FROM sylius_invoicing', $manager);
         $documentation = file_get_contents(__DIR__.'/../../docs/rgpd-retention.md');
         self::assertStringContainsString('Validation juridique requise', $documentation);

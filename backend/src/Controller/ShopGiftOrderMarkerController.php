@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\GiftVoucher\GiftOrderMarker;
+use App\Service\GiftVoucher\GiftOrderMarker;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Pose le marqueur "cheque cadeau" (App\GiftVoucher\GiftOrderMarker) sur le
+ * Pose le marqueur "cheque cadeau" (App\Service\GiftVoucher\GiftOrderMarker) sur le
  * panier en cours de checkout. Pourquoi un endpoint dedie plutot que le PUT
  * standard /shop/orders/{tokenValue} : ce PUT deserialize son body dans le
  * DTO vendor Sylius\Bundle\ApiBundle\Command\Checkout\UpdateCart (email,

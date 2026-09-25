@@ -9,7 +9,7 @@ use App\Entity\Order\Order;
 use App\Entity\Payment\Payment;
 use App\Entity\Payment\RefundOperation;
 use App\Entity\User\AdminUser;
-use App\Payment\RefundProvider;
+use App\Service\Payment\RefundProvider;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;

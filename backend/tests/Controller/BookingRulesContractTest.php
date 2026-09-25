@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
-use App\Booking\BookingSlotGuard;
-use App\Booking\SlotUnavailable;
+use App\Service\Booking\BookingSlotGuard;
+use App\Service\Booking\SlotUnavailable;
 use App\Controller\ShopBookingApiController;
 use App\Entity\Booking;
 use App\Entity\Product\Product;

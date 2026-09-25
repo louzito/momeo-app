@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Gdpr\CustomerDataManager;
+use App\Service\Gdpr\CustomerDataManager;
 use App\Tenant\TenantWorkerGuard;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
