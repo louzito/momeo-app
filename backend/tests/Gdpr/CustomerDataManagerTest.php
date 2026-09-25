@@ -43,7 +43,7 @@ final class CustomerDataManagerTest extends TestCase
         $registry = new TenantRegistry(__DIR__.'/../Fixtures/tenants.json', false);
         $context = new TenantContext($registry, new TenantIdentifierResolver(), 'demo');
         $context->setSlug('demo');
-        $manager = new CustomerDataManager($em, $context, new RetentionPolicy(36, 90, 10));
+        $manager = new CustomerDataManager($em, $context, new RetentionPolicy(36, 90, 10), new \App\Repository\CustomerDataRepository($em));
         self::assertSame(['bookings' => 3, 'waitlistRequests' => 4], $manager->purge(new \DateTimeImmutable('2026-09-25T12:00:00Z'), 'unit-test', true));
     }
 }

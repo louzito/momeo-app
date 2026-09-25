@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
+use App\Service\Invoice\InvoiceAccess;
+use App\Service\Invoice\InvoiceUnavailable;
 use Sylius\InvoicingPlugin\Entity\InvoiceInterface;
-use Sylius\InvoicingPlugin\Provider\InvoiceFileProviderInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,25 +31,14 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class AdminInvoiceApiController
 {
-    public function __construct(
-        #[Autowire(service: 'sylius_invoicing.repository.invoice')]
-        private readonly InvoiceRepositoryInterface $invoiceRepository,
-        #[Autowire(service: 'sylius_invoicing.provider.invoice_file')]
-        private readonly InvoiceFileProviderInterface $invoiceFileProvider,
-        #[Autowire(param: 'sylius_invoicing.pdf_generator.enabled')]
-        private readonly bool $pdfGeneratorEnabled = true,
-    ) {
-    }
+    public function __construct(private readonly InvoiceAccess $invoices) {}
 
     #[Route('/api/v2/admin/invoices', name: 'skybook_api_admin_invoice_index', methods: ['GET'])]
     public function index(Request $request): JsonResponse
     {
         $orderNumber = trim((string) $request->query->get('orderNumber', ''));
 
-        /** @var InvoiceInterface[] $invoices */
-        $invoices = '' !== $orderNumber
-            ? $this->invoiceRepository->findByOrderNumber($orderNumber)
-            : $this->invoiceRepository->findBy([], ['issuedAt' => 'DESC'], 100);
+        $invoices = $this->invoices->forAdmin($orderNumber);
 
         return new JsonResponse([
             'member' => array_map($this->normalize(...), $invoices),
@@ -60,22 +48,17 @@ final class AdminInvoiceApiController
     #[Route('/api/v2/admin/invoices/{id}/download', name: 'skybook_api_admin_invoice_download', methods: ['GET'])]
     public function download(string $id): Response
     {
-        if (!$this->pdfGeneratorEnabled) {
-            return new JsonResponse(['error' => 'Generation PDF desactivee.'], Response::HTTP_NOT_FOUND);
+        try {
+            $pdf = $this->invoices->downloadForAdmin($id);
+        } catch (InvoiceUnavailable $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_NOT_FOUND);
         }
 
-        $invoice = $this->invoiceRepository->find($id);
-        if (!$invoice instanceof InvoiceInterface) {
-            return new JsonResponse(['error' => 'Facture introuvable.'], Response::HTTP_NOT_FOUND);
-        }
-
-        $pdf = $this->invoiceFileProvider->provide($invoice);
-
-        return new Response($pdf->content(), Response::HTTP_OK, [
+        return new Response($pdf['content'], Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
             // inline : permet l'affichage dans un <iframe> cote front
             // (le front force de toute facon le telechargement via blob quand il veut).
-            'Content-Disposition' => sprintf('inline; filename="%s"', basename($pdf->filename())),
+            'Content-Disposition' => sprintf('inline; filename="%s"', $pdf['filename']),
             'Cache-Control' => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
         ]);

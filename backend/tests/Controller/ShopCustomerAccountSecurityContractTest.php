@@ -80,9 +80,16 @@ final class ShopCustomerAccountSecurityContractTest extends KernelTestCase
         self::assertSame(404, $response->getStatusCode());
     }
 
+    public function testMissingInvoiceIsAdaptedToCustomer404(): void
+    {
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('Facture introuvable.');
+        self::getContainer()->get(ShopCustomerAccountApiController::class)->invoice('missing-'.bin2hex(random_bytes(16)), $this->user($this->email));
+    }
+
     public function testOnlyPaidInvoicesOfTheSameEmailAreOwned(): void
     {
-        $access = self::getContainer()->get(\App\Service\Customer\CustomerAccountAccess::class);
+        $access = self::getContainer()->get(\App\Service\Invoice\InvoiceAccess::class);
         foreach ([[$this->email, 'paid', true], [strtoupper($this->email), 'paid', true], ['other-'.$this->email, 'paid', false], [$this->email, 'awaiting_payment', false], [null, 'paid', false]] as [$email, $state, $expected]) {
             $invoice = $this->createMock(\Sylius\InvoicingPlugin\Entity\InvoiceInterface::class);
             $order = $this->createMock(\Sylius\Component\Core\Model\OrderInterface::class);

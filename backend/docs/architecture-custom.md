@@ -56,8 +56,8 @@ utilisent désormais la destination ; les autres extractions restent **à faire*
 | `Waitlist/WaitlistNotifier` | `Service/Waitlist/` : sélection et notification des demandes — **fait #98** |
 | `Reminder/ReminderConfiguration`, `Reminder/Sms/*` | `Service/Reminder/` : règles des rappels et frontière SMS existante — **fait #99** |
 | `Reminder/Message/SendBookingReminder`, `Reminder/MessageHandler/SendBookingReminderHandler` | Adaptateurs Messenger conservés ; orchestration dans `Service/Reminder/ReminderSender` — **fait #99, nom harmonisé #110** |
-| `Gdpr/{CustomerDataManager,RetentionPolicy}` | `Service/Gdpr/` : export, anonymisation, purge et rétention — **fait #98** |
-| `Dashboard/DashboardMetricsCalculator` | `Service/Dashboard/` : calcul des indicateurs — **fait #98** |
+| `Gdpr/{CustomerDataManager,RetentionPolicy}` | `Service/Gdpr/` : façade export/effacement/purge, audit et rétention ; SQL dans `Repository/CustomerDataRepository` — **fait #98, clarifié #111** |
+| `Dashboard/DashboardMetricsCalculator` | `Service/Dashboard/` : calcul des indicateurs — **fait #98** ; orchestration dans `DashboardReadService` — **fait #111** |
 | `Configuration/{SiteConfigDocument,ProductionConfigurationValidator}` | `Service/Configuration/` : lecture publiée et validation de configuration — **fait #98** |
 | `Tenant/{TenantProvisioner,TenantDatabaseCloner,MinimalSyliusInitializer,ProvisionedTenant}` | `Service/Tenant/` : provisionnement et résultat non persisté ; préserver les étapes de reprise — **fait #99** |
 | `Tenant/{TenantContext,TenantRegistry,TenantRegistryWriter,TenantIdentifierResolver,TenantUrlGenerator}` | `Service/Tenant/` : identité courante, registre, résolution et URLs ; préserver cache et portée du contexte — **fait #99** |
@@ -89,10 +89,10 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | AdminRefundApi | `Service/Payment/{RefundService,RefundView}` : orchestration et projection — **fait #107** |
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | `Service/GiftVoucher/{GiftVoucherAccess,GiftVoucherView,GiftOrderMarking}` : accès, projections et marquage — **fait #108** |
 | ShopWaitlistApi, AdminWaitlistApi | `Service/Waitlist/WaitlistManagement` : inscription, liste, désinscription ; `WaitlistNotifier` réutilisé — **fait #110** |
-| ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF conservés pour le ticket dédié |
+| ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF traités dans #111 |
 | ShopPhysicalOrderApi, AdminPhysicalCommerceApi | `Service/Commerce/{PhysicalCheckoutService,PhysicalProductManagementService,PhysicalPreparationService,PhysicalProductReadService}` : remise, catalogue et préparation — **fait #109** |
-| AdminInvoiceApi | Invoice : sélection et génération/téléchargement, stockage tenant conservé |
-| AdminDashboardApi | Dashboard |
+| AdminInvoiceApi, ShopCustomerAccountApi (PDF) | `Service/Invoice/InvoiceAccess` : sélection admin et accès client payé/propriétaire, provider et stockage tenant conservés — **fait #111** |
+| AdminDashboardApi | `Service/Dashboard/DashboardReadService` : plage, repositories et calculator — **fait #111** |
 | InternalProvisioning, InternalAdminLoginTicket, AdminSso, AdminSsoHandoff, AdminTeamSession | Tenant / Security |
 | Observability | Observability |
 
@@ -134,7 +134,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/ShopCustomerAccountSecurityContractTest | Converti #105 : lectures réelles, absence de profil/réservations, refus de propriété (détail et mutations), commandes et factures payées |
 | Controller/StaffPreferenceContractTest | Converti en #100 : payload réel, ordre, sélection déterministe et validation de créneau ; fixture DB transactionnelle |
 | Controller/WaitlistContractTest | Converti #110 : appels HTTP/services réels, consentement strict, validations, inscription/liste/désinscription ; autorisations dans AdminApiPermissionContractTest ; assertion migration conservée |
-| Controller/InvoiceSecurityContractTest | Listener, propriété du client, configuration PDF ; à convertir lors de Invoice |
+| Controller/InvoiceSecurityContractTest | Converti #111 : listener appelé, accès admin/client, refus avant provider, tenant simulé, payloads ; assertions de configuration PDF conservées |
 | Controller/GiftVoucherRedemptionContractTest | Converti en #101 : créations commande/cadeau réelles, rejeu, refus, relecture verrouillée, rollback et emails interceptés |
 | Controller/PhysicalCheckoutContractTest | Converti #109 : appels HTTP directs avec services réels, réponses et erreurs checkout/admin, projection publique ; doubles Doctrine |
 | Controller/AdminRefundContractTest | Contrôleur, fournisseur, opération, permission et migration ; à convertir lors de Payment |
@@ -143,7 +143,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/BookableResourceContractTest | Converti en #104 : routes par attributs, CRUD HTTP/Doctrine, affectations, refus, disponibilité calculée ; verrou de capacité conservé |
 | Controller/CustomerBookingChangesContractTest | Converti en #102 : contrôleurs/services réels, transactions Doctrine isolées, propriété, historique, conflits, rollback et effets après commit |
 | Email/TransactionalEmailContractTest | Twig, dispatcher, contrôleurs et transports ; à convertir lors de Email (rendu et messages interceptés) |
-| Gdpr/GdprContractTest | Manager, commande et documentation ; à convertir lors de Gdpr |
+| Gdpr/GdprContractTest | Converti #111 : manager/repository réels sur SQLite mémoire, export, effacement, rétention, audit et rollback ; limites MySQL décrites dans la livraison |
 | Controller/AdminPlanningApiContractTest | Complété en #104 : routes nommées, CRUD HTTP/Doctrine, refus sans mutation, calendrier historique, portée collaborateur et filtrage repository |
 
 `Unit/Tenant/CustomDomainTest` lit un **fichier généré** Caddy : assertion de sortie
@@ -1202,3 +1202,94 @@ Contrôles non exécutables pour motif environnemental :
   Aucun changement de composer.lock.
 
 Reprendre ces suites et la compilation DI dans l’environnement équipé et isolé.
+
+
+## Livraison #111 — RGPD, factures et tableau de bord
+
+Prérequis #110 présent à la tête fournie `67a8253`, avec les livraisons antérieures.
+Aucune opération Git de branche/commit/push, activation de #112 ou déploiement.
+
+| Point d'entrée / responsabilité | Destination après extraction |
+| --- | --- |
+| `Service/Gdpr/CustomerDataManager` | Façade conservée (export/erase/purge) : normalisation, politiques d'anonymisation, audit et transactions ; aucun SQL embarqué |
+| SQL RGPD et introspection des tables/colonnes optionnelles | `Repository/CustomerDataRepository` : même EntityManager/connexion tenant, lectures, écritures et requêtes de rétention ; noms SQL internes fournis uniquement par la façade |
+| `Service/Gdpr/RetentionPolicy` | Inchangé : seuils, description et exclusion comptable |
+| AdminClientApi, ShopCustomerAccountApi (RGPD), GdprPurgeCommand | Adaptateurs existants de la façade, inchangés ; garde worker tenant et dry-run conservés |
+| AdminInvoiceApi, ShopCustomerAccountApi (PDF) | `Service/Invoice/InvoiceAccess` et `InvoiceUnavailable` : sélection et accès partagé ; HTTP et sérialisation restent dans les contrôleurs |
+| `Service/Customer/CustomerAccountAccess::ownsInvoice` | Déplacé dans `Service/Invoice/InvoiceAccess`, son test de matrice client suit la nouvelle responsabilité |
+| AdminDashboardApi | `Service/Dashboard/DashboardReadService` et `InvalidDashboardRange` : résolution de plage et orchestration des repositories/calculateur existants |
+
+### Invariants conservés
+
+- RGPD : audit export avec les deux flush historiques ; effacement et purge avec
+  audit/flush dans la transaction DBAL et clear après succès. Échec audit : rollback
+  des écritures SQL et propagation. Identifiant sujet haché avec le slug tenant,
+  anonymisation stable pour l'effacement, comptes désactivés, secrets absents des
+  exports, snapshots de facturation exclus des mutations. La purge garde son SQL
+  MySQL, ses seuils stricts et son exclusion des réservations déjà anonymisées.
+  Elle ne tourne pas le public_token, contrairement à erase : comportement existant
+  conservé. Aucun changement aux rétentions, aux migrations ou aux politiques.
+- Factures : pas de filtre payé ajouté côté admin ; contrôle PDF activé avant le
+  lookup uniquement côté admin. Côté client : email insensible à la casse, sans
+  trim, et état paid requis. Même 404 pour absent/non propriétaire/non payé.
+  Le provider Sylius existant reste l'unique accès au PDF, sans chemin utilisateur
+  ni cache de facture dans le service. Connexion tenant, JWT/TeamPermissions,
+  `TenantInvoicePdfStorageFactory` et ses préfixes/cache tenant restent inchangés.
+  Les contrôleurs gardent inline (admin), attachment (client), basename, headers
+  privés/nosniff et leurs traductions HTTP distinctes. Erreurs techniques du
+  provider propagées, non converties en refus métier.
+- Dashboard : mêmes repositories, mêmes données et calculateur inchangé. Fuseau
+  du centre par défaut, jour local, fin exclusive, conversion UTC et limite
+  de 366 jours conservés. Les dates invalides, fuseaux invalides et paramètres
+  non scalaires gardent leur 422 et leurs messages ; pas de restriction nouvelle
+  sur les dates acceptées par DateTimeImmutable.
+- DI : découverte App existante ; attributs des services Sylius et paramètre PDF
+  transférés à InvoiceAccess. Pas de nouvelle connexion ni couche abstraite.
+
+### Tests et contrôles #111
+
+Tests ajoutés/adaptés et inscrits dans `phpunit.business.xml` :
+- GdprContractTest remplace les lectures du source par les vrais manager/repository
+  sur un schéma SQLite `:memory:` créé par chaque test, sans URL applicative.
+  Export normalisé et sans secrets, snapshots comptables, effacement/rejeu,
+  autres clients préservés, audit sans email, rollback sur échec de flush audit,
+  dry-run sans écriture/audit, frontières de rétention/rejeu, tables et colonnes
+  optionnelles absentes, email invalide. L'EntityManager/audit ORM est doublé :
+  le test vérifie l'objet audit et le rollback SQL, pas son mapping Doctrine.
+  Les fonctions CONCAT/SHA2/JSON_ARRAY sont fournies localement pour le SQL de
+  purge ; SQLite ne prouve ni les verrous ni les particularités MySQL/InnoDB.
+- CustomerDataManagerTest (dry-run DBAL doublé) adapté au repository ;
+  RetentionPolicyTest conservé sans changement.
+- InvoiceSecurityContractTest : appels réels service/contrôleur/listener, matrice
+  propriétaire/paiement, refus avant provider, priorité du PDF désactivé, liste
+  admin filtrée/limitée et payloads, erreurs du provider propagées. Le provider
+  est intercepté par une exception témoin : aucun moteur PDF ni email exécuté.
+  Le scénario tenant double le repository selon le contexte : il prouve l'absence
+  de réutilisation d'une facture déjà lue, pas l'isolation DB/stockage réelle.
+  JwtTenantIsolationTest et TenantAdapterIsolationTest restent les contrôles
+  complémentaires du JWT et de la connexion tenant. Adaptateur de stockage intact.
+- ShopCustomerAccountSecurityContractTest : matrice de propriété déplacée avec
+  le service, ajout de la traduction client 404 sur facture absente.
+- DashboardReadServiceTest : contrôleur/services/repositories réels via la fixture
+  AvailabilityTestCase transactionnelle, indicateurs comparés au calculateur,
+  jour de passage DST (23 heures), fuseau explicite, limite 366 jours et erreurs
+  HTTP. DashboardMetricsCalculatorTest conserve ses assertions métier chiffrées.
+
+Contrôles exécutés avec succès : syntaxe PHP des fichiers concernés,
+`git diff --check`, autoload optimisé strict PSR sans scripts/plugins (259 classes),
+chargement des cinq classes ajoutées via l'autoload.
+
+Contrôles non exécutables pour motif environnemental :
+- `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml --filter
+  'Gdpr|CustomerDataManager|RetentionPolicy|InvoiceSecurity|Dashboard|ShopCustomerAccountSecurity|TenantAdapterIsolation|JwtTenantIsolation|AdminApiPermissionContractTest'` :
+  binaire absent. Aucun test PHPUnit exécuté ni annoncé réussi.
+- `APP_ENV=test php backend/bin/console lint:container` : Symfony Runtime absent.
+  La compilation DI n'est pas prouvée par le chargement/autoload des classes.
+- `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts
+  --no-plugins --prefer-dist` : installation non aboutie, résolution de
+  api.github.com impossible (curl 6), arrêt au délai ; lock inchangé.
+
+Reprendre PHPUnit et lint:container dans l'environnement équipé ; les tests avec
+kernel (dashboard, compte client, JWT) doivent utiliser exclusivement l'instance
+MySQL jetable et le registre tenant isolé décrits plus haut. Aucun test sur données
+de production, paiement, email/SMS réel ou déploiement n'a été effectué.

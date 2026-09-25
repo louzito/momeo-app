@@ -13,10 +13,8 @@ use App\Service\Booking\BookingNotOwned;
 use App\Entity\Booking;
 use App\Entity\User\ShopUser;
 use App\Service\Gdpr\CustomerDataManager;
-use Sylius\InvoicingPlugin\Doctrine\ORM\InvoiceRepositoryInterface;
-use Sylius\InvoicingPlugin\Entity\InvoiceInterface;
-use Sylius\InvoicingPlugin\Provider\InvoiceFileProviderInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\Service\Invoice\InvoiceAccess;
+use App\Service\Invoice\InvoiceUnavailable;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,10 +33,7 @@ final class ShopCustomerAccountApiController extends AbstractController
         private readonly CustomerAccountReadService $reads,
         private readonly CustomerAccountAccess $access,
         private readonly CustomerDataManager $customerDataManager,
-        #[Autowire(service: 'sylius_invoicing.repository.invoice')]
-        private readonly InvoiceRepositoryInterface $invoiceRepository,
-        #[Autowire(service: 'sylius_invoicing.provider.invoice_file')]
-        private readonly InvoiceFileProviderInterface $invoiceFileProvider,
+        private readonly InvoiceAccess $invoices,
     ) {
     }
 
@@ -126,16 +121,15 @@ final class ShopCustomerAccountApiController extends AbstractController
     #[Route('/invoices/{id}/download', name: 'todatempo_api_shop_account_invoice_download', methods: ['GET'])]
     public function invoice(string $id, #[CurrentUser] ShopUser $user): Response
     {
-        $invoice = $this->invoiceRepository->find($id);
-        if (!$invoice instanceof InvoiceInterface || !$this->access->ownsInvoice($invoice, $user)) {
-            throw $this->createNotFoundException('Facture introuvable.');
+        try {
+            $pdf = $this->invoices->downloadForCustomer($id, $user);
+        } catch (InvoiceUnavailable $exception) {
+            throw $this->createNotFoundException($exception->getMessage());
         }
 
-        $pdf = $this->invoiceFileProvider->provide($invoice);
-
-        return new Response($pdf->content(), Response::HTTP_OK, [
+        return new Response($pdf['content'], Response::HTTP_OK, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => sprintf('attachment; filename="%s"', basename($pdf->filename())),
+            'Content-Disposition' => sprintf('attachment; filename="%s"', $pdf['filename']),
             'Cache-Control' => 'private, no-store, max-age=0',
             'X-Content-Type-Options' => 'nosniff',
         ]);

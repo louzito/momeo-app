@@ -8,7 +8,6 @@ use App\Entity\Booking;
 use App\Entity\User\ShopUser;
 use App\Repository\BookingRepository;
 use App\Service\Booking\BookingNotOwned;
-use Sylius\InvoicingPlugin\Entity\InvoiceInterface;
 
 final class CustomerAccountAccess
 {
@@ -27,14 +26,5 @@ final class CustomerAccountAccess
             throw new BookingNotOwned('Réservation introuvable.');
         }
         return $booking;
-    }
-
-    public function ownsInvoice(InvoiceInterface $invoice, ShopUser $user): bool
-    {
-        $customerEmail = $invoice->order()->getCustomer()?->getEmail();
-
-        return \is_string($customerEmail)
-            && 0 === strcasecmp($customerEmail, (string) $user->getEmail())
-            && $invoice->paymentState() === 'paid';
     }
 }

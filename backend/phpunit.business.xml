@@ -44,9 +44,11 @@
             <file>tests/Payment/OrderPaymentTermsServiceTest.php</file>
             <file>tests/Payment/StripePaymentServiceTest.php</file>
             <file>tests/Gdpr/RetentionPolicyTest.php</file>
+            <file>tests/Gdpr/GdprContractTest.php</file>
             <file>tests/Gdpr/CustomerDataManagerTest.php</file>
             <file>tests/Email/TransactionalEmailContractTest.php</file>
             <file>tests/Dashboard/DashboardMetricsCalculatorTest.php</file>
+            <file>tests/Dashboard/DashboardReadServiceTest.php</file>
             <file>tests/Configuration/ProductionConfigurationValidatorTest.php</file>
             <file>tests/Configuration/SiteConfigDocumentTest.php</file>
             <file>tests/Unit/Tenant/TenantContextTest.php</file>

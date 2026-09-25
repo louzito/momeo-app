@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Service\Availability\CenterTimeZoneProvider;
-use App\Service\Dashboard\DashboardMetricsCalculator;
-use App\Repository\BookingRepository;
-use App\Repository\GiftVoucherRepository;
-use App\Repository\PlanningRepository;
+use App\Service\Dashboard\DashboardReadService;
+use App\Service\Dashboard\InvalidDashboardRange;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,41 +16,22 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_API_ACCESS')]
 final class AdminDashboardApiController
 {
-    public function __construct(
-        private readonly BookingRepository $bookings,
-        private readonly PlanningRepository $plannings,
-        private readonly GiftVoucherRepository $vouchers,
-        private readonly DashboardMetricsCalculator $calculator,
-        private readonly CenterTimeZoneProvider $timeZoneProvider,
-    ) {}
+    public function __construct(private readonly DashboardReadService $dashboard) {}
 
     #[Route('/overview', name: 'todatempo_api_admin_dashboard_overview', methods: ['GET'])]
     public function overview(Request $request): JsonResponse
     {
         try {
-            $timezone = new \DateTimeZone((string) $request->query->get('timezone', $this->timeZoneProvider->get()->getName()));
-            $today = new \DateTimeImmutable('today', $timezone);
-            $from = new \DateTimeImmutable((string) $request->query->get('from', $today->format('Y-m-d')), $timezone);
-            $to = new \DateTimeImmutable((string) $request->query->get('to', $from->modify('+1 day')->format('Y-m-d')), $timezone);
+            $from = $request->query->has('from') ? (string) $request->query->get('from') : null;
+            $to = $request->query->has('to') ? (string) $request->query->get('to') : null;
+            $timezone = $request->query->has('timezone') ? (string) $request->query->get('timezone') : null;
         } catch (\Throwable) {
             return new JsonResponse(['error' => 'La plage ou le fuseau horaire est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        if ($to <= $from || $to > $from->modify('+366 days')) {
-            return new JsonResponse(['error' => 'La plage doit contenir entre 1 et 366 jours.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        try {
+            return new JsonResponse($this->dashboard->overview($from, $to, $timezone));
+        } catch (InvalidDashboardRange $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
-        $utc = new \DateTimeZone('UTC');
-        $fromUtc = $from->setTimezone($utc);
-        $toUtc = $to->setTimezone($utc);
-        $metrics = $this->calculator->calculate(
-            $this->bookings->findForAdministration(),
-            $this->plannings->findForAdministration(),
-            $this->vouchers->findAll(),
-            $fromUtc,
-            $toUtc,
-            $timezone,
-        );
-
-        return new JsonResponse($metrics + ['range' => ['from' => $from->format(\DateTimeInterface::ATOM), 'to' => $to->format(\DateTimeInterface::ATOM), 'timezone' => $timezone->getName()]]);
     }
 }
