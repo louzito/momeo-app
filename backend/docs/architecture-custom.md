@@ -82,7 +82,8 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | Contrôleurs | Domaine destinataire |
 | --- | --- |
 | ShopBookingApi, AdminBookingApi | Availability / Booking : recherche, allocation, création, déplacement, annulation |
-| AdminPlanningApi, AdminStaffMemberApi, AdminStaffTimeOffApi, AdminBookableResourceApi | Planning / Staff / Resource |
+| AdminPlanningApi, AdminBookableResourceApi | Planning / Resource |
+| AdminStaffMemberApi, AdminStaffTimeOffApi | `Service/Staff/{StaffManagementService,StaffAccountService,StaffTimeOffService}` — **fait #103** |
 | ShopStripePayment, ShopPaymentTerms, AdminRefundApi | Payment : paiement, webhook, idempotence, remboursement |
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | GiftVoucher |
 | ShopWaitlistApi, AdminWaitlistApi | Waitlist |
@@ -596,3 +597,88 @@ Contrôles réellement effectués :
 Les tests ciblés, la concurrence MySQL et la DI restent à exécuter dans
 l’environnement jetable décrit plus haut après installation des dépendances.
 Aucun appel email/SMS/paiement réel ni accès aux données de production.
+
+## Livraison #103 — collaborateurs, comptes et absences
+
+Prérequis présents : tête initiale `991481c` (#102), précédée des commits
+#97 à #101. Aucun changement de branche, commit, activation du ticket suivant
+ou déploiement.
+
+| Point d’entrée | Responsabilité extraite |
+| --- | --- |
+| `AdminStaffMemberApiController::{create,update,hydrate,archive}` | `Service/Staff/StaffManagementService` : normalisation et validation d’un brouillon non géré, application après validation complète, transaction de sauvegarde et archivage |
+| `AdminStaffMemberApiController::{syncAccount,canRemoveOwner}` | `Service/Staff/StaffAccountService` : résolution du compte actif existant, association/dissociation, rôles et dernier propriétaire ; préparation sans mutation puis écriture dans la transaction appelante |
+| `AdminStaffTimeOffApiController::{create,delete}` | `Service/Staff/StaffTimeOffService` : résolution du collaborateur, validation de période, raison et persistance |
+| Erreurs de validation | `Service/Staff/InvalidStaffInput` : erreur métier traduite en 422 avec le message historique |
+
+Les contrôleurs conservent routes, parsing et normalisation JSON. L’adaptateur
+`Security/AdminApiPermissionSubscriber` reste la frontière HTTP : lecture des
+collaborateurs et gestion des absences via Agenda, écriture des collaborateurs
+via Settings (owner uniquement). L’exposition accountEmail/role reste limitée
+à Settings ; les autres rôles reçoivent null. Aucun nouveau compte, mot de
+passe, permission ou champ JSON. `WorkingHours`, `TeamRole` et `TeamPermissions`
+sont réutilisés. Entity et mapping restent inchangés ; aucune migration.
+
+La validation des horaires porte sur une copie non gérée : aucun champ de
+l’original n’est modifié sur un refus. La validation complète du compte précède
+également toute mutation, y compris dans le cas « dissocier un autre compte,
+puis tenter de rétrograder le dernier owner ». Le compte absent/désactivé est
+refusé et aucune création de compte implicite n’est ajoutée. L’archivage garde
+son comportement : active/bookable à false, compte lié et rôle inchangés.
+L’email personnel reste indépendant de l’email du compte ; les valeurs par
+défaut et les règles de remplacement/réaffectation existantes sont conservées.
+
+Les modifications StaffMember/AdminUser sont atomiques. Les mutations de
+compte verrouillent et relisent les comptes du tenant courant dans l’ordre
+id, avant de compter les owners actifs ou de modifier une association. Ce
+verrou sérialise les modifications de comptes par ce service ; il ne prétend
+pas coordonner des écritures externes qui ne suivent pas ce protocole. Les
+requêtes utilisent le même EntityManager tenant-scopé, sans connexion globale.
+Un remplacement libère d’abord la contrainte unique staff_member_id par un
+flush interne ; l’affectation et le flush final restent dans la même
+transaction. Sur exception après début des mutations, rollback puis clear de
+l’EntityManager encore ouvert éliminent les écritures planifiées : les objets
+doivent être rechargés avant une nouvelle tentative. Un refus de validation
+ne vide pas l’EntityManager et laisse les objets d’origine intacts. L’archivage
+et la création/suppression d’absence gardent leur unique flush Doctrine.
+Les services sont découverts par la ressource App existante, sans alias nouveau.
+
+`StaffManagementContractTest` appelle les vrais contrôleurs avec Request et
+vérifie les réponses HTTP/JSON et les effets Doctrine dans une transaction de
+fixture : horaires invalides, pause conservée, email absent/désactivé, rôle
+invalide, dernier owner (dissociation/remplacement/rétrogradation, owner inactif
+non compté), refus sans salissure des entités même après flush ultérieur,
+création avec compte existant, remplacement/dissociation autorisés, échec de
+création et échec au second flush d’un remplacement avec rollback des deux
+entités, archivage, visibilité par rôle et cycle des absences. Les doubles
+injectent seulement les erreurs de stockage et l’identité du lecteur.
+`AdminApiPermissionContractTest` couvre POST/PUT/DELETE collaborateurs et
+GET/POST/DELETE absences pour chaque rôle au niveau du subscriber réel.
+Ces tests ne remplacent pas un parcours navigateur/firewall complet ni une
+preuve de concurrence MySQL à deux processus. La suite business inclut le
+nouveau fichier et conserve TeamPermissionsMatrixTest, TeamPermissionsTest
+et WorkingHoursTest.
+
+Contrôles réellement effectués dans cet environnement :
+
+- `php -l` : succès sur les huit fichiers PHP ajoutés/modifiés.
+- `git diff --check` : succès.
+- `composer dump-autoload --optimize --strict-psr --no-scripts --no-plugins` :
+  succès, 226 classes ; chargement effectif des quatre nouvelles classes : succès.
+- Contrôle PHP autonome : rejet d’horaires invalides sans mutation du
+  collaborateur, pause exclue par WorkingHours et Settings réservé à owner :
+  succès. Ce contrôle limité ne valide ni Doctrine, ni PHPUnit, ni la DI.
+- Installation verrouillée tentée avec `timeout 25 composer install
+  --no-interaction --no-scripts --no-plugins --prefer-dist` : téléchargements
+  en échec curl 6, DNS api.github.com indisponible ; dépendances non installées.
+- `php vendor/bin/phpunit --configuration phpunit.business.xml --filter
+  'StaffManagementContractTest|TeamPermissionsMatrixTest|TeamPermissionsTest|WorkingHoursTest|AdminApiPermissionContractTest'` :
+  non exécutable, vendor/bin/phpunit absent. Aucun scénario PHPUnit annoncé réussi.
+- `APP_ENV=test php bin/console lint:container` : non exécutable, Symfony Runtime
+  absent. La compilation DI n’est pas validée par l’autoload.
+
+Ces deux dernières commandes restent à exécuter après installation des
+dépendances dans l’environnement MySQL jetable décrit plus haut. La fixture
+modifie temporairement les rôles des comptes de cette base de test et annule
+sa transaction ; elle ne doit jamais pointer vers une base de production.
+Aucun accès production, envoi email/SMS, paiement ou déploiement réalisé.

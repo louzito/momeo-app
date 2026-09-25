@@ -25,6 +25,7 @@
             <file>tests/Controller/BookableResourceContractTest.php</file>
             <file>tests/Controller/AdminRefundContractTest.php</file>
             <file>tests/Controller/CustomerBookingChangesContractTest.php</file>
+            <file>tests/Controller/StaffManagementContractTest.php</file>
             <file>tests/Staff/WorkingHoursTest.php</file>
             <file>tests/Staff/StaffEligibilityTest.php</file>
             <file>tests/Resource/BookableResourceTest.php</file>

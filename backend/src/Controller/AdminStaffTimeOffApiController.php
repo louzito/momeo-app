@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\StaffMember;
 use App\Entity\StaffTimeOff;
-use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Staff\StaffTimeOffService;
+use App\Service\Staff\InvalidStaffInput;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,8 +18,7 @@ final class AdminStaffTimeOffApiController
 {
     public function __construct(
         private readonly StaffTimeOffRepository $repository,
-        private readonly StaffMemberRepository $staffRepository,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly StaffTimeOffService $timeOffs,
     ) {
     }
 
@@ -42,27 +40,11 @@ final class AdminStaffTimeOffApiController
     {
         $payload = json_decode($request->getContent(), true);
         $payload = \is_array($payload) ? $payload : [];
-        $staff = $this->staffRepository->find((int) ($payload['staffMemberId'] ?? 0));
-        if (!$staff instanceof StaffMember) {
-            return new JsonResponse(['error' => 'Collaborateur introuvable.'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
         try {
-            $start = new \DateTimeImmutable((string) ($payload['start'] ?? ''));
-            $end = new \DateTimeImmutable((string) ($payload['end'] ?? ''));
-        } catch (\Throwable) {
-            return new JsonResponse(['error' => 'La période est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            $timeOff = $this->timeOffs->create($payload);
+        } catch (InvalidStaffInput $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        if ($end <= $start) {
-            return new JsonResponse(['error' => 'L’heure de fin doit être après le début.'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        $timeOff = new StaffTimeOff();
-        $timeOff->setStaffMember($staff);
-        $timeOff->setStartsAt($start);
-        $timeOff->setEndsAt($end);
-        $timeOff->setReason(mb_substr(trim((string) ($payload['reason'] ?? 'Indisponible')) ?: 'Indisponible', 0, 255));
-        $this->entityManager->persist($timeOff);
-        $this->entityManager->flush();
 
         return new JsonResponse($this->normalize($timeOff), Response::HTTP_CREATED);
     }
@@ -70,8 +52,7 @@ final class AdminStaffTimeOffApiController
     #[Route('/{id<\d+>}', name: 'momeo_api_admin_time_off_delete', methods: ['DELETE'])]
     public function delete(StaffTimeOff $timeOff): Response
     {
-        $this->entityManager->remove($timeOff);
-        $this->entityManager->flush();
+        $this->timeOffs->delete($timeOff);
 
         return new Response(status: Response::HTTP_NO_CONTENT);
     }
