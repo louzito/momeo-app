@@ -67,6 +67,8 @@ final class TransactionalEmailContractTest extends TestCase
         $channel = new \App\Entity\Channel\Channel();
         $repository->method('findOneBy')->willReturn($channel);
         $configuration = new \App\Entity\Taxonomy\Taxon();
+        $configuration->setCurrentLocale('en_US');
+        $configuration->setFallbackLocale('en_US');
         $configuration->getTranslation('en_US')->setDescription('{"schemaVersion":1,"published":{"timezone":"Pacific/Tahiti"}}');
         $configRepository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
         $configRepository->method('findOneBy')->willReturn($configuration);

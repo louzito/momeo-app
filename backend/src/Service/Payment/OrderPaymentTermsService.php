@@ -52,8 +52,8 @@ final class OrderPaymentTermsService
             $adjustment->setType('todatempo_payment_terms');
             $adjustment->setLabel('Solde à régler sur place');
             $adjustment->setAmount($difference);
-            $adjustment->setLocked(true);
             $order->addAdjustment($adjustment);
+            $adjustment->lock();
         }
         foreach ($order->getPayments() as $payment) {
             $payment->setAmount($result['dueNow']);

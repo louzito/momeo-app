@@ -76,8 +76,8 @@ final class ShopCustomerAccountSecurityContractTest extends KernelTestCase
     public function testLegacyDetailAlsoRefusesOtherAccounts(): void
     {
         $booking = $this->bookingFixture($this->email, '+3 days');
-        $this->expectException(NotFoundHttpException::class);
-        self::getContainer()->get(\App\Controller\ShopBookingApiController::class)->show($booking->getPublicToken(), $this->user('other-'.$this->email));
+        $response = self::getContainer()->get(\App\Controller\ShopBookingApiController::class)->show($booking->getPublicToken(), $this->user('other-'.$this->email));
+        self::assertSame(404, $response->getStatusCode());
     }
 
     public function testOnlyPaidInvoicesOfTheSameEmailAreOwned(): void
@@ -85,8 +85,7 @@ final class ShopCustomerAccountSecurityContractTest extends KernelTestCase
         $access = self::getContainer()->get(\App\Service\Customer\CustomerAccountAccess::class);
         foreach ([[$this->email, 'paid', true], [strtoupper($this->email), 'paid', true], ['other-'.$this->email, 'paid', false], [$this->email, 'awaiting_payment', false], [null, 'paid', false]] as [$email, $state, $expected]) {
             $invoice = $this->createMock(\Sylius\InvoicingPlugin\Entity\InvoiceInterface::class);
-            // PHPUnit generates the correctly typed order double from InvoiceInterface.
-            $order = $invoice->order();
+            $order = $this->createMock(\Sylius\Component\Core\Model\OrderInterface::class);
             $order->method('getCustomer')->willReturn($email === null ? null : $this->user($email)->getCustomer());
             $invoice->method('order')->willReturn($order);
             $invoice->method('paymentState')->willReturn($state);

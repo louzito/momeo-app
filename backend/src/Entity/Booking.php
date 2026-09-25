@@ -166,9 +166,9 @@ class Booking
     public function getCustomerNotes(): ?string { return $this->customerNotes; }
     public function setCustomerNotes(?string $value): void { $this->customerNotes = $value; }
     public function getSlotStart(): \DateTimeImmutable { return $this->slotStart; }
-    public function setSlotStart(\DateTimeImmutable $value): void { $this->slotStart = $value; }
+    public function setSlotStart(\DateTimeImmutable $value): void { $this->slotStart = $value->setTimezone(new \DateTimeZone('UTC')); }
     public function getSlotEnd(): \DateTimeImmutable { return $this->slotEnd; }
-    public function setSlotEnd(\DateTimeImmutable $value): void { $this->slotEnd = $value; }
+    public function setSlotEnd(\DateTimeImmutable $value): void { $this->slotEnd = $value->setTimezone(new \DateTimeZone('UTC')); }
     public function getOrderNumber(): ?string { return $this->orderNumber; }
     public function setOrderNumber(?string $value): void { $this->orderNumber = $value; }
     public function getVoucherCode(): ?string { return $this->voucherCode; }

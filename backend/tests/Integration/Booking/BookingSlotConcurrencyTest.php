@@ -109,6 +109,7 @@ PHP;
             'planning_code' => $planningCode, 'customer_first_name' => 'Test', 'customer_last_name' => $suffix,
             'customer_email' => $suffix.'@example.test', 'slot_start' => $start->format('Y-m-d H:i:s'),
             'slot_end' => $end->format('Y-m-d H:i:s'), 'options' => '[]', 'currency_code' => 'EUR',
+            'change_history' => '[]',
             'created_at' => '2035-01-01 00:00:00', 'updated_at' => '2035-01-01 00:00:00',
         ]);
     }

@@ -145,7 +145,7 @@ final class CustomerBookingChangesContractTest extends \App\Tests\Availability\A
         $replay = $customer->cancel($this->reservation->getPublicToken(), $this->user());
         self::assertSame(409, $replay->getStatusCode());
         self::assertSame('change_deadline_passed', json_decode($replay->getContent(), true)['code']);
-        self::assertSame($history, $this->reservation->getChangeHistory());
+        self::assertEquals($history, $this->reservation->getChangeHistory());
     }
 
     public static function callers(): iterable
@@ -363,6 +363,8 @@ final class CustomerBookingChangesContractTest extends \App\Tests\Availability\A
         $em = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
         $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
         $config = new \App\Entity\Taxonomy\Taxon();
+        $config->setCurrentLocale('en_US');
+        $config->setFallbackLocale('en_US');
         $config->getTranslation('en_US')->setDescription('null');
         $repository->method('findOneBy')->willReturn($config);
         $em->method('getRepository')->willReturn($repository);

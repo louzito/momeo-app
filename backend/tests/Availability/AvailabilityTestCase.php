@@ -31,6 +31,10 @@ abstract class AvailabilityTestCase extends KernelTestCase
         $this->start = (new \DateTimeImmutable('tomorrow', new \DateTimeZone('Europe/Paris')))->modify('+1 day')->setTime(12, 0);
 
         $product = new Product();
+        $product->setCurrentLocale('en_US');
+        $product->setFallbackLocale('en_US');
+        $product->setName('Contract');
+        $product->setSlug($this->serviceCode);
         $product->setCode($this->serviceCode);
         $product->setEnabled(true);
         $this->entityManager->persist($product);
@@ -42,6 +46,8 @@ abstract class AvailabilityTestCase extends KernelTestCase
         $staff->setWorkingHours([strtolower($this->start->format('l')) => [['start' => '00:00', 'end' => '23:59']]]);
         $this->entityManager->persist($staff);
         $planning = new Taxon();
+        $planning->setCurrentLocale('en_US');
+        $planning->setFallbackLocale('en_US');
         $planning->setCode($this->planningCode);
         $planning->setEnabled(true);
         $planning->getTranslation('en_US')->setName($this->planningCode);
@@ -74,6 +80,8 @@ abstract class AvailabilityTestCase extends KernelTestCase
         $taxon = $this->entityManager->getRepository(Taxon::class)->findOneBy(['code' => 'todatempo_config']);
         if (!$taxon instanceof Taxon) {
             $taxon = new Taxon();
+            $taxon->setCurrentLocale('en_US');
+            $taxon->setFallbackLocale('en_US');
             $taxon->setCode('todatempo_config');
             $taxon->getTranslation('en_US')->setName('Contract configuration');
             $taxon->getTranslation('en_US')->setSlug('contract-configuration');

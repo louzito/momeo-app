@@ -14,8 +14,11 @@ final class ProductionConfigurationValidatorTest extends TestCase
     /** @var array<string, string> */
     private array $validEnvironment;
 
+    private array $originalServer;
+
     protected function setUp(): void
     {
+        $this->originalServer = $_SERVER;
         $this->projectDir = sys_get_temp_dir().'/skybook-config-'.bin2hex(random_bytes(6));
         mkdir($this->projectDir.'/config/jwt', 0777, true);
         mkdir($this->projectDir.'/config/encryption', 0777, true);
@@ -55,10 +58,7 @@ final class ProductionConfigurationValidatorTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (array_keys($this->validEnvironment) as $name) {
-            unset($_SERVER[$name], $_ENV[$name]);
-            putenv($name);
-        }
+        $_SERVER = $this->originalServer;
 
         $files = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($this->projectDir, \FilesystemIterator::SKIP_DOTS),
