@@ -104,10 +104,9 @@ final class TransactionalEmailContractTest extends TestCase
     {
         $shop = file_get_contents($this->projectDir.'/src/Controller/ShopBookingApiController.php');
         // Admin mutation delivery is exercised by CustomerBookingChangesContractTest.
-        $stripe = file_get_contents($this->projectDir.'/src/Controller/ShopStripePaymentController.php');
+        // StripePaymentContractTest exercises signed payment delivery after commit and replay suppression.
 
         self::assertSame(2, substr_count((string) $shop, 'emailDispatcher->confirmation($booking)'));
-        self::assertStringContainsString('emailDispatcher->paymentConfirmation($booking)', (string) $stripe);
     }
 
     public function testMailerDeliveryUsesRetryableMessengerTransport(): void

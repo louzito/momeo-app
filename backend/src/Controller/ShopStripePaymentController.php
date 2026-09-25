@@ -4,19 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Service\Email\BookingEmailDispatcher;
-use App\Entity\Booking;
-use App\Entity\Order\Order;
-use App\Entity\Payment\Payment;
-use App\Entity\Payment\PaymentMethod;
-use App\Entity\StripeWebhookEvent;
-use App\Service\Observability\MetricsRegistry;
-use App\Service\Payment\StripeCheckout;
-use App\Service\Tenant\TenantContext;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
-use Stripe\Exception\SignatureVerificationException;
-use Stripe\Webhook;
+use App\Service\Payment\PaymentNotFound;
+use App\Service\Payment\RejectedStripeWebhook;
+use App\Service\Payment\StripePaymentService;
+use App\Service\Payment\StripeSessionUnavailable;
+use App\Service\Payment\StripeWebhookProcessor;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,11 +18,8 @@ use Symfony\Component\Routing\Attribute\Route;
 final class ShopStripePaymentController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly StripeCheckout $checkout,
-        private readonly BookingEmailDispatcher $emailDispatcher,
-        private readonly MetricsRegistry $metrics,
-        private readonly TenantContext $tenantContext,
+        private readonly StripePaymentService $payments,
+        private readonly StripeWebhookProcessor $webhooks,
     ) {}
 
     #[Route('/checkout-session', name: 'todatempo_stripe_checkout_session', methods: ['POST'])]
@@ -38,130 +27,35 @@ final class ShopStripePaymentController
     {
         $data = json_decode($request->getContent(), true);
         $data = \is_array($data) ? $data : [];
-        $order = $this->entityManager->getRepository(Order::class)->findOneBy(['tokenValue' => (string) ($data['orderToken'] ?? '')]);
-        $booking = $this->entityManager->getRepository(Booking::class)->findOneBy(['publicToken' => (string) ($data['bookingToken'] ?? '')]);
-        if (!$order instanceof Order || !$booking instanceof Booking || $booking->getOrderNumber() !== $order->getNumber()) {
-            return new JsonResponse(['error' => 'Commande ou réservation introuvable.'], Response::HTTP_NOT_FOUND);
-        }
-
-        $payment = $this->payment($order, (int) ($data['paymentId'] ?? 0));
-        $method = $payment?->getMethod();
-        if (!$payment instanceof Payment || !$method instanceof PaymentMethod || $method->getCode() !== 'stripe_web_elements') {
-            return new JsonResponse(['error' => 'Le paiement Stripe est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-        if ($order->getTotal() <= 0 || $payment->getAmount() !== $order->getTotal() || $booking->getAmount() !== $order->getTotal()) {
-            return new JsonResponse(['error' => 'Le montant du paiement ne correspond pas à la réservation.'], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
         try {
-            $successUrl = $this->returnUrl($request, (string) ($data['successUrl'] ?? ''));
-            $cancelUrl = $this->returnUrl($request, (string) ($data['cancelUrl'] ?? ''));
-            $session = $this->checkout->createSession($order, $payment, $booking, $method->getGatewayConfig()?->getConfig() ?? [], $successUrl, $cancelUrl);
+            return new JsonResponse($this->payments->session($data, $request->getHost()), Response::HTTP_CREATED);
+        } catch (PaymentNotFound $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_NOT_FOUND);
         } catch (\DomainException|\InvalidArgumentException $exception) {
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\Throwable) {
-            return new JsonResponse(['error' => 'Stripe est momentanément indisponible. Réessayez.'], Response::HTTP_BAD_GATEWAY);
+        } catch (StripeSessionUnavailable $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_BAD_GATEWAY);
         }
-
-        return new JsonResponse($session, Response::HTTP_CREATED);
     }
 
     #[Route('/cancel/{bookingToken<[0-9a-f]{32}>}', name: 'todatempo_stripe_cancel', methods: ['POST'])]
     public function cancel(string $bookingToken): JsonResponse
     {
-        $booking = $this->entityManager->getRepository(Booking::class)->findOneBy(['publicToken' => $bookingToken]);
-        $order = $booking instanceof Booking ? $this->entityManager->getRepository(Order::class)->findOneBy(['number' => $booking->getOrderNumber()]) : null;
-        $payment = $order instanceof Order ? $this->payment($order) : null;
-        if (!$booking instanceof Booking || !$payment instanceof Payment) {
-            return new JsonResponse(['error' => 'Paiement introuvable.'], Response::HTTP_NOT_FOUND);
+        try {
+            return new JsonResponse($this->payments->cancel($bookingToken));
+        } catch (PaymentNotFound $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_NOT_FOUND);
         }
-        if ($booking->getPaymentState() !== 'paid') {
-            $this->checkout->cancel($payment, $booking);
-            $this->entityManager->flush();
-        }
-
-        return new JsonResponse(['status' => $booking->getPaymentState()]);
     }
 
     #[Route('/webhook/{tenant<[a-z0-9][a-z0-9-]{0,62}>}', name: 'todatempo_stripe_webhook', methods: ['POST'])]
     public function webhook(Request $request): JsonResponse
     {
-        $method = $this->entityManager->getRepository(PaymentMethod::class)->findOneBy(['code' => 'stripe_web_elements', 'enabled' => true]);
-        $secret = trim((string) ($method?->getGatewayConfig()?->getConfig()['webhook_secret_key'] ?? ''));
-        if ($secret === '') {
-            $this->metrics->increment('webhook_failed', $this->tenantContext->getSlug());
-            return new JsonResponse(['error' => 'Webhook Stripe non configuré.'], Response::HTTP_SERVICE_UNAVAILABLE);
-        }
         try {
-            $event = Webhook::constructEvent($request->getContent(), (string) $request->headers->get('Stripe-Signature'), $secret);
-        } catch (\UnexpectedValueException|SignatureVerificationException) {
-            $this->metrics->increment('webhook_failed', $this->tenantContext->getSlug());
-            return new JsonResponse(['error' => 'Signature Stripe invalide.'], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse($this->webhooks->process($request->getContent(), (string) $request->headers->get('Stripe-Signature')));
+        } catch (RejectedStripeWebhook $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], $exception->getCode() === RejectedStripeWebhook::NOT_CONFIGURED
+                ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_BAD_REQUEST);
         }
-        $this->metrics->increment('webhook_received', $this->tenantContext->getSlug());
-
-        $connection = $this->entityManager->getConnection();
-        $connection->beginTransaction();
-        $this->entityManager->persist(new StripeWebhookEvent($event->id, $event->type));
-        try {
-            // Claim the event before any workflow side effect. The unique index
-            // serialises concurrent deliveries as well as later replays.
-            $this->entityManager->flush();
-        } catch (UniqueConstraintViolationException) {
-            $connection->rollBack();
-            return new JsonResponse(['received' => true, 'replayed' => true]);
-        }
-
-        $object = $event->data->object;
-        $metadata = $object->metadata ?? null;
-        $payment = $metadata ? $this->entityManager->find(Payment::class, (int) ($metadata->payment_id ?? 0)) : null;
-        $booking = $metadata ? $this->entityManager->getRepository(Booking::class)->findOneBy(['publicToken' => (string) ($metadata->booking_token ?? '')]) : null;
-        $paymentCompleted = false;
-        if ($payment instanceof Payment && $booking instanceof Booking) {
-            if ($event->type === 'checkout.session.completed' && ($object->payment_status ?? null) === 'paid') {
-                $details = $payment->getDetails();
-                $details['stripe_payment_intent'] = (string) ($object->payment_intent ?? '');
-                $payment->setDetails($details);
-                $this->checkout->complete($payment, $booking);
-                $paymentCompleted = true;
-            } elseif ($event->type === 'checkout.session.expired') {
-                $this->checkout->cancel($payment, $booking);
-            } elseif ($event->type === 'checkout.session.async_payment_failed') {
-                $this->checkout->fail($payment, $booking);
-                $this->metrics->increment('reservation_failed', $this->tenantContext->getSlug());
-            }
-        }
-
-        try {
-            $this->entityManager->flush();
-            $connection->commit();
-        } catch (\Throwable $exception) {
-            $connection->rollBack();
-            $this->metrics->increment('webhook_failed', $this->tenantContext->getSlug());
-            throw $exception;
-        }
-
-        if ($paymentCompleted && $booking instanceof Booking) {
-            $this->emailDispatcher->paymentConfirmation($booking);
-        }
-
-        return new JsonResponse(['received' => true]);
-    }
-
-    private function payment(Order $order, int $id = 0): ?Payment
-    {
-        foreach ($order->getPayments() as $candidate) {
-            if ($candidate instanceof Payment && ($id === 0 || $candidate->getId() === $id)) return $candidate;
-        }
-        return null;
-    }
-
-    private function returnUrl(Request $request, string $url): string
-    {
-        $parts = parse_url($url);
-        if (!\is_array($parts) || !isset($parts['scheme'], $parts['host']) || !\in_array($parts['scheme'], ['http', 'https'], true) || strcasecmp($parts['host'], $request->getHost()) !== 0) {
-            throw new \InvalidArgumentException('URL de retour Stripe invalide.');
-        }
-        return $url;
     }
 }

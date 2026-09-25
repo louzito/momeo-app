@@ -84,7 +84,8 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | ShopBookingApi, AdminBookingApi | Availability / Booking : recherche, allocation, création, déplacement, annulation |
 | AdminPlanningApi, AdminBookableResourceApi | `Service/Planning/PlanningManagementService`, `Service/Resource/BookableResourceManagementService` — **fait #104** |
 | AdminStaffMemberApi, AdminStaffTimeOffApi | `Service/Staff/{StaffManagementService,StaffAccountService,StaffTimeOffService}` — **fait #103** |
-| ShopStripePayment, ShopPaymentTerms, AdminRefundApi | Payment : paiement, webhook, idempotence, remboursement |
+| ShopStripePayment, ShopPaymentTerms | `Service/Payment/{StripePaymentService,StripeWebhookProcessor,OrderPaymentTermsService}` : session, annulation, signature, transaction/déduplication, conditions de paiement — **fait #106** |
+| AdminRefundApi | Payment : remboursement — à extraire au ticket dédié |
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | GiftVoucher |
 | ShopWaitlistApi, AdminWaitlistApi | Waitlist |
 | ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF conservés pour le ticket dédié |
@@ -824,3 +825,84 @@ Contrôles réellement effectués :
   à exécuter avec les dépendances et la base jetable disponibles.
 
 Aucun accès production, envoi email/SMS, paiement ou déploiement réalisé.
+
+
+## Livraison #106 — paiements Stripe et traitement du webhook
+
+Prérequis présents : tête `883c41f` (#105), précédée des tickets #97 à #104.
+Aucun changement de branche, commit, push, déploiement ou activation du suivant.
+
+| Point d’entrée | Responsabilité extraite |
+| --- | --- |
+| `ShopStripePaymentController::session,cancel,payment,returnUrl` | `Service/Payment/StripePaymentService` : résolution commande/réservation/paiement, contrôle des montants, hôte autorisé des retours, création de session via StripeCheckout, annulation |
+| `ShopStripePaymentController::webhook` | `Service/Payment/StripeWebhookProcessor` : configuration tenant, signature, revendication unique de StripeWebhookEvent, rapprochement metadata, transitions, transaction, métriques et email après commit |
+| `ShopPaymentTermsController` | `Service/Payment/OrderPaymentTermsService` : sélection de prestation, calcul via ServicePaymentTerms, ajustement verrouillé, montant des paiements et rejeu |
+
+Les contrôleurs conservent les attributs Route, parsing JSON, extraction du corps
+brut et de Stripe-Signature, hôte HTTP et traduction des erreurs. PaymentNotFound,
+StripeSessionUnavailable et RejectedStripeWebhook expriment les erreurs du domaine ;
+leurs statuts HTTP sont choisis uniquement dans le contrôleur. Les erreurs fournisseur
+restent converties en 502 uniquement autour de la création de session.
+Les trois services sont découverts par la ressource DI App existante.
+StripeCheckout et ServicePaymentTerms, déjà déplacés en #98, sont réutilisés sans
+modification. Aucune entité, migration, connexion, autorisation ou route ajoutée.
+
+Invariants conservés : centimes et arrondi de l’acompte, devise de commande en
+minuscules chez Stripe, clé fournisseur `todatempo-order-{number}`, comparaison
+insensible à la casse de l’hôte de retour, montant identique entre commande,
+paiement et réservation avant création. Les metadata et payloads restent identiques.
+Le webhook revendique l’event_id unique avant toute transition ; le rejeu annule
+la transaction et retourne received/replayed sans notification. La confirmation
+nécessite checkout.session.completed signé avec payment_status=paid et part après
+commit. L’annulation HTTP d’une réservation déjà payée reste sans effet.
+
+Cette extraction conserve aussi les limites historiques : les contrôles de montant
+sont à la création de session ; le webhook rapproche les metadata sans nouvelle
+validation du montant Stripe. StripeCheckout met à jour la réservation même lorsque
+le workflow refuse une transition ; un événement d’expiration/échec tardif peut donc
+modifier une réservation payée. Les scénarios hors ordre caractérisent ce résultat,
+sans introduire une nouvelle politique de transitions. La déduplication existante
+porte sur event_id, pas sur des événements distincts pour le même paiement.
+Les périmètres try/catch et transactions sont conservés, y compris le rollback sur
+échec du flush final/commit. Aucun verrou supplémentaire n’a été ajouté.
+
+Tests de comportement ajoutés/adaptés :
+
+- StripePaymentContractTest : appels HTTP directs aux nouveaux services, vrai HMAC
+  Stripe, sept scénarios existants conservés ; livraison réussie suivie du même
+  événement (une transition et un email), événements hors ordre avec workflow
+  refusant la transition, échec de commit avec rollback et absence d’email.
+- StripePaymentServiceTest : montants incohérents, paiement non associé, URL étrangère,
+  relative ou schéma interdit ; création répétée avec centimes/devise/URLs/clé
+  d’idempotence inchangés, état pending jusqu’au webhook ; annulation pending/paid,
+  erreurs 404 et fournisseur 502. Le transport HTTP Stripe est remplacé par un double,
+  jamais un appel réel ; le client statique est restauré en finally.
+- OrderPaymentTermsServiceTest : acompte fixe/plafonné/pourcentage, full/none,
+  ajustement verrouillé unique après rejeu, montant des paiements et payload,
+  commande finalisée, absence ou multiplicité de prestation et règle invalide
+  sans mutation. ServicePaymentTermsTest conserve les cas de calcul purs.
+- StripeWebhookIdempotencyTest reste la preuve de contrainte unique MySQL existante.
+  Les doubles du contrat webhook ne prétendent pas prouver la concurrence réelle.
+- L’assertion textuelle Stripe de TransactionalEmailContractTest est remplacée par
+  la couverture comportementale de StripePaymentContractTest (email après commit,
+  absence sur rejeu/échec). Les deux nouvelles suites sont incluses dans business.
+
+Contrôles réellement effectués :
+
+- Syntaxe PHP des services, contrôleurs et tests concernés : succès.
+- `git diff --check` : succès.
+- `composer dump-autoload --optimize --strict-psr --no-scripts --no-plugins` :
+  succès, 241 classes ; chargement effectif des six nouvelles classes : succès.
+- Contrôle PHP autonome des calculs : cinq cas valides en centimes et cinq refus
+  invalides/négatifs réussis. Ce contrôle ne valide ni HTTP, ni Doctrine, ni Stripe.
+- Installation Composer tentée avec limite de 25 secondes, sans scripts/plugins :
+  non aboutie, curl 6, résolution DNS de api.github.com impossible.
+- `php vendor/bin/phpunit --configuration phpunit.xml.dist --filter
+  'StripeWebhookIdempotencyTest|StripePaymentContractTest|StripePaymentServiceTest|ServicePaymentTermsTest|OrderPaymentTermsServiceTest'` :
+  non exécutable, vendor/bin/phpunit absent. Aucun test PHPUnit annoncé réussi.
+- `APP_ENV=test php bin/console lint:container` : non exécutable, Symfony Runtime
+  absent. L’autoload ne valide pas la compilation du conteneur.
+
+Les vérifications PHPUnit et DI restent à exécuter avec les dépendances installées ;
+le test d’intégration exige la base MySQL jetable et le registre tenant isolé décrits
+plus haut. Aucun accès production, envoi email/SMS ou paiement effectué.
