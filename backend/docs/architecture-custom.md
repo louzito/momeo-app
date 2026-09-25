@@ -55,7 +55,7 @@ utilisent désormais la destination ; les autres extractions restent **à faire*
 | `Email/BookingEmailDispatcher` | `Service/Email/` : préparation et déclenchement des emails transactionnels — **fait #98** |
 | `Waitlist/WaitlistNotifier` | `Service/Waitlist/` : sélection et notification des demandes — **fait #98** |
 | `Reminder/ReminderConfiguration`, `Reminder/Sms/*` | `Service/Reminder/` : règles des rappels et frontière SMS existante — **fait #99** |
-| `Reminder/Message/SendBookingReminder`, `Reminder/MessageHandler/SendBookingReminderHandler` | Adaptateurs Messenger conservés ; orchestration dans `Service/Reminder/BookingReminderSender` — **fait #99** |
+| `Reminder/Message/SendBookingReminder`, `Reminder/MessageHandler/SendBookingReminderHandler` | Adaptateurs Messenger conservés ; orchestration dans `Service/Reminder/ReminderSender` — **fait #99, nom harmonisé #110** |
 | `Gdpr/{CustomerDataManager,RetentionPolicy}` | `Service/Gdpr/` : export, anonymisation, purge et rétention — **fait #98** |
 | `Dashboard/DashboardMetricsCalculator` | `Service/Dashboard/` : calcul des indicateurs — **fait #98** |
 | `Configuration/{SiteConfigDocument,ProductionConfigurationValidator}` | `Service/Configuration/` : lecture publiée et validation de configuration — **fait #98** |
@@ -69,6 +69,7 @@ utilisent désormais la destination ; les autres extractions restent **à faire*
 | `Security/{TeamPermissions,TeamPermission,TeamRole}` | Politique dans `Service/Security/` ; enums gardés près de la politique, références Entity à mettre à jour ensemble — **fait #99** |
 | `Security/{ImageUploadValidator,SensitiveEndpointRateLimiter}` | Validation métier dans `Service/Security/` ; intégration Request/RateLimiter conservée dans les listeners HTTP — **fait #99** |
 | `Security/{AdminApiPermissionSubscriber,HttpSecurityHeadersSubscriber}` | Adaptateurs HTTP conservés : sélection de permission, rejet et en-têtes — **fait #99** |
+| `Command/ScheduleBookingRemindersCommand` | Adaptateur CLI conservé ; sélection, déduplication et publication dans `Service/Reminder/ReminderScheduler` — **fait #110** |
 | `Command/*`, `EventListener/*`, `Twig/SkybookEmailExtension` | Adaptateurs conservés ; cas d’usage dans les services de leur domaine |
 | `Entity/*`, dont Booking, BookingLock, StripeWebhookEvent, GiftVoucher, RefundOperation, AdminUser et extensions Sylius | Conservé : mapping, état persistant, invariants locaux ; aucune migration de table induite par le rangement |
 | `Repository/*` | Conservé : accès persistants et requêtes tenant-scopées |
@@ -87,7 +88,7 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | ShopStripePayment, ShopPaymentTerms | `Service/Payment/{StripePaymentService,StripeWebhookProcessor,OrderPaymentTermsService}` : session, annulation, signature, transaction/déduplication, conditions de paiement — **fait #106** |
 | AdminRefundApi | `Service/Payment/{RefundService,RefundView}` : orchestration et projection — **fait #107** |
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | `Service/GiftVoucher/{GiftVoucherAccess,GiftVoucherView,GiftOrderMarking}` : accès, projections et marquage — **fait #108** |
-| ShopWaitlistApi, AdminWaitlistApi | Waitlist |
+| ShopWaitlistApi, AdminWaitlistApi | `Service/Waitlist/WaitlistManagement` : inscription, liste, désinscription ; `WaitlistNotifier` réutilisé — **fait #110** |
 | ShopCustomerAccountApi, AdminClientApi | `Service/Customer/{ClientDirectoryService,ClientProfileService,CustomerAccountReadService,CustomerAccountAccess}` : annuaire, profils, lectures et propriété — **fait #105** ; mutations Booking faites #102 ; RGPD/PDF conservés pour le ticket dédié |
 | ShopPhysicalOrderApi, AdminPhysicalCommerceApi | `Service/Commerce/{PhysicalCheckoutService,PhysicalProductManagementService,PhysicalPreparationService,PhysicalProductReadService}` : remise, catalogue et préparation — **fait #109** |
 | AdminInvoiceApi | Invoice : sélection et génération/téléchargement, stockage tenant conservé |
@@ -132,7 +133,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Security/SecurityHardeningContractTest | Rate limiter, upload, headers et configuration JWT/firewall ; converti en appels des listeners/services dans #99 |
 | Controller/ShopCustomerAccountSecurityContractTest | Converti #105 : lectures réelles, absence de profil/réservations, refus de propriété (détail et mutations), commandes et factures payées |
 | Controller/StaffPreferenceContractTest | Converti en #100 : payload réel, ordre, sélection déterministe et validation de créneau ; fixture DB transactionnelle |
-| Controller/WaitlistContractTest | Création, autorisation et migration ; à convertir lors de Waitlist |
+| Controller/WaitlistContractTest | Converti #110 : appels HTTP/services réels, consentement strict, validations, inscription/liste/désinscription ; autorisations dans AdminApiPermissionContractTest ; assertion migration conservée |
 | Controller/InvoiceSecurityContractTest | Listener, propriété du client, configuration PDF ; à convertir lors de Invoice |
 | Controller/GiftVoucherRedemptionContractTest | Converti en #101 : créations commande/cadeau réelles, rejeu, refus, relecture verrouillée, rollback et emails interceptés |
 | Controller/PhysicalCheckoutContractTest | Converti #109 : appels HTTP directs avec services réels, réponses et erreurs checkout/admin, projection publique ; doubles Doctrine |
@@ -1121,3 +1122,83 @@ Contrôles non exécutables dans cet environnement :
 Reprendre PHPUnit et lint:container dans l’environnement équipé, puis les
 contrôles transactionnels et tenant sur base jetable isolée. Aucun test avec
 base de production, paiement, email/SMS réel ou déploiement n’a été effectué.
+
+
+## Livraison #110 — rappels, notifications et liste d’attente
+
+Prérequis #97 à #109 présents dans l’historique ; tête fournie `78d7bc4`.
+Aucune opération Git de branche/commit/push, activation de #111 ou déploiement.
+
+- `ReminderScheduler` reprend exactement la sélection par canal/délai, le calcul
+  dans le fuseau du centre puis UTC, la fenêtre minimale d’une minute, la
+  déduplication, persist/flush et publication. La commande ne garde que les
+  options, le code retour et le texte CLI. Nom `todatempo:reminders:schedule`,
+  option `--window` (défaut 10), configuration et cron inchangés.
+- `BookingReminderSender`, extrait en #99, devient `ReminderSender` sans
+  modifier son algorithme. Le handler conserve son attribut Messenger et le
+  message sérialisé `App\Reminder\Message\SendBookingReminder` avec deliveryId.
+  Le dispatcher email et les fournisseurs SMS sont réutilisés. Les erreurs
+  marquent la tentative puis remontent à Messenger ; fournisseur désactivé,
+  absence de consentement/téléphone et réservation annulée restent skipped.
+- `WaitlistManagement` porte disponibilité du produit, création/persistance,
+  liste triée et désinscription publique/admin. Les contrôleurs gardent routes,
+  parsing, validation de forme/consentement, traduction 404/422 et projections.
+  Le notifier existant reste directement appelé par l’adaptateur admin.
+- Entités, repositories, contraintes uniques, transactions, connexion tenant,
+  autorisations, transports/retries et liens ne changent pas. Les emails et
+  notifications d’annulation restent après le commit de BookingMutation dans
+  BookingLifecycle. Aucun envoi n’est déplacé vers une transaction.
+
+### Portée de l’idempotence conservée
+
+Les rejeux séquentiels ne republient pas une livraison déjà enregistrée et ne
+renvoient pas un rappel sent/skipped. Une erreur fournisseur est retentable ;
+WaitlistNotifier retire la notification en échec avant de propager l’erreur.
+Les clés uniques et la gestion du conflit concurrent Waitlist restent intactes.
+Cette extraction n’ajoute ni verrou distribué ni outbox : elle ne corrige pas
+les fenêtres historiques entre flush/publication ou succès distant/flush local.
+Un crash à ces frontières ne bénéficie pas d’une garantie exactly-once.
+
+### Tests et contrôles #110
+
+Tests de comportement ajoutés/adaptés et inscrits dans phpunit.business.xml :
+- ReminderSchedulerTest : réservation confirmée/annulée, configuration avec
+  délai dupliqué, livraison persistée avant publication, second passage sans
+  message supplémentaire, nom CLI, option et sortie.
+- ReminderSenderTest (ancien BookingReminderSenderTest) : message historique
+  sérialisé, email/SMS répété, fournisseur désactivé, erreur répétée et reprise
+  réussie, consentement absent, téléphone absent, annulation.
+- WaitlistContractTest : consentement littéral, période/email invalides, produit
+  absent/désactivé, normalisation, payloads 201 et liste admin, token inconnu et
+  désinscription répétée publique/admin. L’assertion de migration unique reste.
+- WaitlistNotifierTest : fournisseur intercepté, suppression après erreur,
+  reprise puis rejeu sans double envoi, lien de désinscription distinct par
+  inscription, tenant courant dans les URLs, exclusion après désinscription.
+- TransactionalEmailContractTest conserve les cinq appels réels au dispatcher
+  avec tenant/URL et ajoute le canal absent sans envoi. L’ancienne assertion
+  textuelle des confirmations shop est remplacée ; leurs appels après commit
+  sont déjà exercés par GiftVoucherRedemptionContractTest et les contrats booking.
+- AdminApiPermissionContractTest couvre aussi POST notify/unsubscribe pour les
+  rôles existants. WaitlistRequestTest et ReminderMessengerTest conservés ;
+  CustomerBookingChangesContractTest conserve la preuve de l’ordre commit/envoi.
+
+Les nouveaux tests avec Doctrine utilisent AvailabilityTestCase et sa transaction
+rollbackée : exécution uniquement sur MySQL jetable avec registre tenant isolé,
+selon les instructions plus haut. Sender et bus sont interceptés ; aucune
+connexion de test à la production ni email/SMS réel n’a été déclenché.
+
+Contrôles réellement exécutés :
+- Syntaxe PHP des fichiers concernés ; git diff --check : succès.
+- `composer dump-autoload --working-dir=backend --optimize --strict-psr --no-scripts --no-plugins` :
+  succès, 254 classes. Chargement effectif des trois services extraits : succès.
+
+Contrôles non exécutables pour motif environnemental :
+- `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml --filter 'Reminder|TransactionalEmailContractTest|Waitlist|CustomerBookingChangesContractTest|AdminApiPermissionContractTest'` :
+  binaire absent, aucun test PHPUnit exécuté ni annoncé réussi.
+- `APP_ENV=test php backend/bin/console lint:container` : Symfony Runtime absent,
+  compilation DI non vérifiée. L’autoload ne remplace pas ce contrôle.
+- `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts --no-plugins --prefer-dist` :
+  installation non aboutie (curl 6/7, api.github.com inaccessible).
+  Aucun changement de composer.lock.
+
+Reprendre ces suites et la compilation DI dans l’environnement équipé et isolé.

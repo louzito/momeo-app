@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\Product\Product;
 use App\Entity\WaitlistRequest;
-use App\Repository\WaitlistRequestRepository;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Waitlist\WaitlistManagement;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/v2/shop/waitlist')]
 final class ShopWaitlistApiController
 {
-    public function __construct(private readonly EntityManagerInterface $entityManager, private readonly WaitlistRequestRepository $repository) {}
+    public function __construct(private readonly WaitlistManagement $waitlist) {}
 
     #[Route('', name: 'todatempo_shop_waitlist_create', methods: ['POST'])]
     public function create(Request $httpRequest): JsonResponse
@@ -33,22 +31,16 @@ final class ShopWaitlistApiController
         if ($serviceCode === '' || $firstName === '' || $lastName === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false || $end <= $start) {
             return new JsonResponse(['error' => 'La prestation, une période valide et vos coordonnées sont obligatoires.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $serviceCode]);
-        if (!$product instanceof Product || !$product->isEnabled()) return new JsonResponse(['error' => 'Cette prestation n’est pas disponible.'], Response::HTTP_NOT_FOUND);
-        $entry = new WaitlistRequest();
-        $entry->setServiceCode($serviceCode); $entry->setServiceName(mb_substr(trim((string) $product->getName()) ?: $serviceCode, 0, 255));
-        $entry->setCustomerFirstName($firstName); $entry->setCustomerLastName($lastName); $entry->setCustomerEmail($email);
-        $entry->setPeriodStart($start); $entry->setPeriodEnd($end);
-        $this->entityManager->persist($entry); $this->entityManager->flush();
+        $entry = $this->waitlist->subscribe($serviceCode, $firstName, $lastName, $email, $start, $end);
+        if ($entry === null) return new JsonResponse(['error' => 'Cette prestation n’est pas disponible.'], Response::HTTP_NOT_FOUND);
         return new JsonResponse(['id' => $entry->getId(), 'status' => $entry->getStatus(), 'message' => 'Inscription enregistrée. Aucune réservation ne sera créée automatiquement.'], Response::HTTP_CREATED);
     }
 
     #[Route('/{token<[0-9a-f]{64}>}/unsubscribe', name: 'todatempo_shop_waitlist_unsubscribe', methods: ['POST'])]
     public function unsubscribe(string $token): JsonResponse
     {
-        $entry = $this->repository->findOneBy(['unsubscribeToken' => $token]);
+        $entry = $this->waitlist->unsubscribeByToken($token);
         if (!$entry instanceof WaitlistRequest) return new JsonResponse(['error' => 'Inscription introuvable.'], Response::HTTP_NOT_FOUND);
-        $entry->unsubscribe(); $this->entityManager->flush();
         return new JsonResponse(['status' => $entry->getStatus()]);
     }
 }

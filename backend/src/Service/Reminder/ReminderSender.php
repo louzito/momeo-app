@@ -12,7 +12,7 @@ use App\Service\Reminder\Sms\SmsProvider;
 use App\Service\Reminder\Sms\SmsProviderDisabled;
 use Doctrine\ORM\EntityManagerInterface;
 
-final readonly class BookingReminderSender
+final readonly class ReminderSender
 {
     public function __construct(
         private EntityManagerInterface $entityManager,

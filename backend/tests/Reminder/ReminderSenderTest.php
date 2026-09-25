@@ -10,7 +10,7 @@ use App\Reminder\Message\SendBookingReminder;
 use App\Reminder\MessageHandler\SendBookingReminderHandler;
 use App\Service\Availability\CenterTimeZoneProvider;
 use App\Service\Email\BookingEmailDispatcher;
-use App\Service\Reminder\BookingReminderSender;
+use App\Service\Reminder\ReminderSender;
 use App\Service\Reminder\Sms\SmsProvider;
 use App\Service\Reminder\Sms\SmsProviderDisabled;
 use App\Service\Tenant\TenantContext;
@@ -22,7 +22,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Sylius\Component\Mailer\Sender\SenderInterface;
 
-final class BookingReminderSenderTest extends TestCase
+final class ReminderSenderTest extends TestCase
 {
     public static function outcomes(): iterable
     {
@@ -30,6 +30,8 @@ final class BookingReminderSenderTest extends TestCase
         yield 'sent and replayed' => ['sent', 1];
         yield 'disabled provider' => ['disabled', 1];
         yield 'provider failure retried' => ['error', 2];
+        yield 'provider recovery' => ['recovered', 2];
+        yield 'missing phone' => ['no_phone', 0];
         yield 'cancelled booking' => ['cancelled', 0];
         yield 'no consent' => ['no_consent', 0];
     }
@@ -43,12 +45,12 @@ final class BookingReminderSenderTest extends TestCase
         $booking->setStatus($outcome === 'cancelled' ? Booking::STATUS_CANCELLED : Booking::STATUS_CONFIRMED);
         $booking->setCustomerEmail('customer@example.test');
         $booking->setPublicToken('token');
-        $booking->setCustomerPhone('+33600000000');
+        $booking->setCustomerPhone($outcome === 'no_phone' ? null : '+33600000000');
         $booking->setSmsReminderConsent($outcome !== 'no_consent');
         $delivery = new ReminderDelivery($booking, $outcome === 'email' ? 'email' : 'sms', 24);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::exactly(2))->method('find')->with(ReminderDelivery::class, 42)->willReturn($delivery);
-        $em->expects(self::exactly($outcome === 'error' ? 2 : 1))->method('flush');
+        $em->expects(self::exactly(\in_array($outcome, ['error', 'recovered'], true) ? 2 : 1))->method('flush');
         // Local repositories only; no database is opened.
         $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
         $repository->method('findOneBy')->willReturn(new \App\Entity\Channel\Channel());
@@ -62,6 +64,12 @@ final class BookingReminderSenderTest extends TestCase
         $expectation = $sms->expects(self::exactly($outcome === 'email' ? 0 : $attempts))->method('send');
         if ($outcome === 'disabled') {
             $expectation->willThrowException(new SmsProviderDisabled('disabled'));
+        } elseif ($outcome === 'recovered') {
+            $calls = 0;
+            $expectation->willReturnCallback(static function () use (&$calls): string {
+                if (++$calls === 1) throw new \RuntimeException('provider failed');
+                return 'provider-42';
+            });
         } elseif ($outcome === 'error') {
             $expectation->willThrowException(new \RuntimeException('provider failed'));
         } elseif ($attempts > 0 && $outcome !== 'email') {
@@ -77,7 +85,7 @@ final class BookingReminderSenderTest extends TestCase
         }
         $timezone = new CenterTimeZoneProvider($em);
         $emails = new BookingEmailDispatcher($mail, $em, $context, $timezone, new TenantUrlGenerator($registry, 'https://example.test'));
-        $handler = new SendBookingReminderHandler(new BookingReminderSender($em, $emails, $sms, $timezone));
+        $handler = new SendBookingReminderHandler(new ReminderSender($em, $emails, $sms, $timezone));
         // Literal payload from before #99: never derive its class name from the new service.
         $message = unserialize('O:40:"App\\Reminder\\Message\\SendBookingReminder":1:{s:10:"deliveryId";i:42;}');
         self::assertInstanceOf(SendBookingReminder::class, $message);
@@ -90,12 +98,12 @@ final class BookingReminderSenderTest extends TestCase
                 $handler($message);
                 self::assertNotSame('error', $outcome);
             } catch (\RuntimeException $exception) {
-                self::assertSame('error', $outcome);
+                self::assertContains($outcome, ['error', 'recovered']);
                 self::assertSame('provider failed', $exception->getMessage());
             }
         }
         self::assertSame($attempts, $delivery->getAttempts());
-        self::assertSame(match ($outcome) { 'sent', 'email' => ReminderDelivery::STATUS_SENT, 'error' => ReminderDelivery::STATUS_ERROR, default => ReminderDelivery::STATUS_SKIPPED }, $delivery->getStatus());
-        self::assertSame($outcome === 'sent' ? 'provider-42' : null, $delivery->getProviderReference());
+        self::assertSame(match ($outcome) { 'sent', 'email', 'recovered' => ReminderDelivery::STATUS_SENT, 'error' => ReminderDelivery::STATUS_ERROR, default => ReminderDelivery::STATUS_SKIPPED }, $delivery->getStatus());
+        self::assertSame(\in_array($outcome, ['sent', 'recovered'], true) ? 'provider-42' : null, $delivery->getProviderReference());
     }
 }

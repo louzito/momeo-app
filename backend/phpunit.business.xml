@@ -57,7 +57,11 @@
             <file>tests/Unit/Tenant/AdminSsoHandoffTest.php</file>
             <file>tests/Command/TenantDoctorCommandTest.php</file>
             <file>tests/Reminder/ReminderMessengerTest.php</file>
-            <file>tests/Reminder/BookingReminderSenderTest.php</file>
+            <file>tests/Reminder/ReminderSenderTest.php</file>
+            <file>tests/Reminder/ReminderSchedulerTest.php</file>
+            <file>tests/Controller/WaitlistContractTest.php</file>
+            <file>tests/Waitlist/WaitlistNotifierTest.php</file>
+            <file>tests/Entity/WaitlistRequestTest.php</file>
             <file>tests/Observability/CorrelationIdListenerTest.php</file>
             <file>tests/Observability/MetricsRegistryTest.php</file>
             <file>tests/Controller/ObservabilityContractTest.php</file>

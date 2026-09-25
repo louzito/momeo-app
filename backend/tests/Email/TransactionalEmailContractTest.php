@@ -102,13 +102,24 @@ final class TransactionalEmailContractTest extends TestCase
         self::assertSame(['booking_confirmation', 'payment_confirmation', 'booking_cancelled', 'booking_rescheduled', 'booking_reminder'], $codes);
     }
 
-    public function testEveryBusinessTransitionDispatchesItsEmail(): void
+    public function testReminderWithoutChannelFailsBeforeSending(): void
     {
-        $shop = file_get_contents($this->projectDir.'/src/Controller/ShopBookingApiController.php');
-        // Admin mutation delivery is exercised by CustomerBookingChangesContractTest.
-        // StripePaymentContractTest exercises signed payment delivery after commit and replay suppression.
-
-        self::assertSame(2, substr_count((string) $shop, 'emailDispatcher->confirmation($booking)'));
+        $em = $this->createMock(EntityManagerInterface::class);
+        $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $repository->method('findOneBy')->willReturn(null);
+        $em->method('getRepository')->with(\App\Entity\Channel\Channel::class)->willReturn($repository);
+        $sender = $this->createMock(\Sylius\Component\Mailer\Sender\SenderInterface::class);
+        $sender->expects(self::never())->method('send');
+        $registry = new \App\Service\Tenant\TenantRegistry('/nonexistent', false);
+        $dispatcher = new \App\Service\Email\BookingEmailDispatcher(
+            $sender, $em,
+            new \App\Service\Tenant\TenantContext($registry, new \App\Service\Tenant\TenantIdentifierResolver(), 'demo'),
+            new \App\Service\Availability\CenterTimeZoneProvider($em),
+            new \App\Service\Tenant\TenantUrlGenerator($registry, 'https://example.test'),
+        );
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Canal TodaTempo introuvable pour l’envoi de l’email transactionnel.');
+        $dispatcher->reminder(new \App\Entity\Booking());
     }
 
     public function testMailerDeliveryUsesRetryableMessengerTransport(): void

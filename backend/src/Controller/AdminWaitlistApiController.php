@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\WaitlistRequest;
-use App\Repository\WaitlistRequestRepository;
+use App\Service\Waitlist\WaitlistManagement;
 use App\Service\Waitlist\WaitlistNotifier;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,11 +15,11 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/v2/admin/waitlist')]
 final class AdminWaitlistApiController
 {
-    public function __construct(private readonly WaitlistRequestRepository $repository, private readonly EntityManagerInterface $entityManager, private readonly WaitlistNotifier $notifier) {}
+    public function __construct(private readonly WaitlistManagement $waitlist, private readonly WaitlistNotifier $notifier) {}
     #[Route('', name: 'todatempo_admin_waitlist_index', methods: ['GET'])]
-    public function index(): JsonResponse { return new JsonResponse(['member' => array_map($this->normalize(...), $this->repository->findBy([], ['createdAt' => 'DESC']))]); }
+    public function index(): JsonResponse { return new JsonResponse(['member' => array_map($this->normalize(...), $this->waitlist->list())]); }
     #[Route('/{id<\d+>}/unsubscribe', name: 'todatempo_admin_waitlist_unsubscribe', methods: ['POST'])]
-    public function unsubscribe(WaitlistRequest $entry): JsonResponse { $entry->unsubscribe(); $this->entityManager->flush(); return new JsonResponse($this->normalize($entry)); }
+    public function unsubscribe(WaitlistRequest $entry): JsonResponse { $this->waitlist->unsubscribe($entry); return new JsonResponse($this->normalize($entry)); }
     #[Route('/notify', name: 'todatempo_admin_waitlist_notify', methods: ['POST'])]
     public function notify(Request $request): JsonResponse
     {
