@@ -30,6 +30,8 @@
             <file>tests/Staff/StaffEligibilityTest.php</file>
             <file>tests/Resource/BookableResourceTest.php</file>
             <file>tests/Planning/PlanningInputTest.php</file>
+            <file>tests/Controller/AdminPlanningApiContractTest.php</file>
+            <file>tests/Repository/PlanningRepositoryTest.php</file>
             <file>tests/Payment/ServicePaymentTermsTest.php</file>
             <file>tests/Gdpr/RetentionPolicyTest.php</file>
             <file>tests/Gdpr/CustomerDataManagerTest.php</file>

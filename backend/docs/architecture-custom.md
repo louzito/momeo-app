@@ -82,7 +82,7 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | Contrôleurs | Domaine destinataire |
 | --- | --- |
 | ShopBookingApi, AdminBookingApi | Availability / Booking : recherche, allocation, création, déplacement, annulation |
-| AdminPlanningApi, AdminBookableResourceApi | Planning / Resource |
+| AdminPlanningApi, AdminBookableResourceApi | `Service/Planning/PlanningManagementService`, `Service/Resource/BookableResourceManagementService` — **fait #104** |
 | AdminStaffMemberApi, AdminStaffTimeOffApi | `Service/Staff/{StaffManagementService,StaffAccountService,StaffTimeOffService}` — **fait #103** |
 | ShopStripePayment, ShopPaymentTerms, AdminRefundApi | Payment : paiement, webhook, idempotence, remboursement |
 | ShopGiftVoucherApi, AdminGiftVoucherApi, ShopGiftOrderMarker | GiftVoucher |
@@ -138,11 +138,11 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Controller/AdminRefundContractTest | Contrôleur, fournisseur, opération, permission et migration ; à convertir lors de Payment |
 | Controller/AdminClientApiContractTest | CRUD et historique du dossier ; à convertir lors de Customer |
 | Controller/ObservabilityContractTest | Contrôleur et HealthChecker ; converti en appels contrôleur/sondes dans #99 |
-| Controller/BookableResourceContractTest | Contrôleurs et verrou de capacité ; à convertir lors de Resource |
+| Controller/BookableResourceContractTest | Converti en #104 : routes par attributs, CRUD HTTP/Doctrine, affectations, refus, disponibilité calculée ; verrou de capacité conservé |
 | Controller/CustomerBookingChangesContractTest | Converti en #102 : contrôleurs/services réels, transactions Doctrine isolées, propriété, historique, conflits, rollback et effets après commit |
 | Email/TransactionalEmailContractTest | Twig, dispatcher, contrôleurs et transports ; à convertir lors de Email (rendu et messages interceptés) |
 | Gdpr/GdprContractTest | Manager, commande et documentation ; à convertir lors de Gdpr |
-| Controller/AdminPlanningApiContractTest | Réflexion des routes et noms des actions, pas de lecture PHP ; conserver le contrat de route, compléter CRUD comportemental lors de Planning |
+| Controller/AdminPlanningApiContractTest | Complété en #104 : routes nommées, CRUD HTTP/Doctrine, refus sans mutation, calendrier historique, portée collaborateur et filtrage repository |
 
 `Unit/Tenant/CustomDomainTest` lit un **fichier généré** Caddy : assertion de sortie
 utile, pas de couplage au chemin source. La réflexion dans DashboardMetricsCalculatorTest
@@ -682,3 +682,71 @@ dépendances dans l’environnement MySQL jetable décrit plus haut. La fixture
 modifie temporairement les rôles des comptes de cette base de test et annule
 sa transaction ; elle ne doit jamais pointer vers une base de production.
 Aucun accès production, envoi email/SMS, paiement ou déploiement réalisé.
+
+
+## Livraison #104 — plannings et ressources réservables
+
+Prérequis présents à la tête fournie : #97 à #103, dernier commit `6944430`.
+Aucun changement de branche, commit, push, déploiement ou activation du ticket #105.
+
+| Point d’entrée | Responsabilité extraite |
+| --- | --- |
+| `AdminPlanningApiController` | `Service/Planning/PlanningManagementService` : création/code, validation via PlanningInput, mise à jour, suppression, collaborateur et codes des prestations |
+| `AdminBookableResourceApiController` | `Service/Resource/BookableResourceManagementService` : création/code, validation du calendrier, capacité/type, mise à jour, suppression ou désactivation si utilisée, lecture et affectation des ressources à un produit |
+| Erreurs de validation | `InvalidPlanningInput` et `InvalidBookableResourceInput`, exceptions métier traduites en HTTP 422 par les contrôleurs |
+
+Les contrôleurs gardent routes/méthodes/noms, parsing JSON, réponses 404,
+projections explicites privées et statuts HTTP. Ces projections ne sont pas
+partagées entre consommateurs ; aucun service de sérialisation supplémentaire.
+Les entités, leurs invariants locaux (dont déduplication), les repositories,
+PlanningInput et les calculs/verrous de disponibilité sont conservés.
+Le comptage SQL historique des réservations reste identique et utilise la
+connexion du même EntityManager tenant. Les écritures gardent leur unique
+flush, sans ajouter de transaction explicite ou modifier les verrous existants.
+Les payloads incomplets conservent leurs valeurs par défaut historiques ; le
+code ne change pas lors d’une mise à jour. Les autorisations restent assurées
+par les adaptateurs existants. Les deux services sont découverts par la
+ressource DI `App` existante ; aucun alias ni migration ajouté.
+
+Tests ajoutés/adaptés :
+
+- `AdminPlanningApiContractTest` : routes nommées et verbes ; création, index,
+  lecture, modification, suppression, doublon et 404 ; capacité, fuseau,
+  collaborateur, calendrier vide/inversé invalides ; absence d’insertion ou de
+  modification après un flush ultérieur ; jours historiques, alias jumpCodes,
+  déduplication, portée staff et sélection active par prestation du repository.
+- `BookableResourceContractTest` : remplacement des assertions sur le texte PHP
+  par les attributs Route et appels réels du contrôleur ; CRUD, codes et 404,
+  capacité/type/calendrier invalides ; affectation/déduplication des codes,
+  ressource inconnue, obligation sans ressource compatible ; capacité effective
+  via ResourceAvailability après mise à jour ; désactivation d’une ressource
+  utilisée (comptage DBAL simulé, remove interdit et flush attendu).
+  Le test du verrou transactionnel de capacité reste présent.
+- Les fixtures Doctrine des nouveaux scénarios sont annulées par rollback et
+  nécessitent la base MySQL jetable documentée plus haut. Aucun test ne doit
+  être exécuté contre une base de production. Les assertions ne constituent
+  pas un parcours complet du firewall ou une preuve de concurrence.
+- La suite business inclut désormais AdminPlanningApiContractTest et
+  PlanningRepositoryTest ; PlanningInputTest, les tests Resource et les suites
+  de disponibilité existants restent inchangés.
+
+Contrôles réellement effectués :
+
+- `php -l` : succès sur les huit fichiers PHP ajoutés/modifiés.
+- `git diff --check` : succès.
+- `composer dump-autoload --optimize --strict-psr --no-scripts --no-plugins` :
+  succès, 230 classes ; chargement des quatre nouvelles classes : succès.
+- Contrôle PHP autonome limité : hydratation valide et refus de capacité nulle
+  sans mutation de l’entité pour les deux services : succès. Ce contrôle par
+  réflexion ne vérifie ni HTTP, ni Doctrine, ni le conteneur Symfony.
+- `timeout 25 composer install --no-interaction --no-scripts --no-plugins
+  --prefer-dist` : installation non aboutie, curl 6, résolution DNS de
+  `api.github.com` impossible.
+- `php vendor/bin/phpunit --configuration phpunit.business.xml --filter
+  'AdminPlanningApiContractTest|PlanningInputTest|PlanningRepositoryTest|BookableResourceContractTest|BookableResourceTest|AvailabilityServiceTest|PlanningSlotPolicyTest'` :
+  non exécutable, `vendor/bin/phpunit` absent ; aucun test PHPUnit annoncé réussi.
+- `APP_ENV=test php bin/console lint:container` : non exécutable, Symfony Runtime
+  absent ; la compilation DI reste à vérifier avec les dépendances installées.
+
+Aucun accès production, envoi email/SMS ou paiement effectué. Les vérifications
+PHPUnit et DI restent à exécuter dans l’environnement de test équipé.
