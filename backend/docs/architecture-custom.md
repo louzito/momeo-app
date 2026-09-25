@@ -129,7 +129,7 @@ statiques ; une règle métier nécessite une assertion sur son résultat.
 | Security/AdminApiPermissionContractTest | Subscriber : remplacé par événements RequestEvent et décisions 403/autorisations ; assertion PHP du provisionneur remplacée dans Integration/Tenant/MinimalSyliusInitializerTest par rôle Owner après deux initialisations ; assertion migration conservée |
 | Security/SecurityHardeningContractTest | Rate limiter, upload, headers et configuration JWT/firewall ; converti en appels des listeners/services dans #99 |
 | Controller/ShopCustomerAccountSecurityContractTest | Propriété du client et accès booking ; à convertir lors de Customer/Booking |
-| Controller/StaffPreferenceContractTest | Affectation et StaffEligibility ; à convertir lors de Staff/Booking |
+| Controller/StaffPreferenceContractTest | Converti en #100 : payload réel, ordre, sélection déterministe et validation de créneau ; fixture DB transactionnelle |
 | Controller/WaitlistContractTest | Création, autorisation et migration ; à convertir lors de Waitlist |
 | Controller/InvoiceSecurityContractTest | Listener, propriété du client, configuration PDF ; à convertir lors de Invoice |
 | Controller/GiftVoucherRedemptionContractTest | Consommation verrouillée, absence de bypass et invariant Entity ; à convertir lors de GiftVoucher |
@@ -386,3 +386,70 @@ lint du conteneur ci-dessus dans l’environnement jetable décrit plus haut. Le
 tests d’intégration qui démarrent le kernel nécessitent également .env, clés de
 test et registre/base MySQL exclusivement de test. Aucune connexion à une base,
 aucun envoi réel, paiement, déploiement ou migration n’a été effectué ici.
+
+## Livraison AutoTicket #100 — disponibilités et contrôles de créneau
+
+Prérequis présents à la tête fournie : #97 `a45137f`, #98 `117ef31`,
+#99 `e551591`. Aucun changement de branche, commit, déploiement ou activation
+du ticket suivant effectué.
+
+| Ancien point d’entrée | Extraction réalisée |
+| --- | --- |
+| ShopBookingApiController::availability, isBlocked, bookedOnPlanning | `Service/Availability/AvailabilityService` : génération, règles de réservation, capacités, ressources, horaires, absences et construction ordonnée des créneaux, dont « Sans préférence » |
+| ShopBookingApiController::chooseAutoStaff, validateStaffSlot, isPlanned | `Service/Availability/PublicStaffSlot` : sélection déterministe par position/id, verrou pessimiste de chaque candidat, durée et départ publié, chevauchements |
+| ShopBookingApiController et AdminBookingApiController::serviceDuration | `Service/Availability/ServiceDuration` : priorité todatempo_duration, repli momeo_duration, bornes 15–480 minutes et défaut 60 |
+| AdminBookingApiController::planning ; ShopCustomerAccountApiController::assertPlannedSlot, assertStaffHours | `Service/Availability/PlanningSlotPolicy` : sélection admin, appartenance commune à une plage et contrôles client |
+
+Les contrôleurs gardent parsing, routes, autorisations et réponses HTTP. Les
+transactions et leur gestion d’erreur ne sont pas déplacées ; PublicStaffSlot
+verrouille dans la transaction déjà ouverte par la création directe ou voucher.
+BookingSlotGuard reste le contrôle final avec buffers/capacités et verrous.
+Les repositories et services de #98/#99 sont réutilisés sans changer leur portée
+tenant ; aucune nouvelle interface, configuration scalaire ou migration.
+Les quatre nouveaux services sont découverts par la ressource `App\` existante.
+
+Différences intentionnellement conservées :
+
+- Public : grille générée depuis PlanningProvider (taxons publiés), fuseau du
+  centre, durée actuelle du catalogue et correspondance exacte du départ/code.
+  La disponibilité applique les buffers aux réservations et absences ; la
+  prévalidation d’écriture garde ses requêtes de chevauchement existantes,
+  suivies du garde transactionnel. Le contrat JSON et son tri restent identiques.
+- Admin : un code explicite exige seulement un planning actif compatible ;
+  sans code, sélection de la première plage compatible avec le collaborateur,
+  dans le fuseau du planning. Pas d’alignement imposé sur la grille publique.
+  Les horaires staff restent évalués avec le fuseau du centre.
+- Client : durée écoulée de la réservation conservée, plage et horaires staff
+  dans le fuseau du planning. Aucun recalcul depuis le catalogue. Le calcul
+  de plage partagé garde les comparaisons historiques à la minute, distinctes
+  du contrôle WorkingHours à la seconde.
+
+Tests de comportement ajoutés/adaptés : AvailabilityServiceTest (capacité,
+pauses, absences, ressource obligatoire disponible/saturée, erreurs HTTP,
+différence admin/client), PlanningSlotPolicyTest (fuseau, DST, durée écoulée,
+pauses), ServiceDurationTest (priorité, repli et bornes). StaffPreferenceContractTest
+n’inspecte plus le PHP : payload complet avec identifiants/champs/ordre, choix
+sans préférence, candidat absent, aucun candidat, durée et départ invalides.
+La fixture DB transactionnelle de BookingRulesContractTest est partagée dans
+AvailabilityTestCase ; les scénarios délai/horizon/buffers existants sont conservés.
+Les nouveaux tests sont inclus dans phpunit.business.xml. Les suites existantes
+AvailabilitySlotGenerator, StaffEligibility, WorkingHours et Resource sont conservées.
+
+Contrôles réellement effectués dans cet environnement :
+
+- `php -l` sur les services Availability, contrôleurs et tests concernés : succès.
+- `git diff --check` : succès.
+- `composer dump-autoload --optimize --strict-psr --no-scripts` : succès,
+  213 classes applicatives ; ceci ne valide pas les dépendances ni le conteneur.
+- Vérification PHP autonome avec l’autoloader : exclusion d’une heure inexistante
+  au changement d’heure, conversion Europe/Paris vers UTC et rejet d’une pause
+  WorkingHours : succès. Ce contrôle limité ne remplace pas PHPUnit.
+- Installation verrouillée `composer install --no-interaction --no-scripts
+  --no-plugins --prefer-dist`, bornée à 40 secondes : téléchargements en échec
+  curl 6, DNS `api.github.com` indisponible ; dépendances non installées.
+- Depuis backend, `php vendor/bin/phpunit --configuration phpunit.xml.dist
+  --filter 'Availability|BookingRules|StaffEligibility|WorkingHours|Resource|StaffPreference'` :
+  impossible, `vendor/bin/phpunit` absent ; aucun scénario PHPUnit annoncé réussi.
+- `APP_ENV=test php bin/console lint:container` : impossible, Symfony Runtime
+  absent. DI et tests DB/concurrence restent à exécuter avec les dépendances
+  et l’instance MySQL jetable décrites plus haut. Aucune connexion de production.

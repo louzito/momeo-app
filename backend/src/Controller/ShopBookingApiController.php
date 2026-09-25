@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Service\Availability\AvailabilitySlotGenerator;
+use App\Service\Availability\PublicStaffSlot;
+use App\Service\Availability\AvailabilityService;
 use App\Service\Availability\CenterTimeZoneProvider;
-use App\Service\Availability\PlanningProvider;
 use App\Service\Booking\BookingSlotGuard;
 use App\Service\Booking\BookingRules;
 use App\Service\Booking\SlotUnavailable;
@@ -21,11 +21,8 @@ use App\Entity\User\ShopUser;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
-use App\Repository\StaffMemberRepository;
-use App\Repository\StaffTimeOffRepository;
 use App\Service\Payment\ServicePaymentTerms;
 use App\Service\Resource\ResourceAvailability;
-use App\Service\Staff\StaffEligibility;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\DBAL\LockMode;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -39,15 +36,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ShopBookingApiController
 {
     public function __construct(
+        private readonly AvailabilityService $availabilityService,
+        private readonly PublicStaffSlot $publicStaffSlot,
         private readonly BookingRepository $bookingRepository,
         private readonly PlanningRepository $planningRepository,
         private readonly GiftVoucherRepository $giftVoucherRepository,
-        private readonly StaffMemberRepository $staffRepository,
-        private readonly StaffTimeOffRepository $timeOffRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly CenterTimeZoneProvider $timeZoneProvider,
-        private readonly PlanningProvider $planningProvider,
-        private readonly AvailabilitySlotGenerator $slotGenerator,
         private readonly BookingSlotGuard $slotGuard,
         private readonly BookingRules $bookingRules,
         private readonly ServicePaymentTerms $paymentTerms,
@@ -74,103 +69,7 @@ final class ShopBookingApiController
         $from = $this->dateOrDefault((string) $request->query->get('from', ''), $today, $timezone);
         $requestedTo = $this->dateOrDefault((string) $request->query->get('to', ''), $from->modify('+45 days'), $timezone);
         $to = min($requestedTo, $from->modify('+62 days'));
-        $duration = $this->serviceDuration($serviceCode);
-
-        $activeStaff = array_values(array_filter(
-            $this->staffRepository->findBy(['active' => true], ['position' => 'ASC']),
-            static fn (StaffMember $member): bool => $member->isBookable(),
-        ));
-        $eligibleStaff = StaffEligibility::forService($activeStaff, $serviceCode);
-
-        $rules = $this->bookingRules->get();
-        $rangeStart = $from->setTimezone(new \DateTimeZone('UTC'))->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
-        $rangeEnd = $to->modify('+1 day')->setTimezone(new \DateTimeZone('UTC'))->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
-        $blocking = $this->bookingRepository->findBlockingBetween($rangeStart, $rangeEnd);
-        $timeOffs = $this->timeOffRepository->findBetween($rangeStart, $rangeEnd);
-        $slots = [];
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-        $plannedSlots = $this->slotGenerator->generate($this->planningProvider->active(), $serviceCode, $duration, $from, $to, $now, $timezone);
-        $planningCapacity = [];
-        foreach ($this->planningRepository->findActiveForService($serviceCode) as $planning) {
-            $planningCapacity[$planning->getCode()] = $planning->getCapacity();
-        }
-
-        foreach ($plannedSlots as $plannedSlot) {
-            try {
-                $this->bookingRules->assertBookableAt($plannedSlot['start'], $now);
-            } catch (\DomainException) {
-                continue;
-            }
-            $capacity = $planningCapacity[$plannedSlot['planningCode']] ?? 1;
-            $booked = $this->bookedOnPlanning($blocking, $plannedSlot['planningCode'], $plannedSlot['start'], $plannedSlot['end']);
-            if ($booked >= $capacity) {
-                continue;
-            }
-            try {
-                $resource = $this->resourceAvailability->choose($product, $plannedSlot['start'], $plannedSlot['end'], $blocking);
-            } catch (\DomainException) {
-                continue;
-            }
-            $matchedStaffCount = 0;
-            foreach ($eligibleStaff as $staff) {
-                if (\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $plannedSlot['localStart'], $plannedSlot['end'], $timezone)) {
-                    $startUtc = $plannedSlot['start'];
-                    $endUtc = $plannedSlot['end'];
-                    if (!$this->isBlocked($staff, $startUtc, $endUtc, $blocking, $timeOffs)) {
-                        ++$matchedStaffCount;
-                        $slots[] = [
-                            'id' => sprintf('staff_%d_%s_%s', $staff->getId(), $startUtc->format('Ymd_Hi'), $serviceCode),
-                            'planningCode' => $plannedSlot['planningCode'],
-                            'start' => $startUtc->format(\DateTimeInterface::ATOM),
-                            'end' => $endUtc->format(\DateTimeInterface::ATOM),
-                            'capacity' => $capacity,
-                            'booked' => $booked,
-                            'remaining' => $capacity - $booked,
-                            'resourceCode' => $resource?->getCode(),
-                            'resourceName' => $resource?->getName(),
-                            'resourceRequired' => $product->isBookableResourceRequired(),
-                            'availableResourceCodes' => $this->resourceAvailability->availableCodes($product, $startUtc, $endUtc, $blocking),
-                            'compatibleJumpTypeIds' => [$serviceCode],
-                            'serviceCode' => $serviceCode,
-                            'staffMemberId' => $staff->getId(),
-                            'staffName' => trim($staff->getFirstName().' '.$staff->getLastName()),
-                            'instructor' => trim($staff->getFirstName().' '.$staff->getLastName()),
-                        ];
-                    }
-                }
-            }
-            if ($matchedStaffCount > 0) {
-                $startUtc = $plannedSlot['start'];
-                $endUtc = $plannedSlot['end'];
-                $slots[] = [
-                    'id' => sprintf('staff_none_%s_%s_%s', $plannedSlot['planningCode'], $startUtc->format('Ymd_Hi'), $serviceCode),
-                    'planningCode' => $plannedSlot['planningCode'],
-                    'start' => $startUtc->format(\DateTimeInterface::ATOM),
-                    'end' => $endUtc->format(\DateTimeInterface::ATOM),
-                    'capacity' => $capacity,
-                    'booked' => $booked,
-                    'remaining' => $capacity - $booked,
-                    'resourceCode' => $resource?->getCode(),
-                    'resourceName' => $resource?->getName(),
-                    'resourceRequired' => $product->isBookableResourceRequired(),
-                    'availableResourceCodes' => $this->resourceAvailability->availableCodes($product, $startUtc, $endUtc, $blocking),
-                    'compatibleJumpTypeIds' => [$serviceCode],
-                    'serviceCode' => $serviceCode,
-                    'staffMemberId' => null,
-                    'staffName' => null,
-                    'instructor' => 'Sans préférence',
-                ];
-            }
-        }
-
-        usort($slots, static fn (array $a, array $b): int => [$a['start'], $a['staffMemberId']] <=> [$b['start'], $b['staffMemberId']]);
-
-        return new JsonResponse([
-            'member' => $slots,
-            'staffConfigured' => \count($activeStaff) > 0,
-            'durationMin' => $duration,
-            'timezone' => $timezone->getName(),
-        ]);
+        return new JsonResponse($this->availabilityService->find($product, $serviceCode, $from, $to, $timezone));
     }
 
     #[Route('/bookings', name: 'momeo_api_shop_booking_create', methods: ['POST'])]
@@ -219,13 +118,13 @@ final class ShopBookingApiController
         $planningCodeInput = (string) ($payload['planningCode'] ?? '');
         if ($staffId > 0) {
             $staff = $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE);
-            $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCodeInput);
+            $error = $this->publicStaffSlot->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCodeInput);
             if ($error !== null) {
                 $connection->rollBack();
                 return new JsonResponse(['error' => $error, 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
             }
         } else {
-            $staff = $this->chooseAutoStaff($serviceCode, $start, $end, $planningCodeInput);
+            $staff = $this->publicStaffSlot->chooseAutoStaff($serviceCode, $start, $end, $planningCodeInput);
             if ($staff === null) {
                 $connection->rollBack();
                 return new JsonResponse(['error' => 'Aucun collaborateur compatible n’est disponible sur ce créneau.', 'code' => 'slot_unavailable'], Response::HTTP_CONFLICT);
@@ -341,12 +240,12 @@ final class ShopBookingApiController
             $planningCodeInput = (string) ($payload['planningCode'] ?? '');
             if ($staffId > 0) {
                 $staff = $this->entityManager->find(StaffMember::class, $staffId, LockMode::PESSIMISTIC_WRITE);
-                $error = $this->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCodeInput);
+                $error = $this->publicStaffSlot->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCodeInput);
                 if ($error !== null) {
                     throw new SlotUnavailable($error);
                 }
             } else {
-                $staff = $this->chooseAutoStaff($serviceCode, $start, $end, $planningCodeInput);
+                $staff = $this->publicStaffSlot->chooseAutoStaff($serviceCode, $start, $end, $planningCodeInput);
                 if ($staff === null) {
                     throw new SlotUnavailable('Aucun collaborateur compatible n’est disponible sur ce créneau.');
                 }
@@ -433,124 +332,6 @@ final class ShopBookingApiController
         }
 
         return new JsonResponse($this->normalize($booking));
-    }
-
-    private function serviceDuration(string $serviceCode): int
-    {
-        $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $serviceCode]);
-        if (!$product instanceof Product) {
-            return 60;
-        }
-        $legacyDuration = null;
-        foreach ($product->getAttributes() as $attributeValue) {
-            if ($attributeValue->getCode() === 'todatempo_duration') {
-                return max(15, min(480, (int) $attributeValue->getValue()));
-            }
-            if ($attributeValue->getCode() === 'momeo_duration') {
-                $legacyDuration = (int) $attributeValue->getValue();
-            }
-        }
-        return $legacyDuration === null ? 60 : max(15, min(480, $legacyDuration));
-    }
-
-    /**
-     * @param list<Booking> $blocking
-     * @param list<\App\Entity\StaffTimeOff> $timeOffs
-     */
-    private function isBlocked(StaffMember $staff, \DateTimeImmutable $start, \DateTimeImmutable $end, array $blocking, array $timeOffs): bool
-    {
-        $rules = $this->bookingRules->get();
-        $start = $start->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
-        $end = $end->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
-        foreach ($blocking as $booking) {
-            if ($booking->getStaffMember()?->getId() === $staff->getId() && $booking->getSlotStart() < $end && $booking->getSlotEnd() > $start) {
-                return true;
-            }
-        }
-
-        foreach ($timeOffs as $timeOff) {
-            if ($timeOff->getStaffMember()->getId() === $staff->getId() && $timeOff->getStartsAt() < $end && $timeOff->getEndsAt() > $start) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /** @param list<Booking> $blocking */
-    private function bookedOnPlanning(array $blocking, string $planningCode, \DateTimeImmutable $start, \DateTimeImmutable $end): int
-    {
-        $rules = $this->bookingRules->get();
-        $start = $start->modify(sprintf('-%d minutes', $rules['bufferBeforeMinutes']));
-        $end = $end->modify(sprintf('+%d minutes', $rules['bufferAfterMinutes']));
-        return count(array_filter($blocking, static fn (Booking $booking): bool => $booking->getPlanningCode() === $planningCode && $booking->getSlotStart() < $end && $booking->getSlotEnd() > $start));
-    }
-
-    /**
-     * "Sans préférence" : choisit de manière déterministe le premier collaborateur actif,
-     * réservable, compétent pour la prestation et réellement disponible sur ce créneau.
-     */
-    private function chooseAutoStaff(string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $end, string $planningCode): ?StaffMember
-    {
-        $candidates = StaffEligibility::forService($this->staffRepository->findBy(['active' => true]), $serviceCode);
-        foreach ($candidates as $candidate) {
-            $staff = $this->entityManager->find(StaffMember::class, $candidate->getId(), LockMode::PESSIMISTIC_WRITE);
-            if ($staff instanceof StaffMember && $this->validateStaffSlot($staff, $serviceCode, $start, $end, $planningCode) === null) {
-                return $staff;
-            }
-        }
-
-        return null;
-    }
-
-    private function validateStaffSlot(?StaffMember $staff, string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $end, string $planningCode): ?string
-    {
-        if (!$staff instanceof StaffMember || !$staff->isActive() || !$staff->isBookable()) {
-            return 'Ce collaborateur n’est pas disponible.';
-        }
-        if (!\in_array($serviceCode, $staff->getServiceCodes(), true)) {
-            return 'Ce collaborateur ne réalise pas cette prestation.';
-        }
-        $timezone = $this->timeZoneProvider->get();
-        $localStart = $start->setTimezone($timezone);
-        if (!\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
-            return 'Ce créneau est en dehors des horaires du collaborateur ou empiète sur une pause.';
-        }
-        if (($end->getTimestamp() - $start->getTimestamp()) !== $this->serviceDuration($serviceCode) * 60) {
-            return 'Ce créneau ne correspond plus aux disponibilités de cette prestation.';
-        }
-        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $localStart->format('Y-m-d'), $timezone);
-        if (!$date || !$this->isPlanned($serviceCode, $start, $date, $timezone, $planningCode)) {
-            return 'Ce créneau ne figure plus au planning.';
-        }
-        if ($this->bookingRepository->hasOverlap($staff, $start, $end)) {
-            return 'Ce créneau vient d’être réservé.';
-        }
-        if ($this->timeOffRepository->hasOverlap($staff, $start, $end)) {
-            return 'Ce collaborateur est indisponible sur ce créneau.';
-        }
-
-        return null;
-    }
-
-    private function isPlanned(string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $date, \DateTimeZone $timezone, string $planningCode): bool
-    {
-        $slots = $this->slotGenerator->generate(
-            $this->planningProvider->active(),
-            $serviceCode,
-            $this->serviceDuration($serviceCode),
-            $date,
-            $date,
-            new \DateTimeImmutable('@0'),
-            $timezone,
-        );
-        foreach ($slots as $slot) {
-            if ($slot['start']->getTimestamp() === $start->getTimestamp() && hash_equals($slot['planningCode'], $planningCode)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /** @param array<string, mixed> $payload */

@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\Availability\ServiceDuration;
+use App\Service\Availability\PlanningSlotPolicy;
+use App\Service\Availability\CenterTimeZoneProvider;
 use App\Service\Booking\BookingSlotGuard;
 use App\Service\Booking\SlotUnavailable;
 use App\Service\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
-use App\Entity\Planning;
 use App\Entity\Product\Product;
 use App\Entity\StaffMember;
 use App\Repository\BookingRepository;
-use App\Repository\PlanningRepository;
 use App\Repository\StaffMemberRepository;
 use App\Repository\StaffTimeOffRepository;
 use App\Service\Resource\ResourceAvailability;
@@ -28,8 +29,9 @@ use Symfony\Component\Routing\Attribute\Route;
 final class AdminBookingApiController
 {
     public function __construct(
+        private readonly ServiceDuration $duration,
+        private readonly PlanningSlotPolicy $planningSlots,
         private readonly BookingRepository $bookingRepository,
-        private readonly PlanningRepository $planningRepository,
         private readonly StaffMemberRepository $staffRepository,
         private readonly StaffTimeOffRepository $timeOffRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -37,7 +39,7 @@ final class AdminBookingApiController
         private readonly BookingEmailDispatcher $emailDispatcher,
         private readonly ResourceAvailability $resourceAvailability,
         private readonly WaitlistNotifier $waitlistNotifier,
-        private readonly \App\Service\Availability\CenterTimeZoneProvider $timeZoneProvider,
+        private readonly CenterTimeZoneProvider $timeZoneProvider,
     ) {
     }
 
@@ -72,7 +74,7 @@ final class AdminBookingApiController
         if (!$product instanceof Product || !$product->isEnabled()) {
             return new JsonResponse(['error' => 'Cette prestation n’est plus disponible.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        $end = $start->modify(sprintf('+%d minutes', $this->serviceDuration($product)));
+        $end = $start->modify(sprintf('+%d minutes', $this->duration->forProduct($product)));
 
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
@@ -101,7 +103,7 @@ final class AdminBookingApiController
             $booking->setSource('manual');
             $booking->setServiceCode($serviceCode);
             $booking->setServiceName(mb_substr(trim((string) $product->getName()) ?: $serviceCode, 0, 255));
-            $planning = $this->planning($payload, $serviceCode, $start, $end);
+            $planning = $this->planningSlots->forAdmin(trim((string) ($payload['planningCode'] ?? '')), (int) ($payload['staffMemberId'] ?? 0), $serviceCode, $start, $end);
             $booking->setPlanningCode($planning?->getCode());
             $resource = $this->resourceAvailability->choose($product, $start, $end, $this->bookingRepository->findBlockingBetween($start, $end), $this->nullableText($payload['resourceCode'] ?? null, 100));
             $booking->setResourceCode($resource?->getCode());
@@ -179,7 +181,7 @@ final class AdminBookingApiController
 
         $booking->setStaffMember($staff);
         $booking->setStaffName($staff ? trim($staff->getFirstName().' '.$staff->getLastName()) : null);
-        $planning = $this->planning($payload, $booking->getServiceCode(), $start, $end);
+        $planning = $this->planningSlots->forAdmin(trim((string) ($payload['planningCode'] ?? '')), (int) ($payload['staffMemberId'] ?? 0), $booking->getServiceCode(), $start, $end);
         $booking->setPlanningCode($planning?->getCode());
         $product = $this->entityManager->getRepository(Product::class)->findOneBy(['code' => $booking->getServiceCode()]);
         if (!$product instanceof Product) {
@@ -277,20 +279,6 @@ final class AdminBookingApiController
         return \is_array($payload) ? $payload : [];
     }
 
-    private function serviceDuration(Product $product): int
-    {
-        $legacyDuration = null;
-        foreach ($product->getAttributes() as $attributeValue) {
-            if ($attributeValue->getCode() === 'todatempo_duration') {
-                return max(15, min(480, (int) $attributeValue->getValue()));
-            }
-            if ($attributeValue->getCode() === 'momeo_duration') {
-                $legacyDuration = (int) $attributeValue->getValue();
-            }
-        }
-        return $legacyDuration === null ? 60 : max(15, min(480, $legacyDuration));
-    }
-
     private function nullableText(mixed $value, ?int $length = null): ?string
     {
         $value = trim((string) $value);
@@ -308,36 +296,6 @@ final class AdminBookingApiController
         } while ($this->bookingRepository->findOneBy(['reference' => $reference]) instanceof Booking);
 
         return $reference;
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function planning(array $payload, string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $end): ?Planning
-    {
-        $code = trim((string) ($payload['planningCode'] ?? ''));
-        if ($code !== '') {
-            $planning = $this->planningRepository->findOneBy(['code' => $code, 'active' => true]);
-            return $planning instanceof Planning && ($planning->getServiceCodes() === [] || \in_array($serviceCode, $planning->getServiceCodes(), true)) ? $planning : null;
-        }
-
-        $staffId = (int) ($payload['staffMemberId'] ?? 0);
-        foreach ($this->planningRepository->findActiveForService($serviceCode) as $planning) {
-            if ($planning->getStaffMember() !== null && $planning->getStaffMember()?->getId() !== $staffId) {
-                continue;
-            }
-            $timezone = new \DateTimeZone($planning->getTimezone());
-            $localStart = $start->setTimezone($timezone);
-            $localEnd = $end->setTimezone($timezone);
-            if ($localStart->format('Y-m-d') !== $localEnd->format('Y-m-d')) {
-                continue;
-            }
-            foreach ($planning->getDays()[strtolower($localStart->format('l'))] ?? [] as $range) {
-                if ($localStart->format('H:i') >= $range['start'] && $localEnd->format('H:i') <= $range['end']) {
-                    return $planning;
-                }
-            }
-        }
-
-        return null;
     }
 
     /** @return array<string, mixed> */

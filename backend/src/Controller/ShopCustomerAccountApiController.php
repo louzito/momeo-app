@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\Availability\PlanningSlotPolicy;
 use App\Service\Booking\BookingSlotGuard;
 use App\Service\Booking\CustomerBookingChangePolicy;
 use App\Service\Booking\SlotUnavailable;
@@ -41,6 +42,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ShopCustomerAccountApiController extends AbstractController
 {
     public function __construct(
+        private readonly PlanningSlotPolicy $planningSlots,
         private readonly BookingRepository $bookingRepository,
         private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -175,11 +177,11 @@ final class ShopCustomerAccountApiController extends AbstractController
             if (!$planning instanceof Planning || ($planning->getServiceCodes() !== [] && !\in_array($booking->getServiceCode(), $planning->getServiceCodes(), true))) {
                 throw new SlotUnavailable('Ce créneau ne figure plus au planning.');
             }
-            $this->assertPlannedSlot($planning, $booking, $start, $end);
+            $this->planningSlots->assertPlannedSlot($planning, $booking, $start, $end);
             if (!$staff instanceof StaffMember || !$staff->isActive() || !$staff->isBookable() || !\in_array($booking->getServiceCode(), $staff->getServiceCodes(), true)) {
                 throw new SlotUnavailable('Ce collaborateur n’est plus disponible.');
             }
-            $this->assertStaffHours($staff, $planning, $start, $end);
+            $this->planningSlots->assertStaffHours($staff, $planning, $start, $end);
             if ($this->timeOffRepository->hasOverlap($staff, $start, $end)) {
                 throw new SlotUnavailable('Ce collaborateur est indisponible sur ce créneau.');
             }
@@ -277,33 +279,6 @@ final class ShopCustomerAccountApiController extends AbstractController
     {
         $value = trim((string) $value);
         return $value === '' ? null : mb_substr($value, 0, 255);
-    }
-
-    private function assertPlannedSlot(Planning $planning, Booking $booking, \DateTimeImmutable $start, \DateTimeImmutable $end): void
-    {
-        if (($end->getTimestamp() - $start->getTimestamp()) !== ($booking->getSlotEnd()->getTimestamp() - $booking->getSlotStart()->getTimestamp())) {
-            throw new SlotUnavailable('La durée de la prestation ne peut pas être modifiée.');
-        }
-        $timezone = new \DateTimeZone($planning->getTimezone());
-        $localStart = $start->setTimezone($timezone);
-        $localEnd = $end->setTimezone($timezone);
-        if ($localStart->format('Y-m-d') !== $localEnd->format('Y-m-d')) {
-            throw new SlotUnavailable('Ce créneau ne figure plus au planning.');
-        }
-        foreach ($planning->getDays()[strtolower($localStart->format('l'))] ?? [] as $range) {
-            if ($localStart->format('H:i') >= $range['start'] && $localEnd->format('H:i') <= $range['end']) {
-                return;
-            }
-        }
-        throw new SlotUnavailable('Ce créneau ne figure plus au planning.');
-    }
-
-    private function assertStaffHours(StaffMember $staff, Planning $planning, \DateTimeImmutable $start, \DateTimeImmutable $end): void
-    {
-        $timezone = new \DateTimeZone($planning->getTimezone());
-        if (!\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $start, $end, $timezone)) {
-            throw new SlotUnavailable('Ce créneau est en dehors des horaires du collaborateur ou empiète sur une pause.');
-        }
     }
 
     /** @return array<string, mixed> */
