@@ -24,6 +24,17 @@ final readonly class HealthChecker
         $this->dependencies = array_values(array_filter(array_map('trim', explode(',', $requiredDependencies))));
     }
 
+    public function tenantLiveness(string $tenant): bool
+    {
+        return $this->registry->isServable($tenant);
+    }
+
+    /** @param array<string, bool> $checks */
+    public function isReady(array $checks): bool
+    {
+        return !\in_array(false, $checks, true);
+    }
+
     /** @return array<string, bool> */
     public function applicationReadiness(): array
     {

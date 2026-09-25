@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+/** CLI adapter: renders doctor findings and maps blocking errors to the exit code. */
 #[AsCommand(name: 'todatempo:tenant:doctor', description: 'Diagnostique la configuration d’un tenant en lecture seule')]
 final class TenantDoctorCommand extends Command
 {

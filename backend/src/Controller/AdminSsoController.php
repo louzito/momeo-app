@@ -4,26 +4,22 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\User\AdminUser;
-use App\Service\Tenant\AdminLoginTicketStore;
-use App\Service\Security\TeamPermissions;
-use Doctrine\ORM\EntityManagerInterface;
-use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use App\Service\Tenant\AdminSsoRejected;
+use App\Service\Tenant\AdminSsoSession;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** HTTP session adapter: cookie parsing, rejection status and response headers. */
 final class AdminSsoController
 {
     private const COOKIE_NAME = 'TODATEMPO_ADMIN_SSO';
     private const LEGACY_COOKIE_NAME = 'MOMEO_ADMIN_SSO';
 
     public function __construct(
-        private readonly AdminLoginTicketStore $ticketStore,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly JWTTokenManagerInterface $jwtManager,
+        private readonly AdminSsoSession $session,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -32,31 +28,20 @@ final class AdminSsoController
     public function __invoke(Request $request): JsonResponse
     {
         try {
-            $cookie = $request->cookies->get(self::COOKIE_NAME) ?? $request->cookies->get(self::LEGACY_COOKIE_NAME, '');
-            $ticket = $this->ticketStore->consumeBrowserSession((string) $cookie);
+            $cookie = (string) ($request->cookies->get(self::COOKIE_NAME) ?? $request->cookies->get(self::LEGACY_COOKIE_NAME, ''));
         } catch (\Throwable $exception) {
-            $this->logger->warning('TodaTempo admin browser session rejected.', [
-                'exception' => $exception,
-            ]);
+            $this->logger->warning('TodaTempo admin browser session rejected.', ['exception' => $exception]);
 
             return new JsonResponse(['error' => 'invalid_sso_session'], JsonResponse::HTTP_UNAUTHORIZED);
         }
 
-        $admin = $this->entityManager->getRepository(AdminUser::class)->findOneBy(['email' => $ticket['email']]);
-        if (!$admin instanceof AdminUser || !$admin->isEnabled()) {
-            return new JsonResponse(['error' => 'admin_not_found'], JsonResponse::HTTP_UNAUTHORIZED);
+        try {
+            $payload = $this->session->authenticate($cookie);
+        } catch (AdminSsoRejected $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], JsonResponse::HTTP_UNAUTHORIZED);
         }
 
-        $response = new JsonResponse([
-            'token' => $this->jwtManager->create($admin),
-            'admin' => [
-                'email' => $admin->getEmail(),
-                'name' => $ticket['name'],
-                'role' => $admin->getTeamRole()->value,
-                'permissions' => TeamPermissions::forRole($admin->getTeamRole()),
-                'staffMemberId' => $admin->getStaffMember()?->getId(),
-            ],
-        ]);
+        $response = new JsonResponse($payload);
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->setCookie(
             Cookie::create(self::COOKIE_NAME)

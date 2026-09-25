@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** Internal HTTP adapter: shared-secret authorization and ticket creation response. */
 final class InternalAdminLoginTicketController
 {
     public function __construct(

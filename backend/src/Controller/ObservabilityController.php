@@ -6,16 +6,15 @@ namespace App\Controller;
 
 use App\Service\Observability\HealthChecker;
 use App\Service\Observability\MetricsRegistry;
-use App\Service\Tenant\TenantRegistry;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** HTTP health/metrics adapter; availability decisions belong to HealthChecker. */
 final readonly class ObservabilityController
 {
     public function __construct(
         private HealthChecker $healthChecker,
-        private TenantRegistry $tenantRegistry,
         private MetricsRegistry $metrics,
     ) {}
 
@@ -34,7 +33,7 @@ final readonly class ObservabilityController
     #[Route('/health/tenants/{tenant<[a-z0-9][a-z0-9-]{0,62}>}/live', name: 'todatempo_health_tenant_live', methods: ['GET'])]
     public function tenantLive(string $tenant): JsonResponse
     {
-        $ok = $this->tenantRegistry->isServable($tenant);
+        $ok = $this->healthChecker->tenantLiveness($tenant);
 
         return new JsonResponse(['status' => $ok ? 'ok' : 'unavailable'], $ok ? Response::HTTP_OK : Response::HTTP_SERVICE_UNAVAILABLE);
     }
@@ -54,7 +53,7 @@ final readonly class ObservabilityController
     /** @param array<string, bool> $checks */
     private function readinessResponse(array $checks): JsonResponse
     {
-        $ok = !\in_array(false, $checks, true);
+        $ok = $this->healthChecker->isReady($checks);
 
         return new JsonResponse(['status' => $ok ? 'ready' : 'not_ready', 'checks' => $checks], $ok ? Response::HTTP_OK : Response::HTTP_SERVICE_UNAVAILABLE);
     }

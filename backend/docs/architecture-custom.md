@@ -93,8 +93,10 @@ Les fichiers `Controller/*` restent les points d’entrée. Les blocs métier so
 | ShopPhysicalOrderApi, AdminPhysicalCommerceApi | `Service/Commerce/{PhysicalCheckoutService,PhysicalProductManagementService,PhysicalPreparationService,PhysicalProductReadService}` : remise, catalogue et préparation — **fait #109** |
 | AdminInvoiceApi, ShopCustomerAccountApi (PDF) | `Service/Invoice/InvoiceAccess` : sélection admin et accès client payé/propriétaire, provider et stockage tenant conservés — **fait #111** |
 | AdminDashboardApi | `Service/Dashboard/DashboardReadService` : plage, repositories et calculator — **fait #111** |
-| InternalProvisioning, InternalAdminLoginTicket, AdminSso, AdminSsoHandoff, AdminTeamSession | Tenant / Security |
-| Observability | Observability |
+| InternalProvisioning, InternalAdminLoginTicket | Adaptateurs HTTP des services Tenant existants ; audit **fait #112** |
+| AdminSso, AdminSsoHandoff | `Service/Tenant/AdminSsoSession` : échange et authentification ; cookies/redirections conservés — **fait #112** |
+| AdminTeamSession | Tenant / Security (hors périmètre #112) |
+| Observability | `Service/Observability/HealthChecker` : sondes, disponibilité tenant et agrégation ; HTTP conservé — **fait #112** |
 
 ## Invariants de chaque extraction
 
@@ -1293,3 +1295,101 @@ Reprendre PHPUnit et lint:container dans l'environnement équipé ; les tests av
 kernel (dashboard, compte client, JWT) doivent utiliser exclusivement l'instance
 MySQL jetable et le registre tenant isolé décrits plus haut. Aucun test sur données
 de production, paiement, email/SMS réel ou déploiement n'a été effectué.
+
+
+## Livraison #112 — entrées SSO, provisioning et commandes tenant
+
+Prérequis #111 présent à la tête fournie `7ae62ce`, avec les commits #97 à #110.
+Les services Tenant/Observability déplacés en #99 sont présents et réutilisés.
+Aucune opération de branche/commit/push, activation de #113 ni déploiement.
+
+### Audit et cartographie
+
+| Entrée auditée | Responsabilité après #112 |
+| --- | --- |
+| `AdminSsoController`, `AdminSsoHandoffController` | `Service/Tenant/AdminSsoSession` orchestre consommation du ticket → session navigateur, puis consommation de session → admin actif → JWT/permissions. `AdminSsoRejected` distingue les rejets attendus des erreurs techniques. Les contrôleurs gardent parsing, garde HTTP du tenant explicite, redirections, cookies, routes et statuts. |
+| `InternalAdminLoginTicketController` | Déjà fin : authentification HTTP par secret partagé, parsing, délégation directe à `AdminLoginTicketStore`, traduction des erreurs et réponse 201/60 secondes. Pas de service intermédiaire ajouté. |
+| `InternalProvisioningController`, `TenantClaimCommand` | Délégation directe au `TenantProvisioner` existant conservée. Parsing/authentification HTTP ou CLI, sérialisation du résultat et URLs via `TenantUrlGenerator` restent dans les adaptateurs. |
+| `TenantPoolAddCommand` | `Service/Tenant/TenantPoolManager` : première template, prochain slug pool, nom aléatoire de base, clone puis inscription ; sortie CLI et absence de template traduite en échec par la commande. |
+| `TenantRemoveCommand` | `Service/Tenant/TenantRemoval` : recherche, DROP optionnel puis retrait du registre. Callback de progression uniquement pour conserver l'affichage du DROP avant le retrait, même si ce dernier échoue. Parsing de `--drop-db`, texte et code retour dans la commande. |
+| `TenantDatabaseDiagnoseCommand` | `Service/Tenant/TenantDatabaseDiagnostic` : résolution registre avant premier accès DBAL, contexte explicite et comparaison stricte à `SELECT DATABASE()`. Résultats sans valeur HTTP/Console. |
+| `TenantListCommand` | Filtre de statut dans `TenantRegistry::withStatus` ; tri d'affichage, table, JSON et priorité de `--count` dans l'adaptateur. |
+| `TenantRegisterCommand` | Validation de forme du slug CLI et adaptation de l'entrée au writer existant conservées. Pas d'orchestration résiduelle. |
+| `TenantDoctorCommand` | Appel au doctor existant ; formatage de table et traduction ERROR en code retour CLI conservés. |
+| `TenantInitializeCommand` | Lecture des variables d'environnement et validation des entrées, puis appel direct au `MinimalSyliusInitializer` existant. |
+| `TenantDomainRequestCommand`, `TenantDomainVerifyCommand`, `ProxyDumpCommand` | Adaptateurs directs de `CustomDomainManager` et `CaddyConfigDumper`, inchangés hors documentation. |
+| `ObservabilityController` | Décision de liveness tenant et agrégation readiness dans le `HealthChecker` existant, aucun service façade ajouté. Contrôleur limité aux routes et réponses JSON/Prometheus. |
+| `Tenant/*` | Adaptateurs JWT, DBAL, cache, images et stockage PDF audités et conservés : intégrations déjà fines et documentées en #99. Les listeners JWT gardent les événements Lexik, claim tenant et durée admin ; contexte/résolution, décorateurs, tags et factories inchangés. |
+
+### Invariants et limites conservés
+
+- SSO : mêmes routes canoniques/legacy POST, ticket opaque absent de l'URL,
+  durée de ticket et session de 60 secondes, usage unique séquentiel et cache
+  tenant préfixé inchangés. Cookie canonique prioritaire sur legacy, même chemin
+  avec base URL, Secure selon requête, HttpOnly et SameSite=Lax. Cookie supprimé
+  uniquement en cas de succès. Tenant absent : 400 ; handoff refusé : redirection
+  `?sso=error` sans cookie ; session invalide/admin absent ou désactivé : mêmes
+  erreurs 401. Erreurs de parsing/cache journalisées ; erreurs DB/JWT postérieures
+  à la consommation propagées comme auparavant. Aucun changement de signatures,
+  clés, secrets, TTL JWT ou permission ; utilisateur relu après consommation.
+- Les secrets des deux entrées internes restent des autorisations **HTTP** :
+  priorité des headers canoniques/legacy, refus du secret vide et `hash_equals`
+  conservés. Payloads et codes 200/201/401/409/422/500/503 inchangés.
+- Pool : algorithme historique `pool-NNN`, base aléatoire indépendante du slug,
+  clone avant inscription, erreurs techniques propagées sans inscription.
+  Suppression : aucune requête DB sans option ; échec DROP avant mutation du
+  registre ; échappement historique du nom de base conservé. Diagnostic : aucun
+  accès DB pour un tenant inconnu et aucune reconnexion ajoutée.
+- `TenantRegistryWriter` garde les écritures atomiques et le dump Caddy best effort ;
+  les verrous spécifiques aux domaines et les transactions du provisionneur
+  restent intacts. Le ticket n'ajoute pas de verrou pool ni de consommation cache
+  atomique : get/delete SSO et read/clone/write pool conservent leurs limites de
+  concurrence existantes. Les tests de rejeu séquentiel ne prouvent pas un usage
+  unique entre processus concurrents.
+- Readiness conserve les sondes, l'ordre de fermeture/résolution tenant, timeout
+  et agrégation stricte ; liveness ne déclenche pas de sonde DB/HTTP. Aucun détail
+  d'erreur ni secret ajouté aux réponses de santé.
+- Les nouveaux services sont découverts par `App\` dans `services.yaml` ; aucun
+  namespace existant, alias, paramètre scalaire, schéma ou migration modifié.
+
+### Tests et contrôles #112
+
+Tests de comportement ajoutés/adaptés, sans assertions textuelles sur du PHP :
+- `AdminSsoHandoffTest` : assemblage du nouveau service avec le vrai store/cache ;
+  handoff/rejeu, cookie sécurisé et chemin préfixé, durée, expiration du ticket et
+  de la session, authentification/payload/effacement, cookie legacy, priorité du
+  cookie canonique, admin désactivé, tenant incorrect/absent, cookie mal formé,
+  propagation d'une panne JWT et attributs des routes canoniques/legacy.
+- `TenantMaintenanceCommandTest`, inscrit dans `phpunit.business.xml` : véritables
+  services/commandes et `CommandTester`, registre/Caddy dans un répertoire temporaire
+  nettoyé et DBAL simulé. Clone avant inscription, absence de template, erreur de
+  clone, retrait avec/sans DROP, échec DROP, rejeu inconnu, diagnostic avant accès
+  DBAL et codes 0/1/2, filtre de statut implicite active, tri et priorité count/JSON,
+  noms et aliases des commandes extraites. Aucune base n'est créée/supprimée.
+- `ObservabilityContractTest` : construction adaptée, succès/échec liveness,
+  readiness applicative/tenant et erreurs masquées conservés ; statut et type
+  MIME Prometheus vérifiés. Les connexions et appels HTTP sont simulés.
+- `JwtTenantIsolationTest`, `TenantDoctorCommandTest`, `CustomDomainTest`,
+  `MinimalSyliusInitializerTest` et `TenantAdapterIsolationTest` conservés.
+
+Contrôles réellement exécutés avec succès : syntaxe PHP des fichiers concernés,
+`git diff --check`, `composer dump-autoload --working-dir=backend --optimize
+--strict-psr --no-scripts --no-plugins` (264 classes), chargement effectif des cinq
+nouvelles classes Tenant via l'autoload.
+
+Contrôles non exécutables pour motif environnemental :
+- `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml
+  --filter 'AdminSsoHandoffTest|JwtTenantIsolationTest|TenantDoctorCommandTest|TenantMaintenanceCommandTest|CustomDomainTest|MinimalSyliusInitializerTest|ObservabilityContractTest|TenantAdapterIsolationTest'` :
+  binaire absent. Aucun test PHPUnit exécuté ni annoncé réussi.
+- `APP_ENV=test php backend/bin/console lint:container` : Symfony Runtime absent ;
+  la compilation DI reste non vérifiée. L'autoload ne constitue pas une preuve DI.
+- `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts
+  --no-plugins --prefer-dist` : téléchargement impossible (curl 6, résolution
+  `api.github.com` impossible), installation interrompue au délai ; lock inchangé.
+
+Reprendre les suites ciblées et lint:container dans un environnement équipé.
+`MinimalSyliusInitializerTest` boote le kernel et écrit dans une transaction
+rollbackée : utiliser exclusivement MySQL jetable et le registre tenant isolé
+décrits plus haut. Aucun tenant n'a été reprovisionné, aucune base ni donnée de
+production modifiée, aucun Caddy de production régénéré et aucun email/SMS ou
+paiement réel déclenché pendant cette livraison.

@@ -11,6 +11,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/** CLI adapter for the existing DNS verification service. */
 #[AsCommand(name: 'todatempo:tenant:domain:verify', description: 'Vérifie la preuve DNS et active le domaine')]
 final class TenantDomainVerifyCommand extends Command
 {

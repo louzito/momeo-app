@@ -45,6 +45,14 @@ final class TenantRegistry
         return $this->tenants;
     }
 
+    /** @return array<string, array<string, mixed>> */
+    public function withStatus(?string $status): array
+    {
+        $tenants = $this->all();
+
+        return $status === null ? $tenants : array_filter($tenants, static fn (array $tenant): bool => ($tenant['status'] ?? 'active') === $status);
+    }
+
     /** @return array<string, mixed>|null */
     public function get(string $slug): ?array
     {

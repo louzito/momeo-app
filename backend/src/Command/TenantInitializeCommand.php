@@ -11,6 +11,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/** CLI adapter: reads and validates environment inputs before invoking the initializer. */
 #[AsCommand(name: 'todatempo:tenant:initialize', description: 'Initialise les données Sylius minimales du tenant courant')]
 final class TenantInitializeCommand extends Command
 {

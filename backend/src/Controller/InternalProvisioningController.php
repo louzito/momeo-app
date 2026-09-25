@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** Internal HTTP adapter: shared-secret authorization, parsing and provisioning result serialization. */
 final class InternalProvisioningController
 {
     public function __construct(

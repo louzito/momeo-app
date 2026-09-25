@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+/** CLI adapter: status query, sorting and table/JSON/count presentation. */
 #[AsCommand(name: 'todatempo:tenant:list', description: 'Liste les centres du registre (config/tenants.json)', aliases: ['skybook:tenant:list'])]
 final class TenantListCommand extends Command
 {
@@ -30,10 +31,7 @@ final class TenantListCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $tenants = $this->registry->all();
-        if (null !== ($status = $input->getOption('status'))) {
-            $tenants = array_filter($tenants, static fn (array $t): bool => ($t['status'] ?? 'active') === $status);
-        }
+        $tenants = $this->registry->withStatus($input->getOption('status'));
         ksort($tenants);
 
         if ($input->getOption('count')) {

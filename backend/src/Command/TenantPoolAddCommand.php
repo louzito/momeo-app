@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Service\Tenant\TenantDatabaseCloner;
-use App\Service\Tenant\TenantRegistryWriter;
+use App\Service\Tenant\TenantPoolManager;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -22,47 +21,26 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class TenantPoolAddCommand extends Command
 {
     public function __construct(
-        private readonly TenantRegistryWriter $writer,
-        private readonly TenantDatabaseCloner $cloner,
+        private readonly TenantPoolManager $pool,
     ) {
         parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $all = $this->writer->read();
-        $templateDb = null;
-        foreach ($all as $entry) {
-            if (($entry['status'] ?? '') === 'template' && \is_string($entry['db'] ?? null)) {
-                $templateDb = $entry['db'];
-                break;
-            }
-        }
-        if ($templateDb === null) {
+        $result = $this->pool->add();
+        if ($result === null) {
             $output->writeln('<error>Aucune BDD template dans le registre. Lance d\'abord template-init.cmd.</error>');
 
             return Command::FAILURE;
         }
 
-        $next = 1;
-        foreach (array_keys($all) as $slug) {
-            if (preg_match('/^pool-(\d{3})$/', (string) $slug, $m)) {
-                $next = max($next, ((int) $m[1]) + 1);
-            }
-        }
-        $slug = sprintf('pool-%03d', $next);
-        $db = 'skybook_pool_' . bin2hex(random_bytes(4));
-
-        $started = microtime(true);
-        $tables = $this->cloner->cloneDatabase($templateDb, $db);
-        $this->writer->upsert($slug, ['db' => $db, 'name' => 'Centre ' . $slug, 'enabled' => true, 'status' => 'pool']);
-
         $output->writeln(sprintf(
             '+ %s (db %s, %d tables clonees en %.1fs)',
-            $slug,
-            $db,
-            $tables,
-            microtime(true) - $started,
+            $result['slug'],
+            $result['db'],
+            $result['tables'],
+            $result['duration'],
         ));
 
         return Command::SUCCESS;

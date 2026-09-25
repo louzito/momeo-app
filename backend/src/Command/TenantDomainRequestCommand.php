@@ -11,6 +11,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/** CLI adapter for the existing DNS ownership request service. */
 #[AsCommand(name: 'todatempo:tenant:domain:request', description: 'Prépare la preuve DNS d’un domaine personnalisé')]
 final class TenantDomainRequestCommand extends Command
 {

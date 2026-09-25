@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Service\Tenant\AdminLoginTicketStore;
+use App\Service\Tenant\AdminSsoSession;
 use App\Service\Tenant\TenantContext;
 use App\Service\Tenant\TenantUrlGenerator;
 use Symfony\Component\HttpFoundation\Cookie;
@@ -18,7 +18,7 @@ final class AdminSsoHandoffController
     private const COOKIE_NAME = 'TODATEMPO_ADMIN_SSO';
 
     public function __construct(
-        private readonly AdminLoginTicketStore $ticketStore,
+        private readonly AdminSsoSession $session,
         private readonly TenantContext $tenantContext,
         private readonly TenantUrlGenerator $urlGenerator,
     ) {}
@@ -34,8 +34,7 @@ final class AdminSsoHandoffController
         $loginUrl = $this->urlGenerator->url($slug, 'admin/login');
 
         try {
-            $ticket = $this->ticketStore->consume((string) $request->request->get('code', ''));
-            $browserSession = $this->ticketStore->createBrowserSession($ticket);
+            $browserSession = $this->session->handoff((string) $request->request->get('code', ''));
         } catch (\Throwable) {
             return new RedirectResponse($loginUrl.'?sso=error');
         }

@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/** CLI adapter: slug input validation and registry entry serialization. */
 #[AsCommand(name: 'todatempo:tenant:register', description: 'Enregistre (ou met a jour) un centre dans le registre', aliases: ['skybook:tenant:register'])]
 final class TenantRegisterCommand extends Command
 {

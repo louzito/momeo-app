@@ -29,10 +29,14 @@ final class ObservabilityContractTest extends TestCase
         });
         $http = $this->createMock(HttpClientInterface::class);
         $http->expects(self::once())->method('request')->with('GET', 'https://internal.example.test', ['timeout' => 2.0])->willThrowException(new \RuntimeException('private dependency'));
-        $controller = new ObservabilityController(new HealthChecker($registry, $context, $connection, $http, 'https://internal.example.test'), $registry, new MetricsRegistry('/nonexistent/metrics.json'));
+        $controller = new ObservabilityController(new HealthChecker($registry, $context, $connection, $http, 'https://internal.example.test'), new MetricsRegistry('/nonexistent/metrics.json'));
         self::assertSame('{"status":"ok"}', $controller->live()->getContent());
         self::assertSame(200, $controller->ready()->getStatusCode());
         self::assertSame(503, $controller->tenantLive('unknown')->getStatusCode());
+        self::assertSame(200, $controller->tenantLive('demo')->getStatusCode());
+        self::assertSame('{"status":"ok"}', $controller->tenantLive('demo')->getContent());
+        self::assertSame(200, $controller->metrics()->getStatusCode());
+        self::assertSame('text/plain; version=0.0.4; charset=utf-8', $controller->metrics()->headers->get('Content-Type'));
         self::assertSame(['status' => 'not_ready', 'checks' => ['tenant' => false, 'database' => false, 'dependencies' => false]], json_decode($controller->tenantReady('unknown')->getContent(), true));
         $response = $controller->tenantReady('demo');
         self::assertSame(503, $response->getStatusCode());

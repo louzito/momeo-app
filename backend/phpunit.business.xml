@@ -58,6 +58,7 @@
             <file>tests/Unit/Tenant/CustomDomainTest.php</file>
             <file>tests/Unit/Tenant/AdminSsoHandoffTest.php</file>
             <file>tests/Command/TenantDoctorCommandTest.php</file>
+            <file>tests/Command/TenantMaintenanceCommandTest.php</file>
             <file>tests/Reminder/ReminderMessengerTest.php</file>
             <file>tests/Reminder/ReminderSenderTest.php</file>
             <file>tests/Reminder/ReminderSchedulerTest.php</file>
