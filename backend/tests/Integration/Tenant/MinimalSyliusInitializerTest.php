@@ -13,6 +13,7 @@ use App\Entity\Payment\PaymentMethod;
 use App\Entity\Shipping\ShippingMethod;
 use App\Entity\User\AdminUser;
 use App\Tenant\MinimalSyliusInitializer;
+use App\Security\TeamRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -56,6 +57,9 @@ final class MinimalSyliusInitializerTest extends KernelTestCase
         self::assertSame(1, $this->entityCount(PaymentMethod::class, ['code' => 'stripe_web_elements', 'enabled' => false]));
         self::assertSame(1, $this->entityCount(ShippingMethod::class, ['code' => 'standard']));
         self::assertSame(1, $this->entityCount(AdminUser::class, ['email' => $email]));
+        $owner = $this->entityManager->getRepository(AdminUser::class)->findOneBy(['email' => $email]);
+        self::assertInstanceOf(AdminUser::class, $owner);
+        self::assertSame(TeamRole::Owner, $owner->getTeamRole());
     }
 
     /** @param class-string $class @param array<string, mixed> $criteria */

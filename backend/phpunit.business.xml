@@ -22,6 +22,10 @@
             <file>tests/Integration/Tenant/JwtTenantIsolationTest.php</file>
             <file>tests/Integration/Booking/BookingSlotConcurrencyTest.php</file>
             <file>tests/Controller/StripePaymentContractTest.php</file>
+            <file>tests/Controller/BookingRulesContractTest.php</file>
+            <file>tests/Booking/BookingRulesTest.php</file>
+            <file>tests/Security/AdminApiPermissionContractTest.php</file>
+            <file>tests/Integration/Tenant/MinimalSyliusInitializerTest.php</file>
             <file>tests/Integration/Payment/StripeWebhookIdempotencyTest.php</file>
             <file>tests/Unit/GiftVoucher/GiftVoucherTest.php</file>
             <file>tests/Controller/GiftVoucherRedemptionContractTest.php</file>
