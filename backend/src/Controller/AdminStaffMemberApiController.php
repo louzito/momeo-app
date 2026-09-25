@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\Staff\StaffMemberView;
 use App\Entity\StaffMember;
 use App\Entity\User\AdminUser;
 use App\Repository\StaffMemberRepository;
@@ -26,6 +27,7 @@ final class AdminStaffMemberApiController
         private readonly StaffManagementService $management,
         private readonly StaffAccountService $accounts,
         private readonly Security $security,
+        private readonly StaffMemberView $view,
     ) {
     }
 
@@ -89,25 +91,6 @@ final class AdminStaffMemberApiController
             $account = $this->accounts->linkedAccount($member);
         }
 
-        return [
-            'id' => $member->getId(),
-            'firstName' => $member->getFirstName(),
-            'lastName' => $member->getLastName(),
-            'displayName' => trim($member->getFirstName().' '.$member->getLastName()),
-            'email' => $member->getEmail(),
-            'phone' => $member->getPhone(),
-            'jobTitle' => $member->getJobTitle(),
-            'bio' => $member->getBio(),
-            'color' => $member->getColor(),
-            'active' => $member->isActive(),
-            'bookable' => $member->isBookable(),
-            'serviceCodes' => $member->getServiceCodes(),
-            'workingHours' => $member->getWorkingHours(),
-            'position' => $member->getPosition(),
-            'accountEmail' => $account instanceof AdminUser ? $account->getEmail() : null,
-            'role' => $account instanceof AdminUser ? $account->getTeamRole()->value : null,
-            'createdAt' => $member->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'updatedAt' => $member->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-        ];
+        return $this->view->admin($member, $account);
     }
 }

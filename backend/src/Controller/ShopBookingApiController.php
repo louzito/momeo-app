@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\Booking\BookingView;
 use App\Service\Availability\AvailabilityService;
 use App\Service\Availability\CenterTimeZoneProvider;
 use App\Service\Booking\BookingRules;
@@ -34,6 +35,7 @@ final class ShopBookingApiController
         private readonly EntityManagerInterface $entityManager,
         private readonly CenterTimeZoneProvider $timeZoneProvider,
         private readonly BookingRules $bookingRules,
+        private readonly BookingView $view,
     ) {
     }
 
@@ -95,7 +97,7 @@ final class ShopBookingApiController
         }
 
         $this->emailDispatcher->confirmation($booking);
-        return new JsonResponse($this->normalize($booking), Response::HTTP_CREATED);
+        return new JsonResponse($this->view->publicBooking($booking), Response::HTTP_CREATED);
     }
 
     #[Route('/bookings/from-voucher/{code}', name: 'momeo_api_shop_booking_from_voucher', methods: ['POST'], requirements: ['code' => '\\d{10}'])]
@@ -128,7 +130,7 @@ final class ShopBookingApiController
 
         $this->emailDispatcher->confirmation($booking);
         return new JsonResponse([
-            'booking' => $this->normalize($booking),
+            'booking' => $this->view->publicBooking($booking),
             'voucher' => [
                 'code' => $voucher->getCode(),
                 'status' => $voucher->getEffectiveStatus(),
@@ -156,7 +158,7 @@ final class ShopBookingApiController
             return new JsonResponse(['error' => 'Réservation introuvable.'], Response::HTTP_NOT_FOUND);
         }
 
-        return new JsonResponse($this->normalize($booking));
+        return new JsonResponse($this->view->publicBooking($booking));
     }
 
     private function dateOrDefault(string $value, \DateTimeImmutable $default, \DateTimeZone $timezone): \DateTimeImmutable
@@ -169,34 +171,4 @@ final class ShopBookingApiController
         return $date && $date->format('Y-m-d') === $value ? $date : $default;
     }
 
-    /** @return array<string, mixed> */
-    private function normalize(Booking $booking): array
-    {
-        $customerName = trim($booking->getCustomerFirstName().' '.$booking->getCustomerLastName());
-        return [
-            'id' => $booking->getPublicToken(),
-            'reference' => $booking->getReference(),
-            'status' => $booking->getStatus(),
-            'source' => $booking->getSource(),
-            'serviceCode' => $booking->getServiceCode(),
-            'serviceName' => $booking->getServiceName(),
-            'planningCode' => $booking->getPlanningCode(),
-            'resourceCode' => $booking->getResourceCode(),
-            'jumpTypeId' => $booking->getServiceCode(),
-            'jumpTypeName' => $booking->getServiceName(),
-            'customerName' => $customerName,
-            'jumperName' => $customerName,
-            'staffMemberId' => $booking->getStaffMember()?->getId(),
-            'staffName' => $booking->getStaffName(),
-            'slotStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
-            'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
-            'options' => $booking->getOptions(),
-            'paymentState' => $booking->getPaymentState(),
-            'orderNumber' => $booking->getOrderNumber(),
-            'amount' => $booking->getAmount(),
-            'totalAmount' => $booking->getTotalAmount(),
-            'balanceDue' => $booking->getBalanceDue(),
-            'currencyCode' => $booking->getCurrencyCode(),
-        ];
-    }
 }

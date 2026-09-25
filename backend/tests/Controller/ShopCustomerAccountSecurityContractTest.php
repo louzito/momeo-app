@@ -117,6 +117,7 @@ final class ShopCustomerAccountSecurityContractTest extends KernelTestCase
             self::getContainer()->get(\App\Repository\GiftVoucherRepository::class),
             $em,
             self::getContainer()->get(\App\Service\Booking\CustomerBookingChangePolicy::class),
+            new \App\Service\Booking\BookingView(),
         );
         self::assertEquals(['member' => [[
             'id' => 'token', 'number' => $order->getNumber(), 'status' => $order->getState(),

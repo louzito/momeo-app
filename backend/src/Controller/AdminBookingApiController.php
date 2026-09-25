@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 namespace App\Controller;
+
+use App\Service\Booking\BookingView;
 use App\Service\Booking\ManualBookingCreator;
 use App\Service\Booking\BookingRescheduler;
 use App\Service\Booking\BookingLifecycle;
@@ -23,13 +25,14 @@ final class AdminBookingApiController
         private readonly ManualBookingCreator $creator,
         private readonly BookingRescheduler $rescheduler,
         private readonly BookingLifecycle $lifecycle,
+        private readonly BookingView $view,
     ) {}
 
     #[Route('', name: 'momeo_api_admin_booking_index', methods: ['GET'])]
     public function index(): JsonResponse
     {
         return new JsonResponse([
-            'member' => array_map($this->normalize(...), $this->bookingRepository->findForAdministration()),
+            'member' => array_map($this->view->admin(...), $this->bookingRepository->findForAdministration()),
         ]);
     }
 
@@ -60,7 +63,7 @@ final class AdminBookingApiController
             return $this->failure($exception);
         }
 
-        return new JsonResponse($this->normalize($booking), Response::HTTP_CREATED);
+        return new JsonResponse($this->view->admin($booking), Response::HTTP_CREATED);
     }
 
     #[Route('/{id<\d+>}/reschedule', name: 'momeo_api_admin_booking_reschedule', methods: ['POST'])]
@@ -79,7 +82,7 @@ final class AdminBookingApiController
         } catch (BookingMutationFailed $exception) {
             return $this->failure($exception);
         }
-        return new JsonResponse($this->normalize($booking));
+        return new JsonResponse($this->view->admin($booking));
     }
 
     #[Route('/{id<\d+>}/postpone', name: 'momeo_api_admin_booking_postpone', methods: ['POST'])]
@@ -91,7 +94,7 @@ final class AdminBookingApiController
             return $this->failure($exception);
         }
 
-        return new JsonResponse($this->normalize($booking));
+        return new JsonResponse($this->view->admin($booking));
     }
 
     #[Route('/{id<\d+>}/complete', name: 'momeo_api_admin_booking_complete', methods: ['POST'])]
@@ -103,7 +106,7 @@ final class AdminBookingApiController
             return $this->failure($exception);
         }
 
-        return new JsonResponse($this->normalize($booking));
+        return new JsonResponse($this->view->admin($booking));
     }
 
     #[Route('/{id<\d+>}/no-show', name: 'momeo_api_admin_booking_no_show', methods: ['POST'])]
@@ -115,7 +118,7 @@ final class AdminBookingApiController
             return $this->failure($exception);
         }
 
-        return new JsonResponse($this->normalize($booking));
+        return new JsonResponse($this->view->admin($booking));
     }
 
     #[Route('/{id<\d+>}/cancel', name: 'momeo_api_admin_booking_cancel', methods: ['POST'])]
@@ -127,7 +130,7 @@ final class AdminBookingApiController
             return $this->failure($exception);
         }
 
-        return new JsonResponse($this->normalize($booking));
+        return new JsonResponse($this->view->admin($booking));
     }
 
     /** @return array<string, mixed> */
@@ -144,42 +147,4 @@ final class AdminBookingApiController
         return new JsonResponse($payload, Response::HTTP_CONFLICT);
     }
 
-    /** @return array<string, mixed> */
-    private function normalize(Booking $booking): array
-    {
-        $customerName = trim($booking->getCustomerFirstName().' '.$booking->getCustomerLastName());
-        return [
-            'id' => $booking->getId(),
-            'publicId' => $booking->getPublicToken(),
-            'reference' => $booking->getReference(),
-            'status' => $booking->getStatus(),
-            'source' => $booking->getSource(),
-            'serviceCode' => $booking->getServiceCode(),
-            'serviceName' => $booking->getServiceName(),
-            'planningCode' => $booking->getPlanningCode(),
-            'resourceCode' => $booking->getResourceCode(),
-            'jumpTypeId' => $booking->getServiceCode(),
-            'jumpTypeName' => $booking->getServiceName(),
-            'customerName' => $customerName,
-            'jumperName' => $customerName,
-            'customerEmail' => $booking->getCustomerEmail(),
-            'customerPhone' => $booking->getCustomerPhone(),
-            'customerNotes' => $booking->getCustomerNotes(),
-            'staffMemberId' => $booking->getStaffMember()?->getId(),
-            'staffName' => $booking->getStaffName(),
-            'slotStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
-            'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
-            'orderNumber' => $booking->getOrderNumber(),
-            'voucherCode' => $booking->getVoucherCode(),
-            'options' => $booking->getOptions(),
-            'amount' => $booking->getAmount(),
-            'totalAmount' => $booking->getTotalAmount(),
-            'balanceDue' => $booking->getBalanceDue(),
-            'currencyCode' => $booking->getCurrencyCode(),
-            'paymentState' => $booking->getPaymentState(),
-            'postponedReason' => $booking->getPostponedReason(),
-            'createdAt' => $booking->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'updatedAt' => $booking->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-        ];
-    }
 }

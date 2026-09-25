@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Customer;
 
+use App\Service\Booking\BookingView;
 use App\Entity\Booking;
 use App\Entity\ClientProfile;
 use App\Repository\BookingRepository;
@@ -15,6 +16,7 @@ final class ClientDirectoryService
         private readonly BookingRepository $bookingRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClientProfileService $profiles,
+        private readonly BookingView $view,
     ) {}
 
     public function list(string $query = ''): array
@@ -95,7 +97,7 @@ final class ClientDirectoryService
                 }
             }
 
-            $client['bookings'][] = $this->normalizeBooking($booking);
+            $client['bookings'][] = $this->view->adminHistory($booking);
             if ($booking->getOrderNumber() !== null) {
                 $client['purchases'][$booking->getOrderNumber()] = [
                     'orderNumber' => $booking->getOrderNumber(),
@@ -178,25 +180,5 @@ final class ClientDirectoryService
         }
 
         return null;
-    }
-
-    private function normalizeBooking(Booking $booking): array
-    {
-        return [
-            'id' => $booking->getId(),
-            'reference' => $booking->getReference(),
-            'status' => $booking->getStatus(),
-            'source' => $booking->getSource(),
-            'serviceCode' => $booking->getServiceCode(),
-            'serviceName' => $booking->getServiceName(),
-            'staffName' => $booking->getStaffName(),
-            'slotStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
-            'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
-            'amount' => $booking->getAmount(),
-            'totalAmount' => $booking->getTotalAmount(),
-            'balanceDue' => $booking->getBalanceDue(),
-            'currencyCode' => $booking->getCurrencyCode(),
-            'paymentState' => $booking->getPaymentState(),
-        ];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Customer;
 
+use App\Service\Booking\BookingView;
 use App\Entity\Booking;
 use App\Entity\Order\Order;
 use App\Entity\User\ShopUser;
@@ -19,6 +20,7 @@ final class CustomerAccountReadService
         private readonly GiftVoucherRepository $giftVoucherRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly CustomerBookingChangePolicy $changePolicy,
+        private readonly BookingView $view,
     ) {}
 
     public function profile(ShopUser $user): array
@@ -58,21 +60,6 @@ final class CustomerAccountReadService
 
     public function normalizeBooking(Booking $booking): array
     {
-        $name = trim($booking->getCustomerFirstName().' '.$booking->getCustomerLastName());
-
-        return [
-            'id' => $booking->getPublicToken(), 'reference' => $booking->getReference(),
-            'status' => $booking->getStatus(), 'source' => $booking->getSource(),
-            'jumpTypeId' => $booking->getServiceCode(), 'jumpTypeName' => $booking->getServiceName(),
-            'jumperName' => $name, 'customerName' => $name, 'staffName' => $booking->getStaffName(),
-            'resourceCode' => $booking->getResourceCode(),
-            'slotStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
-            'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
-            'options' => $booking->getOptions(), 'paymentState' => $booking->getPaymentState(),
-            'orderNumber' => $booking->getOrderNumber(), 'amount' => $booking->getAmount(),
-            'totalAmount' => $booking->getTotalAmount(), 'balanceDue' => $booking->getBalanceDue(),
-            'currencyCode' => $booking->getCurrencyCode(), 'postponedReason' => $booking->getPostponedReason(),
-            'changeHistory' => $booking->getChangeHistory(), 'changePolicy' => $this->changePolicy->limits(),
-        ];
+        return $this->view->client($booking, $this->changePolicy->limits());
     }
 }

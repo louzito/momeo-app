@@ -1393,3 +1393,107 @@ rollbackée : utiliser exclusivement MySQL jetable et le registre tenant isolé
 décrits plus haut. Aucun tenant n'a été reprovisionné, aucune base ni donnée de
 production modifiée, aucun Caddy de production régénéré et aucun email/SMS ou
 paiement réel déclenché pendant cette livraison.
+
+## Livraison #113 — frontières des entités et projections API
+
+Prérequis fonctionnel #112 présent à la tête fournie `084506b`, précédé des
+livraisons #97 à #111. Services et tests du SSO/provisioning présents. Aucun
+changement de branche, commit, activation de ticket ni déploiement.
+
+### Cartographie des projections
+
+| Source | Destination / décision |
+| --- | --- |
+| `ShopBookingApiController::normalize` | `Service/Booking/BookingView::publicBooking` : réponse shop historique accessible par jeton opaque, liste explicite des champs |
+| `AdminBookingApiController::normalize` | `BookingView::admin` : coordonnées, notes, code cadeau, identifiant interne et dates admin |
+| `CustomerAccountReadService::normalizeBooking` | Délégation à `BookingView::client` : propriétaire authentifié, historique et politique de modification ; lecture de configuration conservée dans le service appelant |
+| `ClientDirectoryService::normalizeBooking` | `BookingView::adminHistory` : résumé historique de réservation dans la fiche client admin, sans élargissement à la vue admin complète |
+| `AdminPlanningApiController::normalize` | `Service/Planning/PlanningView::admin` : calendrier hebdomadaire et historique distincts, alias `jumpCodes`, portée établissement/collaborateur |
+| `AdminStaffMemberApiController::normalize` | `Service/Staff/StaffMemberView::admin` pour la projection ; autorisation HTTP Settings puis lecture du compte dans le contrôleur avant projection |
+| `GiftVoucherView::{shop,admin}`, `RefundView::normalize` | Projections déjà explicites, conservées (#108/#107), sans retour de projection dans les entités |
+| `ClientProfileService`, `PhysicalProductReadService`, services Commerce/Customer | Projections déjà dans leur domaine, conservées ; les requêtes et agrégations ne sont pas transférées aux entités |
+| `AdminBookableResourceApiController`, `AdminStaffTimeOffApiController`, `AdminWaitlistApiController`, `AdminInvoiceApiController` | Petites projections locales sans duplication ni orchestration, conservées dans l’adaptateur HTTP ; pas de service systématique pour chaque tableau |
+
+Les tableaux retournés par les trois nouvelles classes sont les listes de champs
+autorisés, sans sérialisation automatique de l’entité ni soustraction de champs
+à partir d’une vue admin. Les vues Booking public/admin/client/historique sont
+volontairement distinctes : `id` public/client reste le jeton, `id` admin/historique
+reste l’entier ; alias, montants en unités mineures, nulls, états et dates ATOM
+restent identiques. La vue publique **par jeton** conserve le nom, les options et
+le numéro de commande déjà exposés : elle n’est pas une vue anonyme de catalogue.
+Elle n’ajoute ni coordonnées privées (email/téléphone), ni notes, ni code cadeau,
+ni historique, ni motif de report. La vue client garde son historique existant.
+Les listes de champs exactes sont également vérifiées dans les nouveaux tests.
+
+Les trois services sont sans état ni requêtes ; leur injection est obligatoire,
+découverte par la ressource `App\` existante. Les assemblages manuels des tests
+ont été adaptés. Routes, autorisations, recherches par jeton/propriétaire,
+repositories tenant, transactions, verrous, idempotence et effets externes ne
+sont pas modifiés.
+
+### Audit Entity / Sylius / serializer
+
+Aucun fichier `src/Entity`, mapping, migration ou configuration serializer/API
+n’est modifié. Les attributs Doctrine, noms persistés, héritages et contrats de
+plugins restent donc identiques à `084506b`, sans migration générée.
+
+- Booking : conversion des instants en UTC et historique append-only restent
+  locaux ; transitions, soldes et coordination restent dans les services.
+- Planning/StaffMember : déduplication locale des codes conservée ; validation
+  des calendriers, disponibilité et affectations restent dans leurs services.
+- ClientProfile : normalisation des contacts, identité de réservation stable,
+  nettoyage des notes/tags et historique du consentement restent locaux.
+- GiftVoucher : statut effectif/expiration et alias historiques restent locaux ;
+  recherche, consommation verrouillée, activation et emails restent en services.
+- WaitlistRequest : état et jeton restent locaux ; sélection/notification et
+  désinscription restent dans WaitlistManagement/WaitlistNotifier.
+- Order, Payment, Product : champs custom et invariants montant remboursable,
+  type de produit, frais et déduplication restent inchangés. Traits/interfaces
+  Mollie de Order/Product/GatewayConfig et initialisation du gateway conservés.
+  Les extensions Sylius vides restent intactes.
+
+L’audit ne révèle pas d’invariant local dispersé de même sémantique nécessitant
+une consolidation supplémentaire : notamment la validation des entrées et les
+règles transverses ne deviennent pas des contraintes nouvelles dans les setters.
+Aucune dépendance Request/Response, conteneur ou fournisseur externe dans les
+entités métier examinées. Aucun attribut serializer custom n’y est ajouté ; les
+métadonnées héritées des plugins sont conservées (leur chargement complet reste
+à vérifier avec les dépendances installées).
+
+### Vérifications #113
+
+Ajouts de comportement inscrits dans `phpunit.business.xml` :
+- `BookingViewTest` : listes exactes pour quatre audiences, JSON, absence de
+  champs privés, alias, identifiants, montants/statuts/nulls et dates UTC.
+- `PlanningViewTest` : coexistence hebdomadaire/historique, valeurs par défaut,
+  alias et portée staff/établissement.
+- `StaffMemberViewTest` : champs exacts, compte masqué/visible, absence du hash de
+  mot de passe et absence de mémorisation du compte d’un appel à l’autre.
+- `Entity/BookingTest` : instants UTC lors du passage DST, entrée immutable,
+  historique append-only et montants sans conversion.
+Les contrats HTTP existants restent en place, notamment permissions du compte
+staff, propriété client, CRUD planning, mutations Booking, cadeaux/remboursements.
+
+Contrôles réellement réussis : syntaxe PHP des fichiers ajoutés/modifiés,
+`git diff --check`, autoload optimisé strict PSR sans scripts/plugins (267 classes),
+chargement et appels effectifs des trois projections. Un contrôle PHP temporaire
+hors PHPUnit compare les anciennes méthodes extraites de `084506b` aux nouvelles
+sur des objets réels : quatre vues Booking × six statuts × montants null/0/1234,
+quatre variantes planning et staff sans compte, plus UTC/confidentialité et
+codes dédupliqués, soit **87 assertions strictes réussies**. Ce contrôle ne boote
+ni Symfony ni Doctrine et ne remplace pas les tests HTTP ou de permissions.
+
+Contrôles non exécutables pour motif environnemental :
+- `php backend/vendor/bin/phpunit --configuration backend/phpunit.business.xml --filter
+  'BookingViewTest|BookingTest|PlanningViewTest|StaffMemberViewTest|ClientProfileTest|WaitlistRequestTest|GiftVoucherTest|PhysicalProductTest|CustomerBookingChangesContractTest|AdminClientApiContractTest|ShopCustomerAccountSecurityContractTest|StaffManagementContractTest|AdminPlanningApiContractTest|GiftVoucherAccessContractTest|AdminRefundContractTest'` :
+  binaire absent ; aucun test PHPUnit annoncé réussi.
+- `APP_ENV=test php backend/bin/console lint:container` : Symfony Runtime absent ;
+  compilation DI non vérifiée. L’autoload ne prouve pas la compilation DI.
+- `timeout 25 composer install --working-dir=backend --no-interaction --no-scripts
+  --no-plugins --prefer-dist` : curl 6, résolution de `api.github.com` impossible,
+  arrêt au délai (124), lock inchangé.
+
+Reprendre PHPUnit et lint:container dans l’environnement équipé. Les tests avec
+kernel doivent utiliser exclusivement le MySQL jetable et le registre tenant
+isolé décrits plus haut. Aucun accès aux données de production ni envoi réel
+email/SMS, paiement ou déploiement effectué.

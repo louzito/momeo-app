@@ -233,6 +233,6 @@ final class GiftVoucherRedemptionContractTest extends \App\Tests\Availability\Av
         $emailManager = $this->createMock(EntityManagerInterface::class);
         $emailManager->method('getRepository')->with(Channel::class)->willReturn($channelRepository);
         $dispatcher = new BookingEmailDispatcher($sender, $emailManager, $container->get(TenantContext::class), $container->get(CenterTimeZoneProvider::class), $container->get(TenantUrlGenerator::class));
-        return new ShopBookingApiController($dispatcher, $container->get(BookingCreationService::class), $container->get(AvailabilityService::class), $container->get(BookingRepository::class), $this->entityManager, $container->get(CenterTimeZoneProvider::class), $container->get(BookingRules::class));
+        return new ShopBookingApiController($dispatcher, $container->get(BookingCreationService::class), $container->get(AvailabilityService::class), $container->get(BookingRepository::class), $this->entityManager, $container->get(CenterTimeZoneProvider::class), $container->get(BookingRules::class), new \App\Service\Booking\BookingView());
     }
 }

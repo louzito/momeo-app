@@ -75,6 +75,10 @@
             <file>tests/Controller/StripePaymentContractTest.php</file>
             <file>tests/Controller/BookingRulesContractTest.php</file>
             <file>tests/Booking/BookingRulesTest.php</file>
+            <file>tests/Booking/BookingViewTest.php</file>
+            <file>tests/Entity/BookingTest.php</file>
+            <file>tests/Planning/PlanningViewTest.php</file>
+            <file>tests/Staff/StaffMemberViewTest.php</file>
             <file>tests/Security/AdminApiPermissionContractTest.php</file>
             <file>tests/Integration/Tenant/MinimalSyliusInitializerTest.php</file>
             <file>tests/Integration/Payment/StripeWebhookIdempotencyTest.php</file>

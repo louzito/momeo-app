@@ -79,6 +79,7 @@ final class StaffManagementContractTest extends KernelTestCase
         return new AdminStaffMemberApiController(
             self::getContainer()->get(StaffMemberRepository::class),
             new StaffManagementService($em, $accounts), $accounts, $security,
+            new \App\Service\Staff\StaffMemberView(),
         );
     }
 
