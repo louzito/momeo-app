@@ -7,6 +7,7 @@ namespace App\Service\Payment;
 use App\Entity\Order\Adjustment;
 use App\Entity\Order\Order;
 use App\Entity\Product\Product;
+use App\Service\GiftVoucher\GiftOrderMarker;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class OrderPaymentTermsService
@@ -21,6 +22,10 @@ final class OrderPaymentTermsService
         $order = $this->entityManager->getRepository(Order::class)->findOneBy(['tokenValue' => $token]);
         if (!$order instanceof Order || $order->getCheckoutState() === 'completed') {
             throw new \DomainException('La commande est introuvable ou déjà finalisée.');
+        }
+
+        if ($order->getGiftCardAmount() !== null || GiftOrderMarker::decode($order->getNotes()) !== null) {
+            throw new \DomainException('Un cadeau doit être réglé intégralement.');
         }
 
         $service = null;

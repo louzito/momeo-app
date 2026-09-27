@@ -86,3 +86,16 @@ test('le prix de la fiche correspond au total initial du checkout, frais obligat
   assert.equal(cart.total, 110)
   assert.equal(cart.dueNow, 33)
 })
+
+
+test('un cadeau exige le montant complet même si la prestation prévoit un acompte', () => {
+  const cart = makeCart()
+  assert.equal(cart.dueNow, 30)
+  cart.setKind('gift')
+  assert.equal(cart.dueNow, 100)
+  assert.equal(cart.balanceDue, 0)
+  cart.jumpType.paymentMode = 'none'
+  assert.equal(cart.dueNow, 100)
+  cart.setKind('direct')
+  assert.equal(cart.dueNow, 0)
+})

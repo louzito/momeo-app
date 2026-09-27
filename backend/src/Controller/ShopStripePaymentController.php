@@ -27,6 +27,10 @@ final class ShopStripePaymentController
     {
         $data = json_decode($request->getContent(), true);
         $data = \is_array($data) ? $data : [];
+        foreach (['orderToken', 'bookingToken', 'successUrl', 'cancelUrl'] as $field) {
+            if (isset($data[$field]) && !is_string($data[$field])) return new JsonResponse(['error' => 'Les informations de paiement sont invalides.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if (isset($data['paymentId']) && (!is_int($data['paymentId']) || $data['paymentId'] < 0)) return new JsonResponse(['error' => 'Le paiement est invalide.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         try {
             return new JsonResponse($this->payments->session($data, $request->getHost()), Response::HTTP_CREATED);
         } catch (PaymentNotFound $exception) {
@@ -35,6 +39,16 @@ final class ShopStripePaymentController
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (StripeSessionUnavailable $exception) {
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_BAD_GATEWAY);
+        }
+    }
+
+    #[Route('/orders/{token}', name: 'todatempo_stripe_order_status', methods: ['GET'])]
+    public function status(string $token): JsonResponse
+    {
+        try {
+            return new JsonResponse($this->payments->status($token), headers: ['Cache-Control' => 'no-store']);
+        } catch (PaymentNotFound $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_NOT_FOUND);
         }
     }
 

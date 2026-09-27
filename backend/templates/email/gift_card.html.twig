@@ -1,0 +1,9 @@
+{% extends '@SyliusCore/Email/layout.html.twig' %}
+{% block subject %}Votre carte cadeau est disponible{% endblock %}
+{% block content %}
+    <h1>Votre carte cadeau {{ channel.name }}</h1>
+    <p>Votre paiement a été encaissé. Votre crédit de {{ (card.initialAmount / 100)|number_format(2, ',', ' ') }} {{ card.currency }} est disponible dans la boutique de l’établissement.</p>
+    <p>Code : <strong>{{ card.code }}</strong></p>
+    <p>Valable jusqu’au {{ card.expiresAt|date('d/m/Y') }}.</p>
+    <p>Référence de commande : {{ card.purchaseOrderNumber }}</p>
+{% endblock %}

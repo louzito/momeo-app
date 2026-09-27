@@ -23,6 +23,7 @@ final class GiftCardServiceTest extends TestCase
     private GiftCardService $service;
     private GiftCard $card;
     private Order $order;
+    private \Sylius\Component\Mailer\Sender\SenderInterface $sender;
 
     protected function setUp(): void
     {
@@ -69,7 +70,8 @@ final class GiftCardServiceTest extends TestCase
             $repository->method('findOneBy')->willReturnCallback(static fn (array $criteria) => $find($criteria)[0] ?? null);
             return $repository;
         });
-        $this->service = new GiftCardService($em, $tenant);
+        $this->sender = $this->createMock(\Sylius\Component\Mailer\Sender\SenderInterface::class);
+        $this->service = new GiftCardService($em, $tenant, $this->sender);
     }
 
     public function testReplayDoesNotDebitTwiceAndRefundIsCappedPerOrder(): void
@@ -116,6 +118,10 @@ final class GiftCardServiceTest extends TestCase
 
     public function testIssueOnlyAfterFullPaymentAndOnlyOnce(): void
     {
+        $customer = new \App\Entity\Customer\Customer();
+        $customer->setEmail('buyer@example.test');
+        $this->order->setCustomer($customer);
+        $this->sender->expects(self::once())->method('send')->with('gift_card', ['buyer@example.test'], self::isType('array'));
         $this->order->setGiftCardAmount(10000);
         $payment = new Payment();
         $payment->setCurrencyCode('EUR');

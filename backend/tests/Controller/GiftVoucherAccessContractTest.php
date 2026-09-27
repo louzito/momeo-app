@@ -155,7 +155,11 @@ final class GiftVoucherAccessContractTest extends \App\Tests\Availability\Availa
         $invoke = static fn () => $listener(new CompletedEvent($payment, new Marking()));
         $payment->setState('completed');
         $invoke(); // paiement sans commande
-        $order = new Order();
+        $order = $this->getMockBuilder(Order::class)->onlyMethods(['getTotal'])->getMock();
+        $order->method('getTotal')->willReturn(9900);
+        $order->setCurrencyCode('EUR');
+        $payment->setCurrencyCode('EUR');
+        $payment->setAmount(9900);
         $order->addPayment($payment);
         $order->setNumber($this->voucher->getPurchaseOrderNumber());
         $invoke(); // sans marqueur

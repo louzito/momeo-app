@@ -57,6 +57,7 @@ export const useCartStore = defineStore('cart', {
     },
     dueNowCents() {
       const total = Math.round(this.subtotal * 100)
+      if (this.isGift) return total
       const mode = this.jumpType?.paymentMode || 'full'
       const value = Number(this.jumpType?.paymentValue) || 0
       if (mode === 'none') return 0

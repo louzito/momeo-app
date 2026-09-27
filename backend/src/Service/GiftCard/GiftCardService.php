@@ -12,11 +12,12 @@ use App\Service\Tenant\TenantContext;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
+use Sylius\Component\Mailer\Sender\SenderInterface;
 
 /** Toutes les écritures prennent les verrous commande puis carte, sur la connexion tenant. */
 final class GiftCardService
 {
-    public function __construct(private readonly EntityManagerInterface $em, private readonly TenantContext $tenant) {}
+    public function __construct(private readonly EntityManagerInterface $em, private readonly TenantContext $tenant, private readonly SenderInterface $sender) {}
 
     public function issueFromPayment(PaymentInterface $payment): ?GiftCard
     {
@@ -48,6 +49,10 @@ final class GiftCardService
             $card = new GiftCard($this->tenant->getSlug(), (string) $order->getChannel()?->getCode(), (string) $order->getCurrencyCode(), $amount, $number, new \DateTimeImmutable('+1 year'));
             $this->em->persist($card);
             $this->record($card, 'issue', $number, $amount, $this->key('issue', $number));
+            $email = $order->getCustomer()?->getEmail();
+            if ($email) {
+                $this->sender->send('gift_card', [$email], ['card' => $card, 'channel' => $order->getChannel()]);
+            }
 
             return $card;
         });

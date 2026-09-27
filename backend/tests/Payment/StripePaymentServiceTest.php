@@ -32,8 +32,11 @@ final class StripePaymentServiceTest extends TestCase
     {
         $payment = new Payment();
         $payment->setAmount($paymentAmount);
+        $payment->setCurrencyCode('EUR');
         $method = new PaymentMethod();
         $method->setCode('stripe_web_elements');
+        $method->setCurrentLocale('fr_FR');
+        $method->setFallbackLocale('fr_FR');
         $gateway = new GatewayConfig();
         $gateway->setConfig(['secret_key' => 'sk_test_contract_only']);
         $method->setGatewayConfig($gateway);
@@ -46,6 +49,7 @@ final class StripePaymentServiceTest extends TestCase
         $booking->setStatus($state === 'paid' ? Booking::STATUS_CONFIRMED : Booking::STATUS_AWAITING_PAYMENT);
         $order = $this->createMock(Order::class);
         $order->method('getNumber')->willReturn('ORDER106');
+        $order->method('getCheckoutState')->willReturn('completed');
         $order->method('getTokenValue')->willReturn('order-token');
         $order->method('getTotal')->willReturn(2500);
         $order->method('getCurrencyCode')->willReturn('EUR');
@@ -67,8 +71,8 @@ final class StripePaymentServiceTest extends TestCase
 
     public static function rejectedSessions(): iterable
     {
-        yield 'payment amount mismatch' => [2400, 2500, 'https://example.test/ok', 0, 'Le montant du paiement ne correspond pas à la réservation.'];
-        yield 'booking amount mismatch' => [2500, 2400, 'https://example.test/ok', 0, 'Le montant du paiement ne correspond pas à la réservation.'];
+        yield 'payment amount mismatch' => [2400, 2500, 'https://example.test/ok', 0, 'Le montant du paiement ne correspond pas à la commande.'];
+        yield 'booking amount mismatch' => [2500, 2400, 'https://example.test/ok', 0, 'Le montant du paiement ne correspond pas à la commande.'];
         yield 'other payment id' => [2500, 2500, 'https://example.test/ok', 99, 'Le paiement Stripe est invalide.'];
         yield 'foreign return host' => [2500, 2500, 'https://foreign.test/ok', 0, 'URL de retour Stripe invalide.'];
         yield 'relative return url' => [2500, 2500, '/ok', 0, 'URL de retour Stripe invalide.'];
@@ -103,7 +107,7 @@ final class StripePaymentServiceTest extends TestCase
         $client->expects(self::exactly(2))->method('request')->willReturnCallback(static function ($method, $url, $headers, $parameters): array {
             self::assertSame('post', strtolower($method));
             self::assertStringEndsWith('/v1/checkout/sessions', $url);
-            self::assertContains('Idempotency-Key: todatempo-order-ORDER106', $headers);
+            self::assertContains('Idempotency-Key: todatempo-payment-order-token-', $headers);
             self::assertSame(2500, $parameters['line_items'][0]['price_data']['unit_amount']);
             self::assertSame('eur', $parameters['line_items'][0]['price_data']['currency']);
             self::assertSame('https://EXAMPLE.test/ok', $parameters['success_url']);
@@ -135,13 +139,13 @@ final class StripePaymentServiceTest extends TestCase
     public function testCancellation(string $state): void
     {
         [$controller, $booking, $payment, $em, $workflow] = $this->fixture(state: $state);
-        $em->expects($state === 'paid' ? self::never() : self::once())->method('flush');
-        $workflow->expects($state === 'paid' ? self::never() : self::once())->method('can')->with($payment, 'cancel')->willReturn(true);
-        $workflow->expects($state === 'paid' ? self::never() : self::once())->method('apply')->with($payment, 'cancel')->willReturn(new Marking());
+        $em->expects(self::never())->method('flush');
+        $workflow->expects(self::never())->method('can');
+        $workflow->expects(self::never())->method('apply');
         $response = $controller->cancel($booking->getPublicToken());
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame(['status' => $state === 'paid' ? 'paid' : 'cancelled'], json_decode($response->getContent(), true));
-        self::assertSame($state === 'paid' ? Booking::STATUS_CONFIRMED : Booking::STATUS_CANCELLED, $booking->getStatus());
+        self::assertSame(['status' => $state], json_decode($response->getContent(), true));
+        self::assertSame($state === 'paid' ? Booking::STATUS_CONFIRMED : Booking::STATUS_AWAITING_PAYMENT, $booking->getStatus());
     }
 
     public function testProviderFailureKeepsTheExistingGatewayError(): void

@@ -44,6 +44,7 @@
             <file>tests/Payment/RefundServiceTest.php</file>
             <file>tests/Payment/OrderPaymentTermsServiceTest.php</file>
             <file>tests/Payment/StripePaymentServiceTest.php</file>
+            <file>tests/Payment/ShopStripePaymentTest.php</file>
             <file>tests/Gdpr/RetentionPolicyTest.php</file>
             <file>tests/Gdpr/GdprContractTest.php</file>
             <file>tests/Gdpr/CustomerDataManagerTest.php</file>

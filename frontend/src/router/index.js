@@ -102,6 +102,12 @@ const tenantRoutes = [
     meta: { title: 'Commande confirmee', requiresCustomer: true },
   },
   {
+    path: '/checkout/shop-confirmation/:orderToken',
+    name: 'checkout-shop-confirmation',
+    component: () => import('@/views/checkout/ShopOrderConfirmation.vue'),
+    meta: { title: 'Suivi de commande' },
+  },
+  {
     path: '/checkout/gift-confirmation',
     name: 'checkout-gift-confirmation',
     component: () => import('@/views/checkout/GiftConfirmation.vue'),

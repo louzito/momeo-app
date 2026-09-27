@@ -7,6 +7,7 @@ namespace App\Service\GiftVoucher;
 use App\Entity\GiftVoucher;
 use App\Repository\GiftVoucherRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\DBAL\LockMode;
 use Sylius\Component\Channel\Model\ChannelInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
 
@@ -35,10 +36,18 @@ final class GiftVoucherActivator
         if ($order === null || GiftOrderMarker::decode($order->getNotes()) === null || $order->getNumber() === null) {
             return;
         }
+        $paid = 0;
+        foreach ($order->getPayments() as $candidate) {
+            if ($candidate->getState() === PaymentInterface::STATE_COMPLETED && $candidate->getCurrencyCode() === $order->getCurrencyCode()) $paid += $candidate->getAmount();
+        }
+        if ($paid < $order->getTotal() || $order->getTotal() <= 0 || !$order->getAdjustments('todatempo_payment_terms')->isEmpty()) return;
         $voucher = $this->repository->findOneByPurchaseOrderNumber($order->getNumber());
         $channel = $order->getChannel();
         if ($voucher === null || $channel === null) {
             return;
+        }
+        if ($this->em->getConnection()->isTransactionActive()) {
+            $this->em->refresh($voucher, LockMode::PESSIMISTIC_WRITE);
         }
         $this->activate($voucher, $channel);
     }

@@ -6,17 +6,19 @@ namespace App\Service\Payment;
 
 use App\Service\Email\BookingEmailDispatcher;
 use App\Entity\Booking;
+use App\Entity\Order\Order;
 use App\Entity\Payment\Payment;
 use App\Entity\Payment\PaymentMethod;
 use App\Entity\StripeWebhookEvent;
 use App\Service\Observability\MetricsRegistry;
 use App\Service\Tenant\TenantContext;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\Webhook;
 
-/** Signed event processing on the tenant EntityManager; notifications follow commit. */
+/** Signed event processing on the tenant EntityManager; gift email queuing shares the transaction. */
 final class StripeWebhookProcessor
 {
     public function __construct(
@@ -30,7 +32,7 @@ final class StripeWebhookProcessor
     /** @return array{received: true, replayed?: true} */
     public function process(string $payload, string $signature): array
     {
-        $method = $this->entityManager->getRepository(PaymentMethod::class)->findOneBy(['code' => 'stripe_web_elements', 'enabled' => true]);
+        $method = $this->entityManager->getRepository(PaymentMethod::class)->findOneBy(['code' => 'stripe_web_elements']);
         $secret = trim((string) ($method?->getGatewayConfig()?->getConfig()['webhook_secret_key'] ?? ''));
         if ($secret === '') {
             $this->metrics->increment('webhook_failed', $this->tenantContext->getSlug());
@@ -56,27 +58,40 @@ final class StripeWebhookProcessor
             return ['received' => true, 'replayed' => true];
         }
 
-        $object = $event->data->object;
-        $metadata = $object->metadata ?? null;
-        $payment = $metadata ? $this->entityManager->find(Payment::class, (int) ($metadata->payment_id ?? 0)) : null;
-        $booking = $metadata ? $this->entityManager->getRepository(Booking::class)->findOneBy(['publicToken' => (string) ($metadata->booking_token ?? '')]) : null;
         $paymentCompleted = false;
-        if ($payment instanceof Payment && $booking instanceof Booking) {
-            if ($event->type === 'checkout.session.completed' && ($object->payment_status ?? null) === 'paid') {
-                $details = $payment->getDetails();
-                $details['stripe_payment_intent'] = (string) ($object->payment_intent ?? '');
-                $payment->setDetails($details);
-                $this->checkout->complete($payment, $booking);
-                $paymentCompleted = true;
-            } elseif ($event->type === 'checkout.session.expired') {
-                $this->checkout->cancel($payment, $booking);
-            } elseif ($event->type === 'checkout.session.async_payment_failed') {
-                $this->checkout->fail($payment, $booking);
-                $this->metrics->increment('reservation_failed', $this->tenantContext->getSlug());
-            }
-        }
-
+        $booking = null;
         try {
+            $object = $event->data->object;
+            $metadata = $object->metadata ?? null;
+            $payment = $metadata ? $this->entityManager->find(Payment::class, (int) ($metadata->payment_id ?? 0)) : null;
+            $order = $payment instanceof Payment ? $payment->getOrder() : null;
+            if ($order instanceof Order) {
+                // Same lock order as GiftCardService; different event IDs for the
+                // same payment cannot run the workflow and notifications twice.
+                $this->entityManager->refresh($order, LockMode::PESSIMISTIC_WRITE);
+                $this->entityManager->refresh($payment, LockMode::PESSIMISTIC_WRITE);
+                $bookingToken = (string) ($metadata->booking_token ?? '');
+                $booking = $bookingToken !== '' ? $this->entityManager->getRepository(Booking::class)->findOneBy(['publicToken' => $bookingToken]) : null;
+                $matches = $order->getTokenValue() === (string) ($metadata->order_token ?? '')
+                    && $payment->getMethod()?->getCode() === 'stripe_web_elements'
+                    && $payment->getCurrencyCode() === $order->getCurrencyCode()
+                    && (int) ($object->amount_total ?? -1) === $payment->getAmount()
+                    && strtolower((string) ($object->currency ?? '')) === strtolower((string) $order->getCurrencyCode())
+                    && ($bookingToken === '' || ($booking instanceof Booking && $booking->getOrderNumber() === $order->getNumber()));
+                if ($matches) {
+                    if (in_array($event->type, ['checkout.session.completed', 'checkout.session.async_payment_succeeded'], true) && ($object->payment_status ?? null) === 'paid') {
+                        $details = $payment->getDetails();
+                        $details['stripe_payment_intent'] = (string) ($object->payment_intent ?? '');
+                        $payment->setDetails($details);
+                        $paymentCompleted = $this->checkout->complete($payment, $booking);
+                    } elseif ($event->type === 'checkout.session.expired') {
+                        $this->checkout->cancel($payment, $booking);
+                    } elseif ($event->type === 'checkout.session.async_payment_failed') {
+                        $this->checkout->fail($payment, $booking);
+                        $this->metrics->increment('reservation_failed', $this->tenantContext->getSlug());
+                    }
+                }
+            }
             $this->entityManager->flush();
             $connection->commit();
         } catch (\Throwable $exception) {

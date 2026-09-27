@@ -28,3 +28,6 @@ sylius_mailer:
         gift_voucher:
             subject: skybook.emails.gift_voucher.subject
             template: 'email/gift_voucher.html.twig'
+        gift_card:
+            subject: 'Votre carte cadeau est disponible'
+            template: 'email/gift_card.html.twig'

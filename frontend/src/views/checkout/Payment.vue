@@ -13,21 +13,13 @@ const emit = defineEmits(['processing'])
 const router = useRouter()
 const session = useSessionStore()
 const { cart } = useCheckoutGuard()
-const { tenant, slug } = useTenantContext()
+const { tenant } = useTenantContext()
 
-// Le virement et Stripe créent une vraie commande Sylius. Aucun moyen de
-// paiement simulé n'est proposé : toute réservation publique est persistée.
-// Cheques cadeaux REELS (chantier 2026-08) : un cheque doit correspondre a une
-// vraie commande Sylius (le backend cree le GiftVoucher a partir de la
-// commande) -> le virement est donc le SEUL moyen de paiement propose pour un
-// cadeau.
-// Le virement n'est propose QUE si le centre l'a active dans son espace admin
-// (payment-method Sylius `bank_transfer` enabled) — verifie sur le shop API.
 const bankMethod = ref(null)
 const stripeMethod = ref(null)
 const methodsLoaded = ref(false)
 const canBankTransfer = computed(() => !!bankMethod.value)
-const canStripe = computed(() => !!stripeMethod.value && !cart.isGift)
+const canStripe = computed(() => !!stripeMethod.value)
 const noOnlinePayment = computed(() => !cart.isGift && cart.dueNowCents === 0)
 const method = ref('bank_transfer')
 
@@ -46,7 +38,8 @@ async function loadMethods() {
     methodsError.value = 'Impossible de charger les moyens de paiement.'
   }
   methodsLoaded.value = true
-  if (noOnlinePayment.value) selectMethod('none')
+  if (cart.lastResult) selectMethod(cart.lastResult.order.paymentMethod)
+  else if (noOnlinePayment.value) selectMethod('none')
   else if (canStripe.value) selectMethod('stripe_web_elements')
   else if (canBankTransfer.value) selectMethod('bank_transfer')
 }
@@ -79,21 +72,23 @@ async function pay() {
     cart.setPaymentMethod(method.value)
     const result = await cart.checkout(session.customer?.id || null)
     if (method.value === 'stripe_web_elements') {
-      const confirmation = new URL(router.resolve({ name: 'checkout-confirmation', params: { bookingId: result.booking.id } }).href, window.location.origin)
+      const destination = cart.isGift
+        ? { name: 'checkout-shop-confirmation', params: { orderToken: result.order.orderToken } }
+        : { name: 'checkout-confirmation', params: { bookingId: result.booking.id } }
+      const confirmation = new URL(router.resolve(destination).href, window.location.origin)
       const stripe = await api.createStripeCheckoutSession({
         orderToken: result.order.orderToken,
         paymentId: result.order.paymentId,
-        bookingToken: result.booking.id,
+        bookingToken: result.booking?.id,
         successUrl: `${confirmation.toString()}?payment=success`,
         cancelUrl: `${confirmation.toString()}?payment=cancelled`,
       })
       window.location.assign(stripe.url)
       return
     }
-    const next = cart.isGift ? 'checkout-gift-confirmation' : 'checkout-confirmation'
-    const params = { slug: slug.value }
-    if (!cart.isGift) params.bookingId = result.booking.id
-    await router.push({ name: next, params })
+    await router.push(cart.isGift
+      ? { name: 'checkout-shop-confirmation', params: { orderToken: result.order.orderToken } }
+      : { name: 'checkout-confirmation', params: { bookingId: result.booking.id } })
   } catch (e) {
     error.value = e?.message || 'La commande a échoué. Réessayez.'
   } finally {
@@ -165,7 +160,7 @@ async function pay() {
         <ol v-if="cart.isGift" class="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
           <li>Votre commande est enregistrée tout de suite.</li>
           <li>Vous recevez les coordonnées bancaires et la référence à indiquer.</li>
-          <li>Des reception du virement, le cheque cadeau (code + QR) est envoye par email au beneficiaire.</li>
+          <li>Dès réception du virement, le cadeau est activé et envoyé par e-mail au bénéficiaire.</li>
         </ol>
         <ol v-else class="mt-2 list-decimal space-y-1 pl-5 text-sm text-slate-600">
           <li>Votre commande est enregistrée tout de suite (créneau conservé).</li>

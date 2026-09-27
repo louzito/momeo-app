@@ -23,7 +23,7 @@ const order = computed(() => booking.value ? {
 } : null)
 // Commande reelle Sylius payee par virement : en attente de reception.
 const awaitingTransfer = computed(() => order.value?.status === 'awaiting_payment' && !route.query.payment)
-const awaitingCardWebhook = computed(() => order.value?.status === 'awaiting_payment' && route.query.payment === 'success')
+const awaitingCardWebhook = computed(() => order.value?.status === 'awaiting_payment' && ['success', 'cancelled'].includes(route.query.payment))
 const cancelled = computed(() => ['cancelled', 'failed'].includes(order.value?.status))
 
 onMounted(async () => {
@@ -77,7 +77,7 @@ onMounted(async () => {
           Votre creneau est garde — il ne reste qu'a effectuer le virement.
         </template>
         <template v-else-if="awaitingCardWebhook">
-          Paiement reçu, confirmation sécurisée en cours. Actualisez dans quelques secondes.
+          Confirmation du paiement en attente. Actualisez dans quelques secondes.
         </template>
         <template v-else-if="cancelled">
           La réservation n’est pas confirmée et le créneau a été libéré.

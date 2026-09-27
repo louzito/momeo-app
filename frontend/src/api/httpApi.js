@@ -728,7 +728,7 @@ export const httpApi = {
   // instructions (coordonnees bancaires du virement).
   async getCheckoutPaymentMethods() {
     const data = await apiGet('/shop/payment-methods')
-    return membersOf(data).map((m) => ({
+    return membersOf(data).filter((m) => m.enabled !== false).map((m) => ({
       code: m.code,
       name: m.name || m.code,
       description: m.description || '',
@@ -751,11 +751,8 @@ export const httpApi = {
   // venir) : on les consigne dans les `notes` de la commande, et la reservation
   // front (creneau, carte d'embarquement) reste portee par le mock.
   async createOrder(payload) {
-    // Cheque cadeau reel : vraie commande Sylius + GiftVoucher cree par le
-    // backend (listener sur checkoutState=completed). Le virement est le SEUL
-    // moyen de paiement propose pour un cadeau par le front (voir Payment.vue) ;
-    // si ce n'est malgre tout pas le cas on ne cree pas de faux cheque -> mock.
-    if (payload.kind === 'gift' && payload.paymentMethod === 'bank_transfer') {
+    // Cadeaux : commande dédiée, activation uniquement après encaissement.
+    if (payload.kind === 'gift' && ['bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
       return this._createGiftOrder(payload)
     }
     if (payload.kind !== 'direct' || !['none', 'bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
@@ -884,7 +881,12 @@ export const httpApi = {
     }
     const completed = await apiWrite('PATCH', `/shop/orders/${token}/complete`, {})
     return { id: completed.tokenValue, number: completed.number, total: (completed.total || 0) / 100,
-      currency: completed.currencyCode, preparationState: 'pending', fulfillmentMode: payload.mode }
+      currency: completed.currencyCode, preparationState: 'pending', fulfillmentMode: payload.mode,
+      orderToken: completed.tokenValue, paymentId, paymentMethod: payload.paymentMethod }
+  },
+
+  async getShopOrderPayment(token) {
+    return apiGet(`/shop/payments/stripe/orders/${encodeURIComponent(token)}`)
   },
 
   async createStripeCheckoutSession({ orderToken, paymentId, bookingToken, successUrl, cancelUrl }) {
@@ -945,13 +947,12 @@ export const httpApi = {
       personalMessage: payload.gift?.message || null,
     })
 
-    // 5. Moyen de paiement : virement (seul canal produisant une vraie
-    //    commande tant que Stripe n'est pas branche)
+    // 5. Moyen de paiement choisi parmi ceux activés par l’établissement.
     const addressed = await apiGet(`/shop/orders/${t}`)
     const paymentId = addressed.payments?.[0]?.id
     if (paymentId != null) {
       await apiWrite('PATCH', `/shop/orders/${t}/payments/${paymentId}`, {
-        paymentMethod: '/api/v2/shop/payment-methods/bank_transfer',
+        paymentMethod: `/api/v2/shop/payment-methods/${payload.paymentMethod}`,
       })
     }
 
@@ -978,7 +979,9 @@ export const httpApi = {
         total: (completed.total ?? 0) / 100,
         currency: completed.currencyCode || voucher.currencyCode,
         status: 'awaiting_payment', // paymentState Sylius : en attente du virement
-        paymentMethod: 'bank_transfer',
+        paymentMethod: payload.paymentMethod,
+        paymentId,
+        orderToken: completed.tokenValue,
         paymentInstructions,
         syliusState: completed.state,
       },
