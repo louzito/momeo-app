@@ -11,7 +11,7 @@ import Spinner from '@/components/ui/Spinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import CatalogError from '@/components/ui/CatalogError.vue'
 
-const { tenantStore, tenant, jumpTypes, loading, error, slug } = useTenantContext()
+const { tenantStore, tenant, jumpTypes, options, loading, error, slug } = useTenantContext()
 
 const products = computed(() => orderJumpTypes(jumpTypes.value || [], tenant.value?.shopOrder))
 const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
@@ -34,6 +34,7 @@ const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
         v-for="jt in products"
         :key="jt.id"
         :jump-type="jt"
+        :options="options"
         :currency="tenant.currency"
         :slug="slug"
       />

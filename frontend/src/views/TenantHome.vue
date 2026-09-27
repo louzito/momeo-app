@@ -8,7 +8,7 @@ import Spinner from '@/components/ui/Spinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import CatalogError from '@/components/ui/CatalogError.vue'
 
-const { tenantStore, tenant, jumpTypes, loading, error, slug } = useTenantContext()
+const { tenantStore, tenant, jumpTypes, options, loading, error, slug } = useTenantContext()
 
 const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
 
@@ -92,6 +92,7 @@ const orderOf = (key) => sectionOrder.value.indexOf(key) === -1 ? 99 : sectionOr
           v-for="jt in featuredJumps"
           :key="jt.id"
           :jump-type="jt"
+          :options="options"
           :currency="tenant.currency"
           :slug="slug"
         />

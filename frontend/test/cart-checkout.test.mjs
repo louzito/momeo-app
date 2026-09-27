@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { applicableServiceOptions, serviceStartingPrice } from '../src/utils/serviceDetails.js'
 import { createPinia, setActivePinia } from 'pinia'
 
 const source = (await readFile(new URL('../src/stores/cart.js', import.meta.url), 'utf8'))
@@ -69,4 +70,19 @@ test('une erreur libère le verrou et un nouvel achat efface la commande précé
   assert.equal(cart.slot, null)
   assert.equal(cart.kind, 'direct')
   assert.equal(cart.selectedOptions.length, 0)
+})
+
+
+test('le prix de la fiche correspond au total initial du checkout, frais obligatoires inclus', () => {
+  const cart = makeCart()
+  const options = [
+    { id: 'fees', scope: 'PER_ORDER', price: 3.50, mandatory: true },
+    { id: 'included', scope: 'PER_JUMP', linkedJumpTypeIds: ['service'], price: 6.50, mandatory: true },
+    { id: 'other', scope: 'PER_JUMP', linkedJumpTypeIds: ['other'], price: 50, mandatory: true },
+    { id: 'extra', scope: 'PER_JUMP', price: 20, mandatory: false },
+  ]
+  cart.ensureMandatoryOptions(applicableServiceOptions(cart.jumpType, options))
+  assert.equal(cart.total, serviceStartingPrice(cart.jumpType, options))
+  assert.equal(cart.total, 110)
+  assert.equal(cart.dueNow, 33)
 })

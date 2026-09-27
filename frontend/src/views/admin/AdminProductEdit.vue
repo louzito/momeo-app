@@ -106,7 +106,7 @@ async function save() {
     </h1>
 
     <div v-if="isLegacyService" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-      Cette prestation provient de l'ancien catalogue. Ses conditions de réservation restent actives tant qu'elle n'est pas migrée vers le format TodaTempo.
+      Les conditions d’âge, de santé et de sécurité de cette prestation restent applicables à chaque réservation.
     </div>
 
     <Spinner v-if="loading" />
@@ -157,7 +157,7 @@ async function save() {
                   <input type="file" accept="image/*" class="hidden" @change="onImagePicked" />
                 </label>
                 <p class="mt-1 text-xs text-slate-400">
-                  {{ imageFile ? `${imageFile.name} — envoyee a l'enregistrement.` : 'JPG / PNG / WebP, 8 Mo max. Remplace l\'image actuelle.' }}
+                  {{ imageFile ? `${imageFile.name} — envoyée à l'enregistrement.` : 'JPG / PNG / WebP, 8 Mo max. Remplace l\'image actuelle.' }}
                 </p>
               </div>
             </div>
@@ -177,15 +177,15 @@ async function save() {
             </div>
           </div>
           <div>
-            <label class="label">Conditions a confirmer par le client</label>
+            <label class="label">Conditions à confirmer par le client</label>
             <textarea
               v-model="form.requirementsText"
               rows="4"
               class="input"
-              placeholder="Ex. Je confirme ne pas etre allergique aux produits utilises.&#10;Ex. Je viendrai sans maquillage."
+              placeholder="Ex. Je confirme ne pas être allergique aux produits utilisés.&#10;Ex. Je viendrai sans maquillage."
               :disabled="isLegacyService"
             />
-            <p class="mt-1 text-xs text-slate-400">Une condition par ligne. Elles seront affichees avant la confirmation du rendez-vous.</p>
+            <p class="mt-1 text-xs text-slate-400">Une condition par ligne. Elles seront affichées avant la confirmation du rendez-vous.</p>
           </div>
           <label class="flex items-center gap-2">
             <input v-model="form.popular" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600" />

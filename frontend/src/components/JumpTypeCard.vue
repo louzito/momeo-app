@@ -1,9 +1,11 @@
 <script setup>
 import { RouterLink } from 'vue-router'
+import { serviceStartingPrice } from '@/utils/serviceDetails'
 import { formatMoney } from '@/utils/format'
 
 defineProps({
   jumpType: { type: Object, required: true },
+  options: { type: Array, default: () => [] },
   currency: { type: String, default: 'USD' },
   slug: { type: String, required: true },
 })
@@ -33,15 +35,15 @@ defineProps({
     <div class="flex flex-1 flex-col p-5">
       <h3 class="font-display text-lg font-bold text-slate-900">{{ jumpType.name }}</h3>
       <p class="mt-1 flex-1 text-sm leading-relaxed text-slate-500">{{ jumpType.summary }}</p>
-      <div class="mt-4 flex items-center justify-between">
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span class="text-xs text-slate-400">a partir de</span>
+          <span class="text-xs text-slate-400">À partir de</span>
           <p class="text-xl font-bold text-brand-700">
-            {{ formatMoney(jumpType.basePrice, currency) }}
+            {{ formatMoney(serviceStartingPrice(jumpType, options), currency) }}
           </p>
         </div>
         <span class="btn-outline group-hover:border-brand-500 group-hover:bg-brand-600 group-hover:text-white">
-          Decouvrir
+          Découvrir
         </span>
       </div>
     </div>

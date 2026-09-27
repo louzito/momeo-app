@@ -4,6 +4,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
 import { useCartStore } from '@/stores/cart'
 import { formatMoney } from '@/utils/format'
+import { applicableServiceOptions, serviceStartingPrice, serviceCharacteristics } from '@/utils/serviceDetails'
 import Spinner from '@/components/ui/Spinner.vue'
 import CatalogError from '@/components/ui/CatalogError.vue'
 
@@ -16,26 +17,17 @@ const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
 const jumpType = computed(() =>
   jumpTypes.value.find((j) => j.id === route.params.jumpTypeId) || null,
 )
-const perJumpOptions = computed(() =>
-  options.value.filter(
-    (o) =>
-      o.scope === 'PER_JUMP' &&
-      (!o.linkedJumpTypeIds?.length || o.linkedJumpTypeIds.includes(jumpType.value?.id)),
-  ),
-)
-const rule = computed(() => jumpType.value?.eligibility)
+const applicableOptions = computed(() => applicableServiceOptions(jumpType.value, options.value))
+const mandatoryOptions = computed(() => applicableOptions.value.filter((option) => option.mandatory))
+const optionalOptions = computed(() => applicableOptions.value.filter((option) => !option.mandatory))
+const startingPrice = computed(() => serviceStartingPrice(jumpType.value, options.value))
+const characteristics = computed(() => serviceCharacteristics(jumpType.value))
 
 function book() {
   if (cart.tenantId !== tenant.value.id || cart.jumpType?.id !== jumpType.value.id || cart.lastResult) {
     cart.startPurchase(tenant.value.id, jumpType.value)
   }
-  const applicable = options.value.filter(
-    (o) =>
-      o.scope !== 'PER_JUMP' ||
-      !o.linkedJumpTypeIds?.length ||
-      o.linkedJumpTypeIds.includes(jumpType.value?.id),
-  )
-  cart.ensureMandatoryOptions(applicable)
+  cart.ensureMandatoryOptions(applicableOptions.value)
   router.push({ name: 'checkout-schedule', params: { slug: slug.value } })
 }
 </script>
@@ -55,7 +47,7 @@ function book() {
       ← {{ tenant.name }}
     </RouterLink>
 
-    <div class="mt-4 grid gap-10 lg:grid-cols-2">
+    <div class="mt-4 grid gap-10 break-words lg:grid-cols-2">
       <!-- Media -->
       <div>
         <div class="overflow-hidden rounded-3xl shadow-soft">
@@ -65,59 +57,50 @@ function book() {
       </div>
 
       <!-- Infos -->
-      <div>
-        <span v-if="jumpType.popular" class="chip bg-accent-500 text-white">★ Le plus demande</span>
+      <div class="min-w-0">
+        <span v-if="jumpType.popular" class="chip bg-accent-500 text-white">★ Le plus demandé</span>
         <h1 class="mt-2 font-display text-4xl font-extrabold text-slate-900">{{ jumpType.name }}</h1>
-        <p class="mt-3 text-lg text-slate-600">{{ jumpType.description }}</p>
-
-        <div class="mt-6 flex items-baseline gap-2">
-          <span class="text-sm text-slate-400">a partir de</span>
-          <span class="font-display text-4xl font-bold text-brand-700">{{ formatMoney(jumpType.basePrice, tenant.currency) }}</span>
+        <p v-if="jumpType.summary" class="mt-3 text-lg text-slate-600">{{ jumpType.summary }}</p>
+        <div v-if="jumpType.description" class="mt-4">
+          <h2 class="font-semibold text-slate-800">La prestation</h2>
+          <p class="mt-2 whitespace-pre-line text-slate-600">{{ jumpType.description }}</p>
         </div>
 
-        <!-- Caracteristiques configurees par le professionnel. -->
-        <dl class="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 shadow-sm sm:grid-cols-3">
-          <div v-if="jumpType.legacyEligibility && jumpType.altitudeM">
-            <dt class="text-xs uppercase text-slate-400">Information complémentaire</dt>
-            <dd class="font-semibold text-slate-800">{{ jumpType.altitudeM.toLocaleString('fr-FR') }} m</dd>
-          </div>
-          <div v-if="jumpType.legacyEligibility">
-            <dt class="text-xs uppercase text-slate-400">Duree sur site</dt>
-            <dd class="font-semibold text-slate-800">{{ Math.round(jumpType.durationMin / 60 * 10) / 10 }} h</dd>
-          </div>
-          <div v-if="jumpType.legacyEligibility">
-            <dt class="text-xs uppercase text-slate-400">Age</dt>
-            <dd class="font-semibold text-slate-800">{{ rule.ageMin }}–{{ rule.ageMax }} ans</dd>
-          </div>
-          <div v-if="jumpType.legacyEligibility">
-            <dt class="text-xs uppercase text-slate-400">Poids max</dt>
-            <dd class="font-semibold text-slate-800">{{ rule.weightMaxKg }} kg</dd>
-          </div>
-          <div v-if="jumpType.legacyEligibility">
-            <dt class="text-xs uppercase text-slate-400">Taille min</dt>
-            <dd class="font-semibold text-slate-800">{{ rule.heightMinCm }} cm</dd>
-          </div>
-          <div v-if="jumpType.legacyEligibility && rule.bmiMax">
-            <dt class="text-xs uppercase text-slate-400">IMC max</dt>
-            <dd class="font-semibold text-slate-800">{{ rule.bmiMax }}</dd>
-          </div>
-          <div v-if="jumpType.legacyEligibility">
-            <dt class="text-xs uppercase text-slate-400">Certificat med.</dt>
-            <dd class="font-semibold text-slate-800">{{ rule.medicalCertificateRequired ? 'Requis' : 'Non requis' }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs uppercase text-slate-400">Capacite/creneau</dt>
-            <dd class="font-semibold text-slate-800">{{ jumpType.capacityPerSlot }} pers.</dd>
+        <div class="mt-6 flex flex-wrap items-baseline gap-2">
+          <span class="text-sm text-slate-400">À partir de</span>
+          <span class="font-display text-4xl font-bold text-brand-700">{{ formatMoney(startingPrice, tenant.currency) }}</span>
+        </div>
+
+        <div v-if="mandatoryOptions.length" class="mt-2 text-sm text-slate-600">
+          <p>Frais obligatoires inclus :</p>
+          <ul class="mt-1 list-inside list-disc">
+            <li v-for="option in mandatoryOptions" :key="option.id">
+              {{ option.name }} : {{ formatMoney(option.price, tenant.currency) }}
+            </li>
+          </ul>
+        </div>
+
+        <dl v-if="characteristics.length" class="mt-6 grid grid-cols-1 gap-4 rounded-2xl bg-white p-5 shadow-sm sm:grid-cols-2">
+          <div v-for="item in characteristics" :key="item.label">
+            <dt class="text-xs uppercase text-slate-500">{{ item.label }}</dt>
+            <dd class="font-semibold text-slate-800">{{ item.value }}</dd>
           </div>
         </dl>
 
-        <div v-if="perJumpOptions.length" class="mt-6">
-          <p class="mb-2 text-sm font-semibold text-slate-700">Options disponibles</p>
-          <div class="flex flex-wrap gap-2">
-            <span v-for="o in perJumpOptions" :key="o.id" class="chip bg-slate-100 text-slate-600">
-              {{ o.name }} · +{{ formatMoney(o.price, tenant.currency) }}
-            </span>
-          </div>
+        <section v-if="jumpType.requirements?.length" class="mt-6">
+          <h2 class="font-semibold text-slate-800">Conditions et informations pratiques</h2>
+          <ul class="mt-2 list-inside list-disc space-y-2 text-slate-600">
+            <li v-for="item in jumpType.requirements" :key="item.key">{{ item.label }}</li>
+          </ul>
+        </section>
+
+        <div v-if="optionalOptions.length" class="mt-6">
+          <h2 class="mb-2 text-sm font-semibold text-slate-700">Options disponibles</h2>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li v-for="option in optionalOptions" :key="option.id">
+              {{ option.name }} · +{{ formatMoney(option.price, tenant.currency) }}
+            </li>
+          </ul>
         </div>
 
         <div class="mt-8 flex flex-wrap gap-3">

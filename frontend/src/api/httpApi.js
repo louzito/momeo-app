@@ -399,6 +399,8 @@ function mapProductToJumpType(p, tenantId, attrs = {}) {
     basePrice: priceCents / 100, // Sylius stocke les montants en centimes
     altitudeM: attrs.altitudeM ?? null,
     durationMin: attrs.durationMin ?? 20,
+    // Données explicitement renseignées, sans les défauts de validation historiques.
+    configuredDetails: { ...attrs },
     capacityPerSlot: attrs.capacityPerSlot ?? 6,
     image: imageUrl(p.images),
     popular: false,

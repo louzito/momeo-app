@@ -164,9 +164,7 @@ function printInvoice() {
     <!-- ===================== FALLBACK : rendu front (pas de facture Sylius) ===================== -->
     <div v-else-if="order" class="mx-auto max-w-3xl px-4 print:max-w-none print:p-0">
       <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 print:hidden">
-        ⚠️ Pas de facture officielle Sylius pour cette commande (passée avant l'activation de la
-        facturation). Rendu indicatif ci-dessous — pour générer les factures manquantes :
-        <span class="font-mono text-xs">bin/console sylius-invoicing:generate-invoices</span>
+        La facture officielle n’est pas disponible pour cette commande. Le récapitulatif ci-dessous est fourni à titre indicatif.
       </div>
 
       <div class="bg-white p-10 shadow-sm print:p-0 print:shadow-none">
