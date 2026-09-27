@@ -32,10 +32,8 @@ const mobileOpen = ref(false)
 
       <!-- Nav desktop -->
       <nav class="hidden items-center gap-1 md:flex">
-        <RouterLink :to="{ name: 'shop' }" class="nav-link">Boutique</RouterLink>
-        <RouterLink :to="{ name: 'calendar' }" class="nav-link">Calendrier</RouterLink>
-        <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'beneficiary-login' }" class="nav-link">Chèque cadeau</RouterLink>
-        <RouterLink :to="{ name: 'admin-login' }" class="nav-link">Espace professionnel</RouterLink>
+        <RouterLink :to="{ name: 'shop' }" class="nav-link">Prestations</RouterLink>
+        <RouterLink :to="{ name: 'physical-products' }" class="nav-link">Boutique</RouterLink>
       </nav>
 
       <!-- Actions -->
@@ -54,18 +52,16 @@ const mobileOpen = ref(false)
         >
           Mon compte
         </RouterLink>
-        <button class="rounded-lg p-2 text-white/80 hover:bg-white/10 md:hidden" @click="mobileOpen = !mobileOpen" aria-label="Menu">☰</button>
+        <button class="rounded-lg p-2 text-white/80 hover:bg-white/10 md:hidden" @click="mobileOpen = !mobileOpen" :aria-expanded="mobileOpen" aria-controls="mobile-navigation" aria-label="Menu">☰</button>
       </div>
     </div>
 
     <!-- Nav mobile -->
     <div v-if="mobileOpen" class="border-t border-white/10 md:hidden" :style="{ backgroundColor: 'var(--sb-header-bg, #020617)' }">
-      <nav class="section flex flex-col py-2">
-        <RouterLink :to="{ name: 'shop' }" class="nav-link justify-start" @click="mobileOpen = false">Boutique</RouterLink>
-        <RouterLink :to="{ name: 'calendar' }" class="nav-link justify-start" @click="mobileOpen = false">Calendrier</RouterLink>
-        <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'beneficiary-login' }" class="nav-link justify-start" @click="mobileOpen = false">Espace chèque cadeau</RouterLink>
-        <RouterLink :to="{ name: 'account-login' }" class="nav-link justify-start" @click="mobileOpen = false">Mon compte</RouterLink>
-        <RouterLink :to="{ name: 'admin-login' }" class="nav-link justify-start" @click="mobileOpen = false">Espace professionnel</RouterLink>
+      <nav id="mobile-navigation" class="section flex flex-col py-2">
+        <RouterLink :to="{ name: 'shop' }" class="nav-link justify-start" @click="mobileOpen = false">Prestations</RouterLink>
+        <RouterLink :to="{ name: 'physical-products' }" class="nav-link justify-start" @click="mobileOpen = false">Boutique</RouterLink>
+        <RouterLink :to="{ name: session.isLoggedIn ? 'account-dashboard' : 'account-login' }" class="nav-link justify-start" @click="mobileOpen = false">Mon compte</RouterLink>
       </nav>
     </div>
   </header>

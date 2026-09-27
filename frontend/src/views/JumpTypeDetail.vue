@@ -119,10 +119,9 @@ function book() {
         </div>
 
         <div class="mt-8 flex flex-wrap gap-3">
-          <button class="btn-primary px-8" @click="book">Reserver cette prestation</button>
-          <RouterLink :to="{ name: 'calendar', params: { slug } }" class="btn-outline">Voir les disponibilites</RouterLink>
+          <button class="btn-primary px-8" @click="book">Réserver cette prestation</button>
         </div>
-        <p class="mt-3 text-xs text-slate-400">Achat direct avec date ou cheque cadeau — choix a l'etape suivante.</p>
+        <p class="mt-3 text-xs text-slate-400">Choisissez vos options, puis consultez les disponibilités de cette prestation.</p>
       </div>
     </div>
   </div>

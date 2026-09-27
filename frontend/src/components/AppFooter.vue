@@ -28,7 +28,6 @@ const legalLinks = computed(() => {
     l.mentions?.enabled ? { key: 'mentions', label: 'Mentions légales' } : null,
   ].filter(Boolean)
 })
-const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
 </script>
 
 <template>
@@ -65,7 +64,7 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
         </div>
 
         <div>
-          <p class="mb-3 text-sm font-semibold uppercase tracking-wide">L'etablissement</p>
+          <p class="mb-3 text-sm font-semibold uppercase tracking-wide">L’établissement</p>
           <ul class="space-y-2 text-sm">
             <li v-if="address?.street">📍 {{ address.street }}, {{ address.postcode }} {{ address.city }}</li>
             <li v-else-if="tenant?.city">📍 {{ tenant.city }}</li>
@@ -77,9 +76,9 @@ const giftEnabled = computed(() => tenant.value?.giftVouchersEnabled !== false)
         <div>
           <p class="mb-3 text-sm font-semibold uppercase tracking-wide">Réserver</p>
           <ul class="space-y-2 text-sm">
-            <li><RouterLink :to="{ name: 'shop' }" class="hover:underline">Boutique</RouterLink></li>
-            <li><RouterLink :to="{ name: 'calendar' }" class="hover:underline">Calendrier</RouterLink></li>
-            <li v-if="giftEnabled"><RouterLink :to="{ name: 'beneficiary-login' }" class="hover:underline">Activer un chèque cadeau</RouterLink></li>
+            <li><RouterLink :to="{ name: 'shop' }" class="hover:underline">Prestations</RouterLink></li>
+            <li><RouterLink :to="{ name: 'physical-products' }" class="hover:underline">Boutique</RouterLink></li>
+            <li><RouterLink :to="{ name: 'beneficiary-login' }" class="hover:underline">Utiliser un chèque cadeau</RouterLink></li>
           </ul>
         </div>
 

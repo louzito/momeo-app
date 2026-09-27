@@ -107,11 +107,7 @@ async function confirmReschedule() {
     <div v-if="booking.status === 'postponed'" class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
       <p class="font-semibold text-amber-800">Rendez-vous a reprogrammer</p>
       <p class="mt-1 text-sm text-amber-700">{{ booking.postponedReason }}</p>
-      <p class="mt-2 text-sm text-amber-700">Votre reservation reste valable : choisissez une nouvelle date sans frais.</p>
-      <RouterLink
-        :to="{ name: 'calendar', params: { slug: booking.tenantSlug } }"
-        class="btn-accent mt-4"
-      >Choisir une nouvelle date</RouterLink>
+      <p class="mt-2 text-sm text-amber-700">Votre réservation reste valable. Contactez l’établissement pour choisir une nouvelle date sans frais.</p>
     </div>
 
     <div class="mt-6 grid gap-6 lg:grid-cols-3">

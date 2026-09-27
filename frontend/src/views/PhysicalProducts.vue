@@ -1,9 +1,11 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, watch, ref } from 'vue'
 import api from '@/api'
 import { useTenantContext } from '@/composables/useTenantContext'
 import { formatMoney } from '@/utils/format'
 import Spinner from '@/components/ui/Spinner.vue'
+import CatalogError from '@/components/ui/CatalogError.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { tenant } = useTenantContext()
 const products = ref([])
@@ -11,15 +13,20 @@ const quantities = ref({})
 const loading = ref(true)
 const processing = ref(false)
 const error = ref('')
+const catalogError = ref('')
 const result = ref(null)
 const mode = ref('pickup')
 const customer = ref({ firstName: '', lastName: '', email: '', street: '', postcode: '', city: '', countryCode: 'FR' })
 
-onMounted(async () => {
+async function loadProducts() {
+  if (!tenant.value) return
+  loading.value = true
+  catalogError.value = ''
   try { products.value = await api.getPhysicalProducts(tenant.value.id) }
-  catch (e) { error.value = e?.message || 'Impossible de charger les produits.' }
+  catch { catalogError.value = 'Impossible de charger les produits. Veuillez réessayer.' }
   finally { loading.value = false }
-})
+}
+watch(tenant, loadProducts, { immediate: true })
 
 const items = computed(() => products.value.filter((p) => (quantities.value[p.id] || 0) > 0)
   .map((p) => ({ ...p, quantity: quantities.value[p.id] })))
@@ -58,6 +65,7 @@ async function checkout() {
 
 <template>
   <Spinner v-if="loading" label="Chargement des produits…" />
+  <CatalogError v-else-if="catalogError" :message="catalogError" @retry="loadProducts" />
   <div v-else class="section py-12">
     <h1 class="font-display text-3xl font-bold text-slate-900">Produits</h1>
     <p class="mt-2 text-slate-500">Articles physiques disponibles au retrait ou à la livraison.</p>
@@ -65,7 +73,8 @@ async function checkout() {
     <div v-if="result" class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
       Commande <strong>{{ result.number }}</strong> enregistrée. Statut : en attente de préparation.
     </div>
-    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+    <EmptyState v-if="!products.length" class="mt-8" icon="🛍️" title="Aucun produit disponible" message="La boutique de cet établissement est actuellement vide." />
+    <div v-else class="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
       <div class="grid gap-5 sm:grid-cols-2">
         <article v-for="product in products" :key="product.id" class="card overflow-hidden">
           <img v-if="product.image" :src="product.image" :alt="product.name" class="h-40 w-full object-cover" />

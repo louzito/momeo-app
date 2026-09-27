@@ -61,10 +61,7 @@ const orderOf = (key) => sectionOrder.value.indexOf(key) === -1 ? 99 : sectionOr
           <h1 class="mt-4 font-display text-4xl font-extrabold leading-tight sm:text-5xl">{{ heroTitle }}</h1>
           <p v-if="heroText" class="mt-4 text-lg text-white/85">{{ heroText }}</p>
           <div class="mt-8 flex flex-wrap gap-3">
-            <a href="#catalogue" class="btn-accent">Voir les prestations</a>
-            <RouterLink :to="{ name: 'calendar', params: { slug } }" class="btn-outline border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-              Voir le calendrier
-            </RouterLink>
+            <RouterLink :to="{ name: 'shop' }" class="btn-accent">Découvrir nos prestations</RouterLink>
           </div>
         </div>
       </div>
@@ -88,7 +85,7 @@ const orderOf = (key) => sectionOrder.value.indexOf(key) === -1 ? 99 : sectionOr
           <h2 class="font-display text-3xl font-bold text-slate-900">{{ catalogTitle }}</h2>
           <p class="mt-2 text-slate-500">{{ catalogText }}</p>
         </div>
-        <RouterLink v-if="hasMore" :to="{ name: 'shop' }" class="btn-outline px-5 py-2 text-sm">Voir toute la boutique →</RouterLink>
+        <RouterLink v-if="hasMore" :to="{ name: 'shop' }" class="btn-outline px-5 py-2 text-sm">Voir toutes les prestations →</RouterLink>
       </div>
       <div v-if="featuredJumps.length" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <JumpTypeCard
@@ -111,12 +108,12 @@ const orderOf = (key) => sectionOrder.value.indexOf(key) === -1 ? 99 : sectionOr
     <section v-if="giftEnabled" class="section pb-16" :style="{ order: orderOf('gift') }">
       <div class="flex flex-col items-center justify-between gap-6 rounded-3xl bg-gradient-to-r from-brand-600 to-brand-500 p-8 text-white sm:flex-row sm:p-12">
         <div>
-          <h3 class="font-display text-2xl font-bold">Offrez un moment rien qu’à soi 🎁</h3>
+          <h3 class="font-display text-2xl font-bold">Vous avez déjà un chèque cadeau ?</h3>
           <p class="mt-2 max-w-lg text-white/85">
-            Achetez un cheque cadeau : le beneficiaire choisira lui-meme sa date, en toute liberte.
+            Accédez à votre espace bénéficiaire pour utiliser votre chèque cadeau et choisir une date.
           </p>
         </div>
-        <a href="#catalogue" class="btn bg-white text-brand-700 hover:bg-white/90">Choisir une prestation à offrir</a>
+        <RouterLink :to="{ name: 'beneficiary-login' }" class="btn bg-white text-brand-700 hover:bg-white/90">Utiliser mon chèque cadeau</RouterLink>
       </div>
     </section>
     </div>

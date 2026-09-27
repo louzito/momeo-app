@@ -56,9 +56,68 @@ test('les gardes protègent tunnel client et administration', async ({ page }) =
 test('les pages de disponibilité et les états erreur sont adressables', async ({ page }) => {
   await isolatedApi(page)
   await page.goto('/centre-e2e/calendar')
-  await expect(page.getByRole('heading', { name: /calendrier/i })).toBeVisible()
+  await expect(page).toHaveURL(/\/centre-e2e\/shop$/)
+  await expect(page.getByRole('heading', { name: 'Prestations', exact: true })).toBeVisible()
   await page.goto('/centre-e2e/status/slot-unavailable')
   await expect(page.getByText(/indisponible/i).first()).toBeVisible()
   await page.goto('/centre-e2e/status/eligibility-blocked')
   await expect(page.getByText(/éligibilité|conditions/i).first()).toBeVisible()
+})
+
+for (const width of [1280, 390]) {
+  test(`navigation boutique sans calendrier global à ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    const requests = await isolatedApi(page)
+    await page.goto('/centre-e2e/')
+    await expect(page.getByRole('link', { name: 'Découvrir nos prestations' })).toBeVisible()
+    const header = page.locator('header')
+    if (width < 768) await header.getByRole('button', { name: 'Menu' }).click()
+    await expect(header.getByRole('link', { name: 'Prestations', exact: true }).filter({ visible: true })).toBeVisible()
+    await expect(header.getByRole('link', { name: /Calendrier|professionnel|cadeau/i })).toHaveCount(0)
+    await expect(page.locator('a[href$="/calendar"]')).toHaveCount(0)
+    await expect(page.locator('footer').getByRole('link', { name: 'Espace professionnel' })).toBeVisible()
+    await expect(page.locator('footer').getByRole('link', { name: 'Utiliser un chèque cadeau' })).toHaveAttribute('href', '/centre-e2e/beneficiary/login')
+    await header.getByRole('link', { name: 'Boutique', exact: true }).filter({ visible: true }).click()
+    await expect(page).toHaveURL(/\/centre-e2e\/products$/)
+    await expect(page.getByText('Aucun produit disponible')).toBeVisible()
+    expect(requests.some((r) => r.path.endsWith('/shop/availability'))).toBe(false)
+    await page.reload()
+    await expect(page.getByText('Aucun produit disponible')).toBeVisible()
+  })
+}
+
+test('une prestation conserve ses disponibilités et son choix de créneau', async ({ page }) => {
+  await isolatedApi(page)
+  await page.route('**/api/v2/shop/products?*', (route) => json(route, {
+    member: [{ code: 'service_test', name: 'Massage détente', defaultVariantData: { price: 5000 } }],
+  }))
+  const availabilityRequests = []
+  await page.route('**/api/v2/shop/availability?*', (route) => {
+    availabilityRequests.push(new URL(route.request().url()).searchParams.get('serviceCode'))
+    return json(route, { member: [{
+      id: 'slot-test', start: '2026-10-15T10:00:00Z', end: '2026-10-15T11:00:00Z',
+      remaining: 2, compatibleJumpTypeIds: ['service_test'],
+    }] })
+  })
+  await page.goto('/centre-e2e/services/service_test')
+  await expect(page.getByRole('heading', { name: 'Massage détente' })).toBeVisible()
+  expect(availabilityRequests).toHaveLength(0)
+  await page.getByRole('button', { name: 'Réserver cette prestation' }).click()
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await page.getByRole('button', { name: /Pour moi/ }).click()
+  await expect(page.getByText('Disponibilites pour « Massage détente ».')).toBeVisible()
+  await page.getByRole('button', { name: /10:00.*2 places/ }).click()
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await expect(page).toHaveURL(/\/checkout\/details$/)
+  expect(availabilityRequests).toEqual(['service_test'])
+})
+
+test('l’agenda professionnel reste accessible avec les droits agenda', async ({ page }) => {
+  await isolatedApi(page)
+  await page.addInitScript(() => localStorage.setItem('todatempo.admin.centre-e2e', JSON.stringify({
+    admin: { permissions: ['agenda'] }, tenant: { id: 'centre-e2e', name: 'Test' },
+  })))
+  await page.goto('/centre-e2e/admin/agenda')
+  await expect(page.getByRole('heading', { name: 'Agenda', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(/\/admin\/agenda$/)
 })

@@ -43,8 +43,7 @@ const tenantRoutes = [
   {
     path: '/calendar',
     name: 'calendar',
-    component: () => import('@/views/CalendarBrowse.vue'),
-    meta: { title: 'Calendrier des creneaux' },
+    redirect: { name: 'shop' },
   },
   {
     path: '/waitlist/unsubscribe/:token',
@@ -249,7 +248,7 @@ const tenantRoutes = [
     path: '/shop',
     name: 'shop',
     component: () => import('@/views/ShopPage.vue'),
-    meta: { title: 'Boutique' },
+    meta: { title: 'Prestations' },
   },
   {
     // Pages legales configurables (CGV / mentions) — liens auto dans le footer.
