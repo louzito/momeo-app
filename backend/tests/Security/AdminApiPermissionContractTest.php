@@ -25,6 +25,8 @@ final class AdminApiPermissionContractTest extends TestCase
             'clients' => [TeamRole::Practitioner, false],
             'payments' => [TeamRole::Reception, false],
             'invoices' => [TeamRole::Reception, false],
+            'gift-cards' => [TeamRole::Reception, false],
+            'gift-cards/1/movements' => [TeamRole::Practitioner, false],
             'products' => [TeamRole::Reception, false],
             'channels' => [TeamRole::Manager, false],
             'waitlist' => [TeamRole::Practitioner, true],

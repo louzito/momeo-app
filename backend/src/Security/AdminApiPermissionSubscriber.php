@@ -60,7 +60,7 @@ final class AdminApiPermissionSubscriber
         if (preg_match('#^clients(?:/|$)#', $resource)) {
             return TeamPermission::Clients;
         }
-        if (preg_match('#^(orders|payments|payment-methods|payment-requests|invoices|gift-vouchers)(?:/|$)#', $resource)) {
+        if (preg_match('#^(orders|payments|payment-methods|payment-requests|invoices|gift-vouchers|gift-cards)(?:/|$)#', $resource)) {
             return TeamPermission::Finances;
         }
         if (preg_match('#^(products?|product-[^/]+|taxons?|bookable-resources|services)(?:/|$)#', $resource)) {

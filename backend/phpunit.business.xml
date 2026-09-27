@@ -83,6 +83,7 @@
             <file>tests/Security/AdminApiPermissionContractTest.php</file>
             <file>tests/Integration/Tenant/MinimalSyliusInitializerTest.php</file>
             <file>tests/Integration/Payment/StripeWebhookIdempotencyTest.php</file>
+            <directory>tests/GiftCard</directory>
             <file>tests/Unit/GiftVoucher/GiftVoucherTest.php</file>
             <file>tests/Unit/GiftVoucher/GiftOrderMarkingTest.php</file>
             <file>tests/Controller/GiftVoucherAccessContractTest.php</file>

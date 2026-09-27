@@ -16,6 +16,19 @@ use Sylius\MolliePlugin\Entity\RecurringOrderTrait;
 #[ORM\Table(name: 'sylius_order')]
 class Order extends BaseOrder implements OrderInterface
 {
+    /** Marquage serveur d’une commande dédiée à l’achat d’une carte monétaire. */
+    #[ORM\Column(name: 'gift_card_amount', type: 'integer', nullable: true)]
+    private ?int $giftCardAmount = null;
+
+    public function getGiftCardAmount(): ?int { return $this->giftCardAmount; }
+    public function setGiftCardAmount(?int $amount): void
+    {
+        if ($amount !== null && ($amount <= 0 || $amount > 2147483647)) {
+            throw new \InvalidArgumentException('Le montant de la carte est invalide.');
+        }
+        $this->giftCardAmount = $amount;
+    }
+
     public const PREPARATION_PENDING = 'pending';
     public const PREPARATION_PREPARING = 'preparing';
     public const PREPARATION_READY = 'ready';

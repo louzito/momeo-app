@@ -966,3 +966,10 @@ export async function deleteOption(code) {
   await request('DELETE', `/admin/products/${code}`)
   return { ok: true }
 }
+
+export function getGiftCards(page = 1) {
+  return request('GET', `/admin/gift-cards?page=${page}`)
+}
+export function getGiftCardMovements(id, page = 1) {
+  return request('GET', `/admin/gift-cards/${id}/movements?page=${page}`)
+}

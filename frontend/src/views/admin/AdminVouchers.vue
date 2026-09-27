@@ -9,6 +9,7 @@ import api from '@/api'
 import { formatMoney, formatDate } from '@/utils/format'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import Spinner from '@/components/ui/Spinner.vue'
+import AdminGiftCards from '@/components/admin/AdminGiftCards.vue'
 
 const admin = useAdminStore()
 const vouchers = ref([])
@@ -59,6 +60,7 @@ onMounted(load)
 
 <template>
   <div class="mx-auto max-w-4xl">
+    <AdminGiftCards class="mb-8" />
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="font-display text-2xl font-bold text-slate-900">Chèques cadeaux</h1>
