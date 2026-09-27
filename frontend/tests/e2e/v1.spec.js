@@ -103,9 +103,8 @@ test('une prestation conserve ses disponibilités et son choix de créneau', asy
   await expect(page.getByRole('heading', { name: 'Massage détente' })).toBeVisible()
   expect(availabilityRequests).toHaveLength(0)
   await page.getByRole('button', { name: 'Réserver cette prestation' }).click()
-  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
-  await page.getByRole('button', { name: /Pour moi/ }).click()
-  await expect(page.getByText('Disponibilites pour « Massage détente ».')).toBeVisible()
+  await expect(page.getByText('Disponibilités pour « Massage détente ».')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vos options' })).toHaveCount(0)
   await page.getByRole('button', { name: /10:00.*2 places/ }).click()
   await page.getByRole('button', { name: 'Continuer', exact: true }).click()
   await expect(page).toHaveURL(/\/checkout\/details$/)
@@ -121,3 +120,81 @@ test('l’agenda professionnel reste accessible avec les droits agenda', async (
   await expect(page.getByRole('heading', { name: 'Agenda', exact: true })).toBeVisible()
   await expect(page).toHaveURL(/\/admin\/agenda$/)
 })
+
+for (const path of ['options', 'mode', 'summary', 'payment', 'gift', 'details']) {
+  test(`ancienne URL ${path} sans panier : retour au catalogue`, async ({ page }) => {
+    await isolatedApi(page)
+    await page.goto(`/centre-e2e/checkout/${path}`)
+    await expect(page).toHaveURL(/\/shop$/)
+  })
+}
+
+for (const mode of ['none', 'percentage', 'fixed', 'full']) {
+  test(`réservation mobile ${mode} : options, retour et double clic`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.addInitScript(() => sessionStorage.setItem('todatempo.customer.jwt.centre-e2e', 'customer-test'))
+    await isolatedApi(page)
+    await page.route('**/api/v2/shop/products?*', (route) => json(route, { member: [
+      { code: 'service_test', name: 'Massage détente', defaultVariantData: { price: 5000 } },
+      { code: 'opt_pj_test', name: 'Huile parfumée', defaultVariantData: { price: 1000 } },
+    ] }))
+    await page.route('**/shop/products/service_test/attributes*', (route) => json(route, { member: [
+      { code: 'todatempo_payment_mode', value: mode },
+      { code: 'todatempo_payment_value', value: mode === 'fixed' ? 2000 : 30 },
+    ] }))
+    await page.route('**/shop/availability?*', (route) => json(route, { member: [{
+      id: 'slot-test', start: '2026-10-15T10:00:00Z', end: '2026-10-15T11:00:00Z',
+      remaining: 2, compatibleJumpTypeIds: ['service_test'],
+    }] }))
+    await page.route('**/shop/payment-methods*', (route) => json(route, { member: [{ code: 'bank_transfer', name: 'Virement bancaire' }] }))
+    let orders = 0
+    let bookings = 0
+    let savedBooking
+    await page.route('**/shop/orders**', async (route) => {
+      const req = route.request()
+      const path = new URL(req.url()).pathname
+      if (path.endsWith('/orders') && req.method() === 'POST') orders++
+      if (path.endsWith('/payment-terms')) return json(route, { dueNow: mode === 'none' ? 0 : mode === 'fixed' ? 2000 : mode === 'full' ? 6000 : 1800 })
+      return json(route, { tokenValue: 'order-test', number: 'ORDER-1', total: 6000, currencyCode: 'EUR', payments: [{ id: 1 }] })
+    })
+    await page.route('**/shop/bookings', async (route) => {
+      bookings++
+      savedBooking = route.request().postDataJSON()
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      return json(route, { id: 'booking-test' })
+    })
+    await page.route('**/shop/account/bookings/booking-test', (route) => json(route, {
+      id: 'booking-test', orderNumber: 'ORDER-1', amount: 6000, currencyCode: 'EUR',
+      status: 'confirmed', paymentState: mode === 'none' ? 'paid' : 'awaiting_payment',
+      slotStart: '2026-10-15T10:00:00Z', slotEnd: '2026-10-15T11:00:00Z', options: [],
+    }))
+    await page.goto('/centre-e2e/services/service_test')
+    await page.getByRole('button', { name: 'Réserver cette prestation' }).click()
+    await expect(page).toHaveURL(/\/checkout\/schedule$/)
+    await expect(page.getByText(/Pour moi|Offrir cette prestation/)).toHaveCount(0)
+    await page.getByRole('checkbox', { name: /Huile parfumée/ }).check()
+    await page.getByRole('button', { name: /10:00.*2 places/ }).click()
+    await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+    await page.getByPlaceholder('Prenom', { exact: true }).fill('Ada')
+    await page.getByPlaceholder('Nom', { exact: true }).fill('Test')
+    await page.getByPlaceholder('vous@example.com').fill('ada@example.com')
+    await page.getByRole('checkbox', { name: /conditions de réservation/ }).check()
+    await page.getByRole('checkbox', { name: /mes donnees/ }).check()
+    await page.getByRole('link', { name: /Modifier la date/ }).click()
+    await expect(page.getByRole('checkbox', { name: /Huile parfumée/ })).toBeChecked()
+    await expect(page.getByRole('button', { name: 'Continuer', exact: true })).toBeEnabled()
+    await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+    await expect(page.getByPlaceholder('Prenom', { exact: true })).toHaveValue('Ada')
+    const due = mode === 'none' ? '0,00' : mode === 'fixed' ? '20,00' : mode === 'full' ? '60,00' : '18,00'
+    await expect(page.getByText('Montant dû maintenant').locator('..')).toContainText(due)
+    await page.getByRole('button', { name: /Confirmer la réservation sans paiement|Commander/ }).evaluate((button) => { button.click(); button.click() })
+    await expect(page).toHaveURL(/\/checkout\/confirmation\/booking-test$/)
+    expect(orders).toBe(1)
+    expect(bookings).toBe(1)
+    expect(savedBooking.orderToken).toBe('order-test')
+    expect(savedBooking.start).toBe('2026-10-15T10:00:00Z')
+    expect(savedBooking.options).toEqual([{ name: 'Huile parfumée', price: 10 }])
+    await page.reload()
+    await expect(page.getByText(/Commande enregistrée !|Réservation confirmée !/)).toBeVisible()
+  })
+}

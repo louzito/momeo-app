@@ -26,7 +26,9 @@ const perJumpOptions = computed(() =>
 const rule = computed(() => jumpType.value?.eligibility)
 
 function book() {
-  cart.startPurchase(tenant.value.id, jumpType.value)
+  if (cart.tenantId !== tenant.value.id || cart.jumpType?.id !== jumpType.value.id || cart.lastResult) {
+    cart.startPurchase(tenant.value.id, jumpType.value)
+  }
   const applicable = options.value.filter(
     (o) =>
       o.scope !== 'PER_JUMP' ||
@@ -34,7 +36,7 @@ function book() {
       o.linkedJumpTypeIds.includes(jumpType.value?.id),
   )
   cart.ensureMandatoryOptions(applicable)
-  router.push({ name: 'checkout-options', params: { slug: slug.value } })
+  router.push({ name: 'checkout-schedule', params: { slug: slug.value } })
 }
 </script>
 
@@ -91,7 +93,7 @@ function book() {
             <dt class="text-xs uppercase text-slate-400">Poids max</dt>
             <dd class="font-semibold text-slate-800">{{ rule.weightMaxKg }} kg</dd>
           </div>
-          <div>
+          <div v-if="jumpType.legacyEligibility">
             <dt class="text-xs uppercase text-slate-400">Taille min</dt>
             <dd class="font-semibold text-slate-800">{{ rule.heightMinCm }} cm</dd>
           </div>
@@ -121,7 +123,7 @@ function book() {
         <div class="mt-8 flex flex-wrap gap-3">
           <button class="btn-primary px-8" @click="book">Réserver cette prestation</button>
         </div>
-        <p class="mt-3 text-xs text-slate-400">Choisissez vos options, puis consultez les disponibilités de cette prestation.</p>
+        <p class="mt-3 text-xs text-slate-400">Choisissez votre créneau et vos options, puis renseignez vos coordonnées pour réserver.</p>
       </div>
     </div>
   </div>

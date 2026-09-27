@@ -4,6 +4,7 @@ import { useRoute, RouterLink } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
 import api from '@/api'
 import { formatDate, formatTime, formatMoney } from '@/utils/format'
+import CheckoutStepper from '@/components/CheckoutStepper.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 
 const route = useRoute()
@@ -60,6 +61,7 @@ onMounted(async () => {
       <RouterLink :to="{ name: 'tenant-home', params: { slug } }" class="btn-outline mt-4">Retour à l’accueil</RouterLink>
     </div>
     <template v-else-if="order && booking">
+    <CheckoutStepper current="confirmation" />
     <div class="mx-auto max-w-2xl text-center">
       <div
         class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-3xl"

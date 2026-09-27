@@ -1,17 +1,18 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useCheckoutGuard } from '@/composables/useCheckoutGuard'
 import { useTenantContext } from '@/composables/useTenantContext'
 import api from '@/api'
 import CheckoutLayout from '@/components/CheckoutLayout.vue'
+import OptionSelector from '@/components/OptionSelector.vue'
 import SlotCalendar from '@/components/SlotCalendar.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 
 const router = useRouter()
 const { cart } = useCheckoutGuard()
-const { tenant, slug } = useTenantContext()
+const { tenant, slug, options } = useTenantContext()
 const { slot } = storeToRefs(cart)
 
 const slots = ref([])
@@ -23,16 +24,30 @@ const waitlistSuccess = ref(false)
 const today = new Date().toISOString().slice(0, 10)
 const waitlist = ref({ firstName: '', lastName: '', email: '', periodStart: today, periodEnd: today, consent: false })
 
-watch(
-  tenant,
-  async (t) => {
-    if (!t || !cart.jumpType) return
-    loading.value = true
-    slots.value = await api.getSlots(t.id, { jumpTypeId: cart.jumpType.id })
+const error = ref('')
+const visibleOptions = computed(() => options.value.filter((o) =>
+  o.scope !== 'PER_JUMP' || !o.linkedJumpTypeIds?.length || o.linkedJumpTypeIds.includes(cart.jumpType?.id),
+))
+const selectedIds = computed(() => cart.selectedOptions.map((o) => o.id))
+watch(visibleOptions, (items) => cart.ensureMandatoryOptions(items), { immediate: true })
+
+async function loadSlots() {
+  if (!tenant.value || !cart.jumpType) return
+  loading.value = true
+  error.value = ''
+  try {
+    slots.value = await api.getSlots(tenant.value.id, { jumpTypeId: cart.jumpType.id })
+    if (cart.slot) {
+      const refreshed = slots.value.find((item) => item.id === cart.slot.id && item.remaining > 0 && item.compatibleJumpTypeIds.includes(cart.jumpType.id))
+      cart.setSlot(refreshed || null)
+    }
+  } catch (e) {
+    error.value = e?.message || 'Impossible de charger les créneaux.'
+  } finally {
     loading.value = false
-  },
-  { immediate: true },
-)
+  }
+}
+watch(tenant, loadSlots, { immediate: true })
 
 function next() {
   if (!cart.slot) return
@@ -62,10 +77,14 @@ async function joinWaitlist() {
   <CheckoutLayout
     v-if="cart.jumpType"
     step="schedule"
-    title="Choisissez votre creneau"
-    :subtitle="`Disponibilites pour « ${cart.jumpType.name} ».`"
+    title="Choisissez votre créneau"
+    :subtitle="`Disponibilités pour « ${cart.jumpType.name} ».`"
   >
-    <Spinner v-if="loading" label="Chargement des creneaux…" />
+    <Spinner v-if="loading" label="Chargement des créneaux…" />
+    <div v-else-if="error" role="alert" class="rounded-xl bg-rose-50 p-5 text-rose-700">
+      <p>{{ error }}</p>
+      <button class="btn-outline mt-3" @click="loadSlots">Réessayer</button>
+    </div>
     <template v-else>
       <SlotCalendar
         :slots="slots"
@@ -92,7 +111,13 @@ async function joinWaitlist() {
         </form>
       </div>
 
-      <div class="mt-8 flex justify-end">
+      <section v-if="visibleOptions.length" class="mt-8">
+        <h2 class="mb-4 text-lg font-semibold">Vos options</h2>
+        <OptionSelector :options="visibleOptions" :selected-ids="selectedIds" :currency="tenant?.currency || 'EUR'" @toggle="cart.toggleOption" />
+      </section>
+
+      <div class="mt-8 flex items-center justify-between gap-3">
+        <RouterLink :to="{ name: 'jump-detail', params: { jumpTypeId: cart.jumpType.id } }" class="btn-ghost">← Retour</RouterLink>
         <button class="btn-primary px-8" :disabled="!cart.slot" @click="next">
           Continuer
         </button>

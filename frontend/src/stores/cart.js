@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import api from '@/api'
 
+const pendingCheckouts = new WeakMap()
+
 // Etat du tunnel d'achat. Les noms `jumpType` et `jumper` restent presents dans
 // le payload pour compatibilite avec les commandes historiques, mais portent
 // desormais une prestation et les coordonnees du client.
@@ -129,6 +131,8 @@ export const useCartStore = defineStore('cart', {
     },
 
     async checkout(customerId = null) {
+      if (this.lastResult) return this.lastResult
+      if (pendingCheckouts.has(this)) return pendingCheckouts.get(this)
       const payload = {
         tenantId: this.tenantId,
         kind: this.kind,
@@ -147,9 +151,12 @@ export const useCartStore = defineStore('cart', {
         paymentMethod: this.paymentMethod,
         customerId,
       }
-      const result = await api.createOrder(payload)
-      this.lastResult = result
-      return result
+      const pending = api.createOrder(payload).then((result) => {
+        this.lastResult = result
+        return result
+      }).finally(() => pendingCheckouts.delete(this))
+      pendingCheckouts.set(this, pending)
+      return pending
     },
 
     reset() {

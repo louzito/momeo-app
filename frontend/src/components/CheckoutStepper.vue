@@ -9,11 +9,9 @@ const props = defineProps({
 
 const STEPS = {
   direct: [
-    { key: 'options', label: 'Options' },
-    { key: 'schedule', label: 'Creneau' },
-    { key: 'details', label: 'Coordonnees' },
-    { key: 'summary', label: 'Recap' },
-    { key: 'payment', label: 'Paiement' },
+    { key: 'schedule', label: 'Date et options' },
+    { key: 'details', label: 'Coordonnées et paiement' },
+    { key: 'confirmation', label: 'Confirmation' },
   ],
   gift: [
     { key: 'options', label: 'Options' },

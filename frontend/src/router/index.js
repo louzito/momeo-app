@@ -56,14 +56,12 @@ const tenantRoutes = [
   {
     path: '/checkout/options',
     name: 'checkout-options',
-    component: () => import('@/views/checkout/OptionsSelection.vue'),
-    meta: { title: 'Options' },
+    redirect: { name: 'checkout-schedule' },
   },
   {
     path: '/checkout/mode',
     name: 'checkout-mode',
-    component: () => import('@/views/checkout/PurchaseMode.vue'),
-    meta: { title: 'Pour moi ou en cadeau ?' },
+    redirect: { name: 'checkout-schedule' },
   },
   {
     path: '/checkout/schedule',
@@ -75,7 +73,7 @@ const tenantRoutes = [
     path: '/checkout/details',
     name: 'checkout-eligibility',
     component: () => import('@/views/checkout/EligibilityStep.vue'),
-    meta: { title: 'Coordonnees et consentements' },
+    meta: { title: 'Coordonnées et paiement' },
   },
   {
     path: '/checkout/eligibility',
@@ -90,14 +88,12 @@ const tenantRoutes = [
   {
     path: '/checkout/summary',
     name: 'checkout-summary',
-    component: () => import('@/views/checkout/OrderSummary.vue'),
-    meta: { title: 'Recapitulatif' },
+    redirect: { name: 'checkout-eligibility' },
   },
   {
     path: '/checkout/payment',
     name: 'checkout-payment',
-    component: () => import('@/views/checkout/Payment.vue'),
-    meta: { title: 'Paiement' },
+    redirect: { name: 'checkout-eligibility' },
   },
   {
     path: '/checkout/confirmation/:bookingId',
@@ -286,6 +282,19 @@ const router = createRouter({
 // La garde améliore l'UX ; l'autorisation réelle reste appliquée par l'API.
 router.beforeEach(async (to) => {
   document.title = to.meta?.title ? `${to.meta.title} · TodaTempo` : 'TodaTempo'
+
+  if (['checkout-schedule', 'checkout-eligibility', 'checkout-gift'].includes(to.name)) {
+    const { useCartStore } = await import('@/stores/cart')
+    const cart = useCartStore()
+    if (!cart.jumpType) return { name: 'shop' }
+    if (cart.lastResult?.booking) {
+      return { name: 'checkout-confirmation', params: { bookingId: cart.lastResult.booking.id } }
+    }
+    cart.setKind('direct')
+    if (to.name === 'checkout-gift' || (to.name === 'checkout-eligibility' && !cart.slot)) {
+      return { name: 'checkout-schedule' }
+    }
+  }
 
   if (to.meta?.requiresBeneficiary) {
     const { useBeneficiaryStore } = await import('@/stores/beneficiary')
