@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api'
 import { formatMoney } from '@/utils/format'
 
@@ -35,6 +35,7 @@ onMounted(load)
         <p v-if="card.status !== 'active'">Cette carte est {{ card.status === 'expired' ? 'expirée' : 'inactive' }}.</p>
         <a :href="card.shopUrl" class="break-all underline" rel="noreferrer">{{ card.shopUrl }}</a>
       </article>
+      <RouterLink v-if="card" :to="{ name: 'account-dashboard', hash: '#cadeaux' }" class="gift-print-button btn-outline">Ajouter cette carte dans Mon compte avec son code</RouterLink>
       <button v-if="card" class="gift-print-button btn-primary" @click="print">Imprimer ma carte cadeau</button>
     </div>
   </main>

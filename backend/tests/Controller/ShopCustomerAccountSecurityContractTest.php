@@ -38,7 +38,7 @@ final class ShopCustomerAccountSecurityContractTest extends KernelTestCase
         self::assertSame([$future->getPublicToken(), $past->getPublicToken()], array_column($list['member'], 'id'));
         $detail = json_decode($controller->booking($future->getPublicToken(), $user)->getContent(), true);
         self::assertSame($list['member'][0], $detail);
-        self::assertSame(['id', 'reference', 'status', 'source', 'jumpTypeId', 'jumpTypeName', 'jumperName', 'customerName', 'staffName', 'resourceCode', 'slotStart', 'slotEnd', 'options', 'paymentState', 'orderNumber', 'amount', 'totalAmount', 'balanceDue', 'currencyCode', 'postponedReason', 'changeHistory', 'changePolicy'], array_keys($detail));
+        self::assertSame(['id', 'reference', 'status', 'source', 'jumpTypeId', 'jumpTypeName', 'jumperName', 'customerName', 'staffName', 'resourceCode', 'slotStart', 'slotEnd', 'options', 'paymentState', 'paymentBreakdown', 'orderNumber', 'amount', 'totalAmount', 'balanceDue', 'currencyCode', 'postponedReason', 'changeHistory', 'changePolicy'], array_keys($detail));
         self::assertSame(['member' => []], json_decode($controller->bookings($this->user('empty-'.$this->email))->getContent(), true));
     }
 
@@ -121,7 +121,7 @@ final class ShopCustomerAccountSecurityContractTest extends KernelTestCase
         );
         self::assertEquals(['member' => [[
             'id' => 'token', 'number' => $order->getNumber(), 'status' => $order->getState(),
-            'paymentState' => $order->getPaymentState(), 'total' => 0, 'currency' => 'EUR',
+            'paymentState' => $order->getPaymentState(), 'paymentBreakdown' => ['giftCard' => 0, 'bankPaid' => 0, 'giftCardRefunded' => 0, 'dueNow' => 0, 'dueLater' => 0], 'total' => 0, 'currency' => 'EUR',
             'createdAt' => '2026-01-01T12:00:00+00:00', 'kind' => 'direct',
         ]]], $reads->orders($user));
         $voucher = new \App\Entity\GiftVoucher();

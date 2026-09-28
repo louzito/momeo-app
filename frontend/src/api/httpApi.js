@@ -480,6 +480,14 @@ export const httpApi = {
     return data.member || []
   },
 
+  async getCustomerGiftCards() {
+    return customerRequest('GET', '/shop/account/gift-cards')
+  },
+
+  async claimCustomerGiftCard(code) {
+    return customerRequest('POST', '/shop/account/gift-cards/claim', { code })
+  },
+
   async getCustomerBookings() {
     const data = await customerRequest('GET', '/shop/account/bookings')
     return data.member || []

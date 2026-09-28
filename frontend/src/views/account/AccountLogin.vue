@@ -49,7 +49,7 @@ async function requestPasswordReset() {
       <span class="chip bg-brand-50 text-brand-700">👤 Espace client</span>
       <h1 class="mt-4 font-display text-4xl font-extrabold text-slate-900">Votre compte TodaTempo</h1>
       <p class="mt-3 text-lg text-slate-500">
-        Retrouvez l'historique de vos commandes, vos reservations a venir et leurs confirmations.
+        Retrouvez vos rendez-vous, vos commandes et vos cartes cadeaux dans un seul espace.
       </p>
     </div>
 

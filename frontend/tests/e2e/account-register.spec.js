@@ -19,6 +19,7 @@ async function registrationApi(page) {
       return route.fulfill({ status: 204, body: '' })
     }
     if (url.pathname.endsWith('/shop/customers/token')) return json(route, { token: 'jwt-e2e' })
+    if (url.pathname.endsWith('/shop/account/gift-cards')) return json(route, { received: [], purchased: [] })
     if (url.pathname.endsWith('/shop/account/profile')) return json(route, { id: 42, email: 'ada@example.test', firstName: 'Ada', lastName: 'Lovelace', phone: '' })
     if (url.pathname.includes('/shop/customers/')) return json(route, { id: 42 })
     if (url.pathname.endsWith('/shop/channels')) return json(route, { member: [{ code: 'WEB', name: 'Cabinet E2E', baseCurrency: { code: 'EUR' } }] })

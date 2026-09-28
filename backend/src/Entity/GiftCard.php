@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use App\Entity\Customer\Customer;
 
 /** Crédit monétaire ; les GiftVoucher historiques restent indépendants. */
 #[ORM\Entity(repositoryClass: \App\Repository\GiftCardRepository::class)]
@@ -24,6 +25,10 @@ class GiftCard
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\ManyToOne(targetEntity: Customer::class)]
+    #[ORM\JoinColumn(name: 'beneficiary_id', nullable: true, onDelete: 'SET NULL')]
+    private ?Customer $beneficiary = null;
+
     public function __construct(
         #[ORM\Column(length: 100)] private string $establishment,
         #[ORM\Column(name: 'channel_code', length: 255)] private string $channelCode,
@@ -40,6 +45,17 @@ class GiftCard
         if ($expiresAt <= $this->createdAt) throw new \InvalidArgumentException('La date d’expiration doit être future.');
         $this->code = strtoupper(bin2hex(random_bytes(16)));
         $this->available = $initialAmount;
+    }
+
+    public function getBeneficiary(): ?Customer { return $this->beneficiary; }
+
+    public function claim(Customer $customer): void
+    {
+        if ($customer->getId() === null) throw new \DomainException('Compte client introuvable.');
+        if ($this->beneficiary !== null && $this->beneficiary->getId() !== $customer->getId()) {
+            throw new \DomainException('Cette carte ne peut pas être rattachée à ce compte.');
+        }
+        $this->beneficiary = $customer;
     }
 
     public function getId(): ?int { return $this->id; }

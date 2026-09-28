@@ -73,6 +73,23 @@ final class GiftCardPaymentIntegrationTest extends KernelTestCase
         return $this->service->settle($order->getTokenValue());
     }
 
+    public function testAccountBalanceReflectsCompletedCheckoutWithoutAnotherLogin(): void
+    {
+        [$card, $order, $payment] = $this->fixture(10000, 7000);
+        $user = new \App\Entity\User\ShopUser();
+        $user->setCustomer($order->getCustomer());
+        $account = self::getContainer()->get(\App\Service\Customer\CustomerGiftCards::class);
+        $account->claim($user, $card->getCode());
+        self::assertSame(10000, $account->lists($user)['received'][0]['available']);
+        $this->settle($card, $order, $payment);
+        $this->em->clear();
+        $view = $account->lists($user)['received'][0];
+        self::assertSame(3000, $view['available']);
+        self::assertSame(0, $view['reserved']);
+        self::assertSame('debit', $view['history'][0]['kind']);
+        self::assertArrayNotHasKey('orderNumber', $view['history'][0]);
+    }
+
     public function testSeventyFromHundredIsPaidWithoutBankAndReplayDoesNotDebitAgain(): void
     {
         [$card, $order, $payment] = $this->fixture(10000, 7000);

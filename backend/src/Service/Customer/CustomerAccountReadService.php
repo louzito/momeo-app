@@ -55,7 +55,7 @@ final class CustomerAccountReadService
             'paymentBreakdown' => \App\Service\GiftCard\GiftCardPaymentService::breakdown($order),
             'currency' => $order->getCurrencyCode(),
             'createdAt' => $order->getCreatedAt()?->format(\DateTimeInterface::ATOM),
-            'kind' => null !== $this->giftVoucherRepository->findOneBy(['purchaseOrderNumber' => $order->getNumber()]) ? 'gift' : 'direct',
+            'kind' => $order->getGiftCardAmount() !== null ? 'gift_card' : (null !== $this->giftVoucherRepository->findOneBy(['purchaseOrderNumber' => $order->getNumber()]) ? 'gift' : 'direct'),
         ], $orders)];
     }
 

@@ -26,6 +26,10 @@ onMounted(() => store.refreshVouchers())
       <button class="btn-ghost" @click="store.logout()">Se deconnecter</button>
     </div>
 
+    <p class="mt-5 text-slate-600">Vos nouvelles cartes à solde, rendez-vous et commandes sont dans
+      <RouterLink :to="{ name: 'account-dashboard' }" class="text-brand-700 underline">Mon compte</RouterLink>.
+    </p>
+
     <Spinner v-if="loading && !vouchers.length" />
 
     <template v-else>
