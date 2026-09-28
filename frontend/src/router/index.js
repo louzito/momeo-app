@@ -263,7 +263,7 @@ const tenantRoutes = [
     path: '/shop',
     name: 'shop',
     component: () => import('@/views/ShopPage.vue'),
-    meta: { title: 'Prestations' },
+    meta: { title: 'Boutique' },
   },
   {
     // Pages legales configurables (CGV / mentions) — liens auto dans le footer.
@@ -293,7 +293,9 @@ const router = createRouter({
   // routes et les paths relatifs ci-dessus ne changent pas).
   history: createWebHistory(TENANT_SLUG ? `${APP_BASE}${TENANT_SLUG}/` : APP_BASE),
   routes: TENANT_SLUG ? tenantRoutes : invalidTenantRoutes,
-  scrollBehavior() {
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.name === 'shop' && from.name === 'shop') return false
     return { top: 0 }
   },
 })

@@ -76,8 +76,8 @@ const legalLinks = computed(() => {
         <div>
           <p class="mb-3 text-sm font-semibold uppercase tracking-wide">Réserver</p>
           <ul class="space-y-2 text-sm">
-            <li><RouterLink :to="{ name: 'shop' }" class="hover:underline">Prestations</RouterLink></li>
-            <li><RouterLink :to="{ name: 'physical-products' }" class="hover:underline">Boutique</RouterLink></li>
+            <li><RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="hover:underline">Prestations</RouterLink></li>
+            <li><RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="hover:underline">Boutique</RouterLink></li>
             <li v-if="tenant?.giftVouchersEnabled !== false"><RouterLink :to="{ name: 'gift-card-purchase' }" class="hover:underline">Offrir une carte cadeau</RouterLink></li>
             <li><RouterLink :to="{ name: 'beneficiary-login' }" class="hover:underline">Utiliser un chèque cadeau</RouterLink></li>
           </ul>

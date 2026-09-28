@@ -1,7 +1,7 @@
 <script setup>
 import { computed, watch, ref } from 'vue'
 import api from '@/api'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
 import { formatMoney } from '@/utils/format'
 import Spinner from '@/components/ui/Spinner.vue'
@@ -10,6 +10,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { tenant } = useTenantContext()
 const router = useRouter()
+const route = useRoute()
 const methods = ref([])
 const paymentMethod = ref('')
 const products = ref([])
@@ -29,6 +30,11 @@ async function loadProducts() {
   try {
     const [catalog, available] = await Promise.all([api.getPhysicalProducts(tenant.value.id), api.getCheckoutPaymentMethods()])
     products.value = catalog
+    const selected = catalog.find((product) => product.id === route.query.produit)
+    if (selected?.stock > 0 && (selected.pickupEnabled || selected.deliveryEnabled) && !result.value) {
+      quantities.value[selected.id] ||= 1
+      if (!selected.pickupEnabled) mode.value = 'delivery'
+    }
     methods.value = available.filter((m) => ['stripe_web_elements', 'bank_transfer'].includes(m.code))
     paymentMethod.value = methods.value.find((m) => m.code === 'stripe_web_elements')?.code || methods.value[0]?.code || ''
   }
@@ -84,6 +90,7 @@ async function checkout() {
   <Spinner v-if="loading" label="Chargement des produits…" />
   <CatalogError v-else-if="catalogError" :message="catalogError" @retry="loadProducts" />
   <div v-else class="section py-12">
+    <RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="mb-4 inline-block text-brand-700 underline">Retour à la boutique</RouterLink>
     <h1 class="font-display text-3xl font-bold text-slate-900">Produits</h1>
     <p class="mt-2 text-slate-500">Articles physiques disponibles au retrait ou à la livraison.</p>
 

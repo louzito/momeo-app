@@ -5,6 +5,7 @@ import { formatMoney } from '@/utils/format'
 
 defineProps({
   jumpType: { type: Object, required: true },
+  featured: { type: Boolean, default: false },
   options: { type: Array, default: () => [] },
   currency: { type: String, default: 'USD' },
   slug: { type: String, required: true },
@@ -26,10 +27,10 @@ defineProps({
       />
       <div v-else class="flex h-full items-center justify-center text-3xl text-slate-300" aria-hidden="true">✦</div>
       <span
-        v-if="jumpType.popular"
+        v-if="featured || jumpType.popular"
         class="absolute left-3 top-3 chip bg-accent-500 text-white shadow"
       >
-        ★ Populaire
+        {{ featured ? 'À la une' : '★ Populaire' }}
       </span>
     </div>
     <div class="flex flex-1 flex-col p-5">

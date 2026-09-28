@@ -32,8 +32,8 @@ const mobileOpen = ref(false)
 
       <!-- Nav desktop -->
       <nav class="hidden items-center gap-1 md:flex">
-        <RouterLink :to="{ name: 'shop' }" class="nav-link">Prestations</RouterLink>
-        <RouterLink :to="{ name: 'physical-products' }" class="nav-link">Boutique</RouterLink>
+        <RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="nav-link">Prestations</RouterLink>
+        <RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="nav-link">Boutique</RouterLink>
         <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'gift-card-purchase' }" class="nav-link">Carte cadeau</RouterLink>
       </nav>
 
@@ -60,8 +60,8 @@ const mobileOpen = ref(false)
     <!-- Nav mobile -->
     <div v-if="mobileOpen" class="border-t border-white/10 md:hidden" :style="{ backgroundColor: 'var(--sb-header-bg, #020617)' }">
       <nav id="mobile-navigation" class="section flex flex-col py-2">
-        <RouterLink :to="{ name: 'shop' }" class="nav-link justify-start" @click="mobileOpen = false">Prestations</RouterLink>
-        <RouterLink :to="{ name: 'physical-products' }" class="nav-link justify-start" @click="mobileOpen = false">Boutique</RouterLink>
+        <RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="nav-link justify-start" @click="mobileOpen = false">Prestations</RouterLink>
+        <RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="nav-link justify-start" @click="mobileOpen = false">Boutique</RouterLink>
         <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'gift-card-purchase' }" class="nav-link justify-start" @click="mobileOpen = false">Carte cadeau</RouterLink>
         <RouterLink :to="{ name: session.isLoggedIn ? 'account-dashboard' : 'account-login' }" class="nav-link justify-start" @click="mobileOpen = false">Mon compte</RouterLink>
       </nav>
