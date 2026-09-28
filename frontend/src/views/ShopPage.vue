@@ -24,6 +24,7 @@ const retry = () => tenantStore.retryPublicCatalog().catch(() => {})
 
   <div v-else class="section py-14">
     <div class="mb-10">
+      <RouterLink v-if="tenant?.giftVouchersEnabled !== false" :to="{ name: 'gift-card-purchase' }" class="btn-outline mb-4">Offrir une carte cadeau</RouterLink>
       <h1 class="font-display text-3xl font-bold text-slate-900 sm:text-4xl">Prestations</h1>
       <p class="mt-2 text-slate-500">Toutes nos expériences et formules.</p>
       <RouterLink :to="{ name: 'physical-products' }" class="btn-outline mt-4">Voir les produits à emporter ou livrés</RouterLink>

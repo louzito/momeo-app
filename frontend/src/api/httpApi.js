@@ -885,6 +885,16 @@ export const httpApi = {
       orderToken: completed.tokenValue, paymentId, paymentMethod: payload.paymentMethod }
   },
 
+  async getGiftCardOffer() {
+    return apiGet('/shop/gift-cards/offer')
+  },
+  async purchaseGiftCard(payload) {
+    return apiWrite('POST', '/shop/gift-cards/purchase', payload)
+  },
+  async getGiftCardDocument(code) {
+    return apiWrite('POST', '/shop/gift-cards/document', { code })
+  },
+
   async getShopOrderPayment(token) {
     return apiGet(`/shop/payments/stripe/orders/${encodeURIComponent(token)}`)
   },

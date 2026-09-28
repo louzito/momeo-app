@@ -55,8 +55,13 @@ onUnmounted(() => { stopped = true; clearTimeout(timer) })
       <section v-if="order" class="card space-y-4 p-6" aria-live="polite">
         <p>Référence : <strong class="break-all">{{ order.number }}</strong></p>
         <p>Montant : <strong>{{ formatMoney(order.total, order.currency) }}</strong></p>
+        <div v-if="order.giftCardTerms" class="space-y-2">
+          <p>Crédit offert : <strong>{{ formatMoney(order.total, order.currency) }}</strong>, utilisable dans la boutique de {{ order.giftCardTerms.shopName }}.</p>
+          <p>Validité : {{ order.giftCardTerms.validityMonths }} mois à compter de la confirmation du paiement.</p>
+          <p>Envoi {{ order.giftCardTerms.delivery === 'recipient' ? 'directement au destinataire' : 'à l’acheteur pour offrir lui-même' }}.</p>
+        </div>
         <template v-if="paid">
-          <p v-if="order.kind === 'gift'">Le paiement de votre cadeau a été encaissé. Le code et les informations d’utilisation vous sont envoyés par e-mail.</p>
+          <p v-if="order.kind === 'gift'">Le paiement de votre cadeau a été encaissé. Le code et le document imprimable sont envoyés à l’adresse choisie lors de l’achat.</p>
           <p v-else>Votre commande peut être préparée. État : {{ preparation }}.</p>
         </template>
         <p v-else-if="failed">Le paiement a échoué ou a été annulé. Contactez l’établissement avec votre référence pour organiser un nouveau règlement.</p>
@@ -73,7 +78,7 @@ onUnmounted(() => { stopped = true; clearTimeout(timer) })
           <p>{{ order.kind === 'gift' ? 'Le cadeau reste inutilisable tant que le paiement n’est pas confirmé.' : 'La préparation commencera après confirmation du paiement.' }}</p>
         </template>
       </section>
-      <button v-if="order?.canPay && !paid" class="btn-primary" :disabled="processing" @click="resumePayment">{{ processing ? 'Redirection…' : 'Reprendre le paiement' }}</button>
+      <button v-if="order?.canPay && !paid" class="btn-primary" :disabled="processing" @click="resumePayment">{{ processing ? 'Redirection…' : 'Payer par carte bancaire' }}</button>
       <button v-if="!loading" class="btn-outline" @click="refresh">Actualiser le statut</button>
       <RouterLink :to="{ name: 'tenant-home' }" class="btn-outline ml-3">Retour à la boutique</RouterLink>
     </div>

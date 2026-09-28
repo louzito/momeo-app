@@ -86,6 +86,11 @@ final class StripePaymentService
             'paymentMethod' => $payment?->getMethod()?->getCode(),
             'paymentInstructions' => $payment?->getMethod()?->getInstructions(),
             'preparationState' => $order->getPreparationState(),
+            'giftCardTerms' => $order->getGiftCardPurchase() === null ? null : [
+                'validityMonths' => $order->getGiftCardPurchase()['validityMonths'],
+                'shopName' => $order->getChannel()?->getName(),
+                'delivery' => $order->getGiftCardPurchase()['delivery'],
+            ],
         ];
     }
 

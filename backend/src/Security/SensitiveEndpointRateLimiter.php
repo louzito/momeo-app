@@ -41,6 +41,9 @@ final class SensitiveEndpointRateLimiter
         if ($request->isMethod('POST') && preg_match('#^/api/v2/(admin/administrators/token|shop/customers/token|shop/gift-vouchers/login)$#', $request->getPathInfo())) {
             return ['login', 5, 60];
         }
+        if ($request->isMethod('POST') && str_starts_with($request->getPathInfo(), '/api/v2/shop/gift-cards/')) {
+            return ['gift-card', 20, 60];
+        }
         if (str_starts_with($request->getPathInfo(), '/api/v2/shop/gift-vouchers/')) {
             return ['voucher', 30, 60];
         }

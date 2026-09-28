@@ -34,6 +34,7 @@ const mobileOpen = ref(false)
       <nav class="hidden items-center gap-1 md:flex">
         <RouterLink :to="{ name: 'shop' }" class="nav-link">Prestations</RouterLink>
         <RouterLink :to="{ name: 'physical-products' }" class="nav-link">Boutique</RouterLink>
+        <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'gift-card-purchase' }" class="nav-link">Carte cadeau</RouterLink>
       </nav>
 
       <!-- Actions -->
@@ -61,6 +62,7 @@ const mobileOpen = ref(false)
       <nav id="mobile-navigation" class="section flex flex-col py-2">
         <RouterLink :to="{ name: 'shop' }" class="nav-link justify-start" @click="mobileOpen = false">Prestations</RouterLink>
         <RouterLink :to="{ name: 'physical-products' }" class="nav-link justify-start" @click="mobileOpen = false">Boutique</RouterLink>
+        <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'gift-card-purchase' }" class="nav-link justify-start" @click="mobileOpen = false">Carte cadeau</RouterLink>
         <RouterLink :to="{ name: session.isLoggedIn ? 'account-dashboard' : 'account-login' }" class="nav-link justify-start" @click="mobileOpen = false">Mon compte</RouterLink>
       </nav>
     </div>

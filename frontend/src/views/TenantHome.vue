@@ -105,15 +105,16 @@ const orderOf = (key) => sectionOrder.value.indexOf(key) === -1 ? 99 : sectionOr
       />
     </section>
 
-    <!-- Bandeau cadeau (masque si les cheques cadeaux sont desactives) -->
-    <section v-if="giftEnabled" class="section pb-16" :style="{ order: orderOf('gift') }">
+    <!-- La vente peut être désactivée ; l’accès aux anciens bons reste disponible. -->
+    <section class="section pb-16" :style="{ order: orderOf('gift') }">
       <div class="flex flex-col items-center justify-between gap-6 rounded-3xl bg-gradient-to-r from-brand-600 to-brand-500 p-8 text-white sm:flex-row sm:p-12">
         <div>
-          <h3 class="font-display text-2xl font-bold">Vous avez déjà un chèque cadeau ?</h3>
+          <h3 class="font-display text-2xl font-bold">{{ giftEnabled ? 'Offrez le choix avec une carte cadeau' : 'Vous avez déjà un chèque cadeau ?' }}</h3>
           <p class="mt-2 max-w-lg text-white/85">
-            Accédez à votre espace bénéficiaire pour utiliser votre chèque cadeau et choisir une date.
+            {{ giftEnabled ? 'Un crédit à utiliser dans notre boutique, sans prestation ni date à choisir aujourd’hui.' : 'Accédez à votre espace bénéficiaire pour utiliser votre ancien bon et choisir une date.' }}
           </p>
         </div>
+        <RouterLink v-if="giftEnabled" :to="{ name: 'gift-card-purchase' }" class="btn bg-white text-brand-700 hover:bg-white/90">Offrir une carte cadeau</RouterLink>
         <RouterLink :to="{ name: 'beneficiary-login' }" class="btn bg-white text-brand-700 hover:bg-white/90">Utiliser mon chèque cadeau</RouterLink>
       </div>
     </section>

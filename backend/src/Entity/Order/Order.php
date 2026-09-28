@@ -29,6 +29,46 @@ class Order extends BaseOrder implements OrderInterface
         $this->giftCardAmount = $amount;
     }
 
+    /** Instantané de la vente, indépendant du profil client et des réglages futurs. */
+    #[ORM\Column(name: 'gift_card_purchase', type: 'json', nullable: true)]
+    private ?array $giftCardPurchase = null;
+
+    public function getGiftCardPurchase(): ?array { return $this->giftCardPurchase; }
+
+    public function configureGiftCardPurchase(int $amount, array $purchase): void
+    {
+        if ($this->giftCardPurchase !== null || $this->getCheckoutState() === 'completed') {
+            throw new \DomainException('Cette carte cadeau ne peut plus être modifiée.');
+        }
+        if ($amount < 1000 || $amount > 100000) {
+            throw new \InvalidArgumentException('Choisissez un montant entre 10 et 1 000 €.');
+        }
+        foreach (['buyerName', 'buyerEmail', 'recipientName', 'recipientEmail', 'message', 'delivery'] as $field) {
+            if (!isset($purchase[$field]) || !is_string($purchase[$field])) {
+                throw new \InvalidArgumentException('Les coordonnées du cadeau sont invalides.');
+            }
+            $purchase[$field] = trim($purchase[$field]);
+        }
+        foreach (['buyerName', 'recipientName'] as $field) {
+            if ($purchase[$field] === '' || mb_strlen($purchase[$field]) > 100) {
+                throw new \InvalidArgumentException('Renseignez les noms de l’acheteur et du destinataire (100 caractères maximum).');
+            }
+        }
+        if (!in_array($purchase['delivery'], ['buyer', 'recipient'], true)) {
+            throw new \InvalidArgumentException('Choisissez à qui envoyer la carte cadeau.');
+        }
+        foreach (['buyerEmail', 'recipientEmail'] as $field) {
+            if ($field === 'recipientEmail' && $purchase['delivery'] === 'buyer' && $purchase[$field] === '') continue;
+            if (strlen($purchase[$field]) > 254 || !filter_var($purchase[$field], FILTER_VALIDATE_EMAIL)) {
+                throw new \InvalidArgumentException('Renseignez une adresse e-mail valide.');
+            }
+        }
+        if (mb_strlen($purchase['message']) > 1000) throw new \InvalidArgumentException('Le message est limité à 1 000 caractères.');
+        if (!is_int($purchase['validityMonths'] ?? null) || $purchase['validityMonths'] < 1) throw new \InvalidArgumentException('La durée de validité est invalide.');
+        $this->setGiftCardAmount($amount);
+        $this->giftCardPurchase = $purchase;
+    }
+
     public const PREPARATION_PENDING = 'pending';
     public const PREPARATION_PREPARING = 'preparing';
     public const PREPARATION_READY = 'ready';

@@ -42,16 +42,26 @@ final class GiftCardService
                 if ($candidate->getState() === PaymentInterface::STATE_COMPLETED && $candidate->getCurrencyCode() === $order->getCurrencyCode()) $paid += $candidate->getAmount();
             }
             if ($paid < $amount) return null;
+            if ($paid !== $amount) throw new \DomainException('Le montant encaissé ne correspond pas au crédit de la carte.');
             // Une commande créditée ne peut jamais servir à émettre une autre carte.
             if ($this->em->getRepository(GiftCardMovement::class)->findForOrderForUpdate($number) !== []) {
                 throw new \DomainException('Une carte cadeau ne peut pas financer une autre carte cadeau.');
             }
-            $card = new GiftCard($this->tenant->getSlug(), (string) $order->getChannel()?->getCode(), (string) $order->getCurrencyCode(), $amount, $number, new \DateTimeImmutable('+1 year'));
+            $purchase = $order->getGiftCardPurchase();
+            $months = $purchase['validityMonths'] ?? 12;
+            $card = new GiftCard($this->tenant->getSlug(), (string) $order->getChannel()?->getCode(), (string) $order->getCurrencyCode(), $amount, $number, new \DateTimeImmutable(sprintf('+%d months', $months)));
             $this->em->persist($card);
             $this->record($card, 'issue', $number, $amount, $this->key('issue', $number));
-            $email = $order->getCustomer()?->getEmail();
+            $email = $purchase === null ? $order->getCustomer()?->getEmail()
+                : ($purchase['delivery'] === 'recipient' ? $purchase['recipientEmail'] : $purchase['buyerEmail']);
             if ($email) {
-                $this->sender->send('gift_card', [$email], ['card' => $card, 'channel' => $order->getChannel()]);
+                // Le mailer existant met l’e-mail en file Doctrine dans cette transaction.
+                // Le verrou commande et l’émission unique empêchent un second enfilement.
+                $this->sender->send('gift_card', [$email], [
+                    'card' => $card, 'channel' => $order->getChannel(), 'purchase' => $purchase,
+                    'documentUrl' => isset($purchase['documentUrl']) ? $purchase['documentUrl'].'#'.$card->getCode() : null,
+                    'shopUrl' => $purchase['shopUrl'] ?? null,
+                ]);
             }
 
             return $card;

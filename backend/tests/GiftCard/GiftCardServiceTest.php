@@ -136,6 +136,52 @@ final class GiftCardServiceTest extends TestCase
         self::assertSame(10000, $card->getAvailable());
     }
 
+    public static function deliveries(): iterable
+    {
+        yield 'recipient' => ['recipient', 'recipient@example.test'];
+        yield 'buyer only, even with recipient email' => ['buyer', 'buyer@example.test'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('deliveries')]
+    public function testChosenDeliveryAndPrintableLinkAreQueuedOnlyOnce(string $delivery, string $email): void
+    {
+        $this->order->setCheckoutState('cart');
+        $purchase = GiftCardPurchaseTest::purchase();
+        $purchase['delivery'] = $delivery;
+        $purchase['recipientEmail'] = 'recipient@example.test';
+        $purchase['documentUrl'] = 'https://example.test/demo/gift-card/print';
+        $purchase['shopUrl'] = 'https://example.test/demo/shop';
+        $purchase['validityMonths'] = 6;
+        $this->order->configureGiftCardPurchase(10000, $purchase);
+        $this->order->setCheckoutState('completed');
+        $this->sender->expects(self::once())->method('send')->with('gift_card', [$email], self::callback(static function (array $data) use ($delivery): bool {
+            return $data['documentUrl'] === 'https://example.test/demo/gift-card/print#'.$data['card']->getCode()
+                && $data['purchase']['delivery'] === $delivery;
+        }));
+        $payment = new Payment();
+        $payment->setCurrencyCode('EUR');
+        $payment->setAmount(10000);
+        $this->order->addPayment($payment);
+        self::assertNull($this->service->issueFromPayment($payment));
+        $payment->setState('completed');
+        $card = $this->service->issueFromPayment($payment);
+        self::assertSame((new \DateTimeImmutable('+6 months'))->format('Y-m-d'), $card->getExpiresAt()->format('Y-m-d'));
+        self::assertSame($card, $this->service->issueFromPayment($payment));
+    }
+
+    public function testOverpaymentCannotIssueADifferentCredit(): void
+    {
+        $this->sender->expects(self::never())->method('send');
+        $this->order->setGiftCardAmount(10000);
+        $payment = new Payment();
+        $payment->setCurrencyCode('EUR');
+        $payment->setAmount(11000);
+        $payment->setState('completed');
+        $this->order->addPayment($payment);
+        $this->expectException(\DomainException::class);
+        $this->service->issueFromPayment($payment);
+    }
+
     public function testAnotherOrderCannotReceiveARefundFromThisDebit(): void
     {
         $this->service->reserve($this->card->getCode(), 1, 7000);

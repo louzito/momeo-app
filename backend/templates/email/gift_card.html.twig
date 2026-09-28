@@ -2,8 +2,14 @@
 {% block subject %}Votre carte cadeau est disponible{% endblock %}
 {% block content %}
     <h1>Votre carte cadeau {{ channel.name }}</h1>
-    <p>Votre paiement a été encaissé. Votre crédit de {{ (card.initialAmount / 100)|number_format(2, ',', ' ') }} {{ card.currency }} est disponible dans la boutique de l’établissement.</p>
-    <p>Code : <strong>{{ card.code }}</strong></p>
+    {% if purchase|default(null) %}
+        <p>Pour {{ purchase.recipientName }}, de la part de {{ purchase.buyerName }}.</p>
+        {% if purchase.message %}<p style="white-space: pre-wrap">{{ purchase.message }}</p>{% endif %}
+    {% endif %}
+    <p>Votre crédit de <strong>{{ (card.initialAmount / 100)|number_format(2, ',', ' ') }} {{ card.currency }}</strong> est disponible dans la boutique de {{ channel.name }}.</p>
+    <p>Code à utiliser au paiement : <strong>{{ card.code }}</strong></p>
     <p>Valable jusqu’au {{ card.expiresAt|date('d/m/Y') }}.</p>
-    <p>Référence de commande : {{ card.purchaseOrderNumber }}</p>
+    {% if shopUrl|default(null) %}<p><a href="{{ shopUrl }}">Choisir une prestation ou un produit dans la boutique</a></p>{% endif %}
+    {% if documentUrl|default(null) %}<p><a href="{{ documentUrl }}">Afficher et imprimer la carte cadeau</a></p>{% endif %}
+    <p>Conservez ce code et le lien de la carte : ils permettent d’utiliser votre crédit.</p>
 {% endblock %}

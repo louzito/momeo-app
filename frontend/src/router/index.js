@@ -52,6 +52,19 @@ const tenantRoutes = [
     meta: { title: 'Désinscription de la liste d’attente' },
   },
 
+  {
+    path: '/gift-card',
+    name: 'gift-card-purchase',
+    component: () => import('@/views/GiftCardPurchase.vue'),
+    meta: { title: 'Offrir une carte cadeau' },
+  },
+  {
+    path: '/gift-card/print',
+    name: 'gift-card-print',
+    component: () => import('@/views/GiftCardPrint.vue'),
+    meta: { title: 'Votre carte cadeau' },
+  },
+
   // --- Tunnel d'achat ------------------------------------------------------
   {
     path: '/checkout/options',

@@ -20,9 +20,16 @@ final class GiftVoucherConfig
 
     /** @var array<string, mixed>|null */
     private ?array $cache = null;
+    private bool $loadFailed = false;
 
     public function __construct(private readonly EntityManagerInterface $em)
     {
+    }
+
+    public function salesEnabled(): bool
+    {
+        $config = $this->config();
+        return !$this->loadFailed && ($config['giftVouchersEnabled'] ?? true) !== false;
     }
 
     public function validityMonths(): int
@@ -46,6 +53,7 @@ final class GiftVoucherConfig
 
             return $this->cache = \is_array($data) ? $data : [];
         } catch (\Throwable) {
+            $this->loadFailed = true;
             return $this->cache = [];
         }
     }
