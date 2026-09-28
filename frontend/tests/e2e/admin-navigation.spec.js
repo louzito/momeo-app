@@ -49,6 +49,7 @@ test('les groupes donnent accès aux écrans existants et sélectionnent les dé
   await expect(page.getByRole('link', { name: 'Voir mon site' })).toHaveAttribute('href', '/centre-e2e/')
   await expand(page, 'Mon site internet')
   await expect(nav.getByRole('link', { name: 'Menus', exact: true })).toHaveCount(0)
+  await expect(nav.getByRole('link', { name: 'Images', exact: true })).toHaveCount(0)
   await page.goto('/centre-e2e/admin/options/example')
   await expect(navigation(page).locator('[aria-current="page"]')).toHaveText('Options et suppléments')
   await page.goto('/centre-e2e/admin/products/example')

@@ -19,6 +19,8 @@ final class SiteTenantRequestTest extends TestCase
     public static function paths(): iterable
     {
         yield ['/api/v2/admin/site/pages'];
+        yield ['/api/v2/admin/site/media'];
+        yield ['/api/v2/admin/site/media/0123456789abcdef0123456789abcdef'];
         yield ['/api/v2/shop/site/pages/contact'];
         yield ['/api/v2/shop/site/menus/main'];
         yield ['/api/v2/shop/site/navigation'];

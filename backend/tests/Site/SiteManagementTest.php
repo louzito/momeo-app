@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Site;
 
 use App\Controller\ShopSiteApiController;
-use App\Entity\{SitePage, SiteMenu, SiteMenuItem};
-use App\Service\Site\{SiteDocumentValidator, SiteLinkResolver, SiteManagementService};
+use App\Entity\{SitePage, SiteMenu, SiteMenuItem, SiteMedia, SiteMediaUsage};
+use App\Service\Site\{SiteMediaReferences, SiteDocumentValidator, SiteLinkResolver, SiteManagementService};
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\{EntityManager, ORMSetup};
 use Doctrine\ORM\Tools\SchemaTool;
@@ -18,10 +18,10 @@ final class SiteManagementTest extends TestCase
     {
         $config = ORMSetup::createAttributeMetadataConfiguration([__DIR__.'/../../src/Entity'], true);
         $em = new EntityManager(DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]), $config);
-        (new SchemaTool($em))->createSchema(array_map($em->getClassMetadata(...), [SitePage::class, SiteMenu::class, SiteMenuItem::class]));
+        (new SchemaTool($em))->createSchema(array_map($em->getClassMetadata(...), [SitePage::class, SiteMenu::class, SiteMenuItem::class, SiteMedia::class, SiteMediaUsage::class]));
         $validator = new SiteDocumentValidator();
         $links = new SiteLinkResolver($em, $validator);
-        return [new SiteManagementService($em, $validator, $links), $links, $em];
+        return [new SiteManagementService($em, $validator, $links, new SiteMediaReferences($em)), $links, $em];
     }
     public function testPublicationIsIndependentOfDraftAndRestorable(): void
     {

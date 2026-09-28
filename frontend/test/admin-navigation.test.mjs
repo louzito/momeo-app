@@ -56,6 +56,7 @@ test('une seule sélection sur les détails, les rubriques et les URLs historiqu
     ['/admin/orders/123/invoice', 'sales', 'Commandes et factures'],
     ['/admin/site/pages', 'site', 'Pages'],
     ['/admin/site/menus', 'site', 'Menus'],
+    ['/admin/site/images', 'site', 'Images'],
     ['/admin/settings', 'settings', 'Établissement'],
     ['/admin/settings?section=inconnue', 'settings', 'Établissement'],
     ['/admin/settings?section=appearance', 'site', 'Apparence'],

@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\SitePage;
 use App\Service\Site\SiteManagementService;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\ORM\OptimisticLockException;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request};
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -89,6 +90,7 @@ final class AdminSiteApiController
     {
         try { return $this->response($operation(), $status); }
         catch (\InvalidArgumentException|\JsonException $error) { return $this->response(['error' => $error instanceof \JsonException ? 'Données invalides.' : $error->getMessage()], 422); }
+        catch (ForeignKeyConstraintViolationException) { return $this->response(['error' => 'Une image vient d’être supprimée. Rechargez les images et choisissez-en une autre.'], 409); }
         catch (UniqueConstraintViolationException|OptimisticLockException) { return $this->response(['error' => 'Cette page ou ce menu a changé, ou cette adresse est déjà utilisée. Rechargez la liste.'], 409); }
     }
     private function response(array $data, int $status = 200): JsonResponse { return new JsonResponse($data, $status, ['Cache-Control' => 'private, no-store']); }

@@ -62,7 +62,7 @@ async function request(method, path, body, contentType, { auth = true } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: headers(contentType, auth),
-    body: body ? JSON.stringify(body) : undefined,
+    body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
   })
   if (res.status === 401 && auth) {
     setToken(null)
@@ -82,7 +82,7 @@ async function request(method, path, body, contentType, { auth = true } = {}) {
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
   if (!res.ok) {
-    const msg = data?.['hydra:description'] || data?.detail || data?.error || data?.message || `HTTP ${res.status}`
+    const msg = data?.['hydra:description'] || data?.detail || data?.message || data?.error || `HTTP ${res.status}`
     const err = new Error(msg)
     err.status = res.status
     err.violations = data?.violations
@@ -983,3 +983,13 @@ export const archiveSitePage = (id) => request('DELETE', `/admin/site/pages/${en
 export const restoreSitePage = (id) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/restore`, {}, 'application/json')
 export const getSiteMenu = (location) => request('GET', `/admin/site/menus/${location}`)
 export const saveSiteMenu = (location, data) => request('PUT', `/admin/site/menus/${location}`, data, 'application/json')
+
+export const getSiteMedia = () => request('GET', '/admin/site/media')
+export const updateSiteMedia = (id, alt) => request('PUT', `/admin/site/media/${encodeURIComponent(id)}`, { alt }, 'application/json')
+export const deleteSiteMedia = (id) => request('DELETE', `/admin/site/media/${encodeURIComponent(id)}`)
+export function uploadSiteMedia(file, alt = '') {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('alt', alt)
+  return request('POST', '/admin/site/media', form, null)
+}

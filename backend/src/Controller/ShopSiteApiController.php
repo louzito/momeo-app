@@ -17,6 +17,7 @@ final class ShopSiteApiController
     {
         $page = $this->management->publishedPage($slug);
         $published = $page?->getPublished();
+        if ($published !== null) $published['media'] = $this->management->publicMedia($published);
         return new JsonResponse($published ?? ['error' => 'Page introuvable.'], $published === null ? 404 : 200, ['Cache-Control' => 'private, no-store']);
     }
     #[Route('/navigation', methods: ['GET'])]

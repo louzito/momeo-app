@@ -9,8 +9,9 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class SiteManagementService
 {
-    public function __construct(private readonly EntityManagerInterface $em, private readonly SiteDocumentValidator $validator, private readonly SiteLinkResolver $links) {}
+    public function __construct(private readonly EntityManagerInterface $em, private readonly SiteDocumentValidator $validator, private readonly SiteLinkResolver $links, private readonly SiteMediaReferences $media) {}
 
+    public function publicMedia(array $document): array { return $this->media->publicMedia($document); }
     public function pages(): array { return $this->em->getRepository(SitePage::class)->findBy([], ['slug' => 'ASC']); }
     public function page(string $id): ?SitePage { return $this->em->find(SitePage::class, $id); }
     public function publishedPage(string $slug): ?SitePage
@@ -37,8 +38,10 @@ final class SiteManagementService
     {
         $this->validator->page($data);
         $this->links->validatePage($data);
+        $this->media->validate($data);
         $this->uniqueSlug($data['slug'], $page);
         $page->revise($data);
+        $this->media->sync($page);
         $this->em->flush();
     }
     public function duplicate(SitePage $page, array $data): SitePage
@@ -46,9 +49,11 @@ final class SiteManagementService
         $this->validator->keys($data, ['title', 'slug']);
         $draft = $this->validator->page(array_replace($page->getDraft(), $data));
         $this->links->validatePage($draft);
+        $this->media->validate($draft);
         $this->uniqueSlug($draft['slug']);
         $copy = new SitePage($draft);
         $this->em->persist($copy);
+        $this->media->sync($copy);
         $this->em->flush();
         return $copy;
     }
@@ -64,9 +69,11 @@ final class SiteManagementService
     {
         $this->em->wrapInTransaction(function () use ($page): void {
             $this->validator->page($page->getDraft());
+            $this->media->validate($page->getDraft());
             $this->links->validatePage($page->getDraft(), true);
             $this->uniqueSlug($page->getSlug(), $page);
             $page->publish();
+            $this->media->sync($page);
         });
     }
     private function uniqueSlug(string $slug, ?SitePage $current = null): void
@@ -123,6 +130,7 @@ final class SiteManagementService
             $page = $this->page($id);
             if (!$page || $page->isArchived()) throw new \InvalidArgumentException('Page introuvable ou archivée.');
             $this->validator->page($page->getDraft());
+            $this->media->validate($page->getDraft());
             $this->uniqueSlug($page->getSlug(), $page);
             $this->links->validatePage($page->getDraft(), true, $pageIds);
             $pages[] = $page;
@@ -137,7 +145,7 @@ final class SiteManagementService
             $menus[] = [$menu, $items];
         }
         $this->em->wrapInTransaction(function () use ($pages, $menus): void {
-            foreach ($pages as $page) $page->publish();
+            foreach ($pages as $page) { $page->publish(); $this->media->sync($page); }
             foreach ($menus as [$menu, $items]) $menu->publish($items);
         });
     }

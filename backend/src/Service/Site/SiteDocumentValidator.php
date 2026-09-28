@@ -44,6 +44,15 @@ final class SiteDocumentValidator
             $ids[$block['id']] = true;
             $props = $block['props'];
             switch ($block['type']) {
+                case 'image':
+                case 'banner':
+                    $this->image($props);
+                    break;
+                case 'gallery':
+                    $this->keys($props, ['images']);
+                    if (!is_array($props['images']) || !array_is_list($props['images']) || count($props['images']) < 1 || count($props['images']) > 20) $this->invalid();
+                    foreach ($props['images'] as $image) $this->image($image);
+                    break;
                 case 'heading':
                     $this->keys($props, ['text', 'level']);
                     $this->text($props['text'], 200);
@@ -63,6 +72,13 @@ final class SiteDocumentValidator
         }
         if (strlen(json_encode($page, JSON_THROW_ON_ERROR)) > 200000) $this->invalid();
         return $page;
+    }
+    private function image(mixed $image): void
+    {
+        if (!is_array($image)) $this->invalid();
+        $this->keys($image, ['mediaId', 'alt']);
+        if (!is_string($image['mediaId']) || !preg_match('/^[a-f0-9]{32}$/D', $image['mediaId'])) $this->invalid();
+        $this->text($image['alt'], 300, true);
     }
     // Minimal Tiptap document: paragraphs, text, bold and italic. No HTML or arbitrary attributes.
     private function richText(mixed $doc): void

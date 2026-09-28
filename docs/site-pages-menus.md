@@ -40,7 +40,8 @@ Chaque bloc contient `id` unique, `type` et `props` :
   marques `bold` / `italic` uniquement. Aucun attribut arbitraire.
 - `button` : `label`, `link`.
 
-Les autres versions, types, propriétés et références médias sont refusés.
+Les autres versions, types et propriétés sont refusés. Le ticket #128 étend
+ce contrat aux images, bannières et galeries : voir `docs/site-media.md`.
 Les futures sections et médias doivent étendre explicitement ce contrat et
 valider leurs références dans le tenant courant. Aucun paquet Tiptap n’est
 nécessaire pour le CRUD de cette étape ; son éditeur Vue sera ajouté avec les

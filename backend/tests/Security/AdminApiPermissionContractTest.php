@@ -54,7 +54,7 @@ final class AdminApiPermissionContractTest extends TestCase
             }
         }
         foreach (TeamRole::cases() as $role) {
-            foreach (['site/pages', 'site/pages/abc/duplicate', 'site/pages/abc/restore', 'site/menus/main', 'site/menus/footer'] as $resource) {
+            foreach (['site/media', 'site/media/abc', 'site/pages', 'site/pages/abc/duplicate', 'site/pages/abc/restore', 'site/menus/main', 'site/menus/footer'] as $resource) {
                 foreach (['GET', 'POST', 'PUT', 'DELETE'] as $method) {
                     yield $role->value.' '.$resource.' '.$method => ['/api/v2/admin/'.$resource, $method, $role, $role === TeamRole::Owner];
                 }
