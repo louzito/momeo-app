@@ -1,0 +1,95 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller;
+
+use App\Entity\SitePage;
+use App\Service\Site\SiteManagementService;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\OptimisticLockException;
+use Symfony\Component\HttpFoundation\{JsonResponse, Request};
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Attribute\Route;
+
+#[Route('/api/v2/admin/site')]
+final class AdminSiteApiController
+{
+    public function __construct(private readonly SiteManagementService $management) {}
+
+    #[Route('/pages', methods: ['GET'])]
+    public function index(): JsonResponse { return $this->response(['member' => array_map($this->normalize(...), $this->management->pages())]); }
+
+    #[Route('/pages', methods: ['POST'])]
+    public function create(Request $request): JsonResponse
+    {
+        return $this->write(fn () => $this->normalize($this->management->create($this->payload($request))), 201);
+    }
+    #[Route('/pages/{id}', methods: ['GET'])]
+    public function show(string $id): JsonResponse { return $this->response($this->normalize($this->find($id))); }
+
+    #[Route('/pages/{id}', methods: ['PUT'])]
+    public function update(string $id, Request $request): JsonResponse
+    {
+        return $this->write(function () use ($id, $request): array {
+            $page = $this->find($id);
+            $this->management->update($page, $this->payload($request));
+            return $this->normalize($page);
+        });
+    }
+    #[Route('/pages/{id}/duplicate', methods: ['POST'])]
+    public function duplicate(string $id, Request $request): JsonResponse
+    {
+        return $this->write(fn () => $this->normalize($this->management->duplicate($this->find($id), $this->payload($request))), 201);
+    }
+    #[Route('/pages/{id}/restore', methods: ['POST'])]
+    public function restore(string $id): JsonResponse
+    {
+        return $this->write(function () use ($id): array { $page = $this->find($id); $this->management->restore($page); return $this->normalize($page); });
+    }
+    #[Route('/pages/{id}', methods: ['DELETE'])]
+    public function archive(string $id): JsonResponse
+    {
+        return $this->write(function () use ($id): array { $this->management->archive($this->find($id)); return ['ok' => true]; });
+    }
+    #[Route('/menus/{location}', methods: ['GET'])]
+    public function menu(string $location): JsonResponse
+    {
+        return $this->write(function () use ($location): array {
+            $menu = $this->management->menu($location);
+            return ['location' => $location, 'items' => $menu ? $this->management->menuItems($menu) : [], 'published' => $menu?->getPublished()];
+        });
+    }
+    #[Route('/menus/{location}', methods: ['PUT'])]
+    public function saveMenu(string $location, Request $request): JsonResponse
+    {
+        return $this->write(function () use ($location, $request): array {
+            $menu = $this->management->saveMenu($location, $this->payload($request));
+            return ['location' => $location, 'items' => $this->management->menuItems($menu), 'published' => $menu->getPublished()];
+        });
+    }
+    #[Route('/menus/{location}', methods: ['DELETE'])]
+    public function deleteMenu(string $location): JsonResponse
+    {
+        return $this->write(function () use ($location): array { $this->management->deleteMenu($location); return ['ok' => true]; });
+    }
+    private function find(string $id): SitePage { return $this->management->page($id) ?? throw new NotFoundHttpException('Page introuvable.'); }
+    private function normalize(SitePage $page): array
+    {
+        return ['id' => $page->getId(), 'role' => $page->getRole(), 'archived' => $page->isArchived(), 'revision' => $page->getRevision(), 'draft' => $page->getDraft(), 'published' => $page->getPublished()];
+    }
+    private function payload(Request $request): array
+    {
+        if (strlen($request->getContent()) > 250000) throw new \InvalidArgumentException('Le contenu est trop volumineux.');
+        $data = json_decode($request->getContent(), true, 32, JSON_THROW_ON_ERROR);
+        if (!is_array($data) || array_is_list($data)) throw new \InvalidArgumentException('Données invalides.');
+        return $data;
+    }
+    private function write(callable $operation, int $status = 200): JsonResponse
+    {
+        try { return $this->response($operation(), $status); }
+        catch (\InvalidArgumentException|\JsonException $error) { return $this->response(['error' => $error instanceof \JsonException ? 'Données invalides.' : $error->getMessage()], 422); }
+        catch (UniqueConstraintViolationException|OptimisticLockException) { return $this->response(['error' => 'Cette page ou ce menu a changé, ou cette adresse est déjà utilisée. Rechargez la liste.'], 409); }
+    }
+    private function response(array $data, int $status = 200): JsonResponse { return new JsonResponse($data, $status, ['Cache-Control' => 'private, no-store']); }
+}

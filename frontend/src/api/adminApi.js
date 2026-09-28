@@ -973,3 +973,11 @@ export function getGiftCards(page = 1) {
 export function getGiftCardMovements(id, page = 1) {
   return request('GET', `/admin/gift-cards/${id}/movements?page=${page}`)
 }
+
+// Pages: draft management only; the public storefront is not switched here.
+export const getSitePages = () => request('GET', '/admin/site/pages')
+export const createSitePage = (data) => request('POST', '/admin/site/pages', data, 'application/json')
+export const updateSitePage = (id, data) => request('PUT', `/admin/site/pages/${encodeURIComponent(id)}`, data, 'application/json')
+export const duplicateSitePage = (id, data) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/duplicate`, data, 'application/json')
+export const archiveSitePage = (id) => request('DELETE', `/admin/site/pages/${encodeURIComponent(id)}`)
+export const restoreSitePage = (id) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/restore`, {}, 'application/json')

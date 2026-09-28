@@ -53,6 +53,13 @@ final class AdminApiPermissionContractTest extends TestCase
                 yield $role->value.' waitlist '.$action => ['/api/v2/admin/waitlist/'.$action, 'POST', $role, true];
             }
         }
+        foreach (TeamRole::cases() as $role) {
+            foreach (['site/pages', 'site/pages/abc/duplicate', 'site/pages/abc/restore', 'site/menus/main', 'site/menus/footer'] as $resource) {
+                foreach (['GET', 'POST', 'PUT', 'DELETE'] as $method) {
+                    yield $role->value.' '.$resource.' '.$method => ['/api/v2/admin/'.$resource, $method, $role, $role === TeamRole::Owner];
+                }
+            }
+        }
         yield 'staff read' => ['/api/v2/admin/staff-members', 'GET', TeamRole::Practitioner, true];
         yield 'staff write' => ['/api/v2/admin/staff-members/1', 'PATCH', TeamRole::Practitioner, false];
         yield 'refund forbidden' => ['/api/v2/admin/payments/1/refunds', 'POST', TeamRole::Reception, false];

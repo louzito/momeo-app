@@ -94,6 +94,8 @@ test('navigation clavier sur mobile, fermeture et retour du focus', async ({ pag
   await page.keyboard.press('Space')
   await expect(site).toHaveAttribute('aria-expanded', 'true')
   await page.keyboard.press('Tab')
+  await expect(navigation(page).getByRole('link', { name: 'Pages', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
   await expect(navigation(page).getByRole('link', { name: 'Page d’accueil', exact: true })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page d’accueil')

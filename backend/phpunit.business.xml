@@ -53,6 +53,7 @@
             <file>tests/Dashboard/DashboardReadServiceTest.php</file>
             <file>tests/Configuration/ProductionConfigurationValidatorTest.php</file>
             <file>tests/Configuration/SiteConfigDocumentTest.php</file>
+            <directory>tests/Site</directory>
             <file>tests/Unit/Tenant/TenantContextTest.php</file>
             <file>tests/Tenant/TenantAdapterIsolationTest.php</file>
             <file>tests/Tenant/TenantWorkerGuardTest.php</file>

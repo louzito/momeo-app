@@ -19,8 +19,9 @@ du menu, en dehors de la liste défilante.
 | Mon site internet | Accueil, apparence (logo, couleurs, réseaux sociaux), conditions générales, mentions légales |
 | Réglages | Établissement (identité, coordonnées, règles de réservation), équipe, plannings, ressources, moyens de paiement, commerce, emails |
 
-Les éditeurs de pages libres, de menus et la médiathèque ne sont pas encore
-disponibles : aucune entrée fictive n’est affichée. Les images existantes restent
+Le ticket #126 ajoute « Pages » : création, renommage, duplication et archivage
+des nouvelles pages. Les éditeurs de sections, de menus et la médiathèque ne
+sont pas encore disponibles : aucune entrée fictive n’est affichée. Les images existantes restent
 modifiables dans Apparence (logo) et Page d’accueil (bannières).
 
 Les rubriques de configuration utilisent `/admin/settings?section=…` et le même
