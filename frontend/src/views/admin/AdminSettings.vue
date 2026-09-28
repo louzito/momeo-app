@@ -1,14 +1,9 @@
 <script setup>
-// Configuration boutique — TOUT se pilote ici, Sylius-first, en 4 sous-menus :
-//   Général            : identité (logo, nom), fonctionnalités (chèques cadeaux),
-//                        couleurs, réseaux sociaux, coordonnées.
-//   Page d'accueil     : bannières (PC + mobile) + titre / texte du hero.
-//   Conditions générales & Mentions légales : pages activables, liées
-//                        automatiquement dans le footer de la vitrine.
-// Stockage : channel Sylius (nom/contacts) + taxon skybook_config (JSON public
-// + images typées logo / banner / banner_mobile). La vitrine lit tout via le
-// shop API.
+// Les rubriques partagent le même brouillon et les mêmes API historiques.
+// Le paramètre section permet les liens directs sans recréer la configuration.
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { SETTINGS_SECTIONS, settingsSection } from '@/utils/adminNavigation'
 import { useAdminStore } from '@/stores/admin'
 import api from '@/api'
 import { displayImageUrl } from '@/api/config'
@@ -27,15 +22,12 @@ const error = ref('')
 
 const cfg = ref(null)
 
-const TABS = [
-  { key: 'general', label: 'Général' },
-  { key: 'home', label: "Page d'accueil" },
-  { key: 'shop', label: 'Boutique' },
-  { key: 'emails', label: 'Emails' },
-  { key: 'terms', label: 'Conditions générales' },
-  { key: 'mentions', label: 'Mentions légales' },
-]
-const tab = ref('general')
+const route = useRoute()
+const router = useRouter()
+const tab = computed({
+  get: () => settingsSection(route.query),
+  set: (section) => router.push({ name: 'admin-settings', query: { ...route.query, section } }),
+})
 
 // Fichiers images en attente d'upload (uploades a l'enregistrement).
 const files = ref({ logo: null, banner: null, banner_mobile: null })
@@ -269,29 +261,18 @@ async function publish() {
 
 <template>
   <div class="mx-auto max-w-3xl">
-    <h1 class="font-display text-2xl font-bold text-slate-900">Configuration boutique</h1>
+    <h1 class="font-display text-2xl font-bold text-slate-900">{{ SETTINGS_SECTIONS[tab] }}</h1>
     <p class="mt-1 text-slate-500">
-      Modifiez un brouillon, contrôlez son aperçu puis publiez-le en une seule fois.
+      Les rubriques partagent un même brouillon. Enregistrez vos modifications, puis publiez l’ensemble lorsque vous êtes prêt.
     </p>
     <p v-if="cfg?._publication" class="mt-1 text-xs text-slate-400">
       Version publiée : {{ cfg._publication.revision || 0 }}<span v-if="cfg._publication.publishedAt"> · {{ new Date(cfg._publication.publishedAt).toLocaleString('fr-FR') }}</span>
     </p>
 
-    <!-- Sous-menus -->
-    <div class="mt-5 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
-      <button
-        v-for="t in TABS"
-        :key="t.key"
-        type="button"
-        class="rounded-lg px-4 py-2 text-sm font-medium transition"
-        :class="tab === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
-        @click="tab = t.key"
-      >
-        {{ t.label }}
-      </button>
+    <div v-if="error" role="alert" class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+      {{ error }}
+      <button v-if="!cfg && !loading" type="button" class="btn-outline ml-2" @click="load">Réessayer</button>
     </div>
-
-    <div v-if="error" class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">⚠️ {{ error }}</div>
 
     <Spinner v-if="loading" />
 
@@ -300,22 +281,6 @@ async function publish() {
       <template v-if="tab === 'general'">
         <section class="card p-6">
           <h2 class="mb-4 font-semibold text-slate-800">Identité</h2>
-          <div class="flex flex-wrap items-center gap-5">
-            <img
-              v-if="previews.logo || cfg.logoUrl"
-              :src="previews.logo || cfg.logoUrl"
-              alt="Logo"
-              class="h-16 w-16 rounded-2xl border border-slate-200 object-cover"
-            />
-            <span v-else class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-accent-500 text-2xl">🪂</span>
-            <div>
-              <label class="btn-outline cursor-pointer px-4 py-2 text-sm">
-                {{ cfg.logoUrl || files.logo ? 'Changer le logo…' : 'Ajouter un logo…' }}
-                <input type="file" accept="image/*" class="hidden" @change="onImagePicked('logo', $event)" />
-              </label>
-              <p class="mt-1 text-xs text-slate-400">Carré conseillé (affiché 36×36 px), 4 Mo max.</p>
-            </div>
-          </div>
           <div class="mt-4">
             <label class="label">Nom de la boutique</label>
             <input v-model="cfg.name" class="input" placeholder="Institut TodaTempo" required />
@@ -328,19 +293,6 @@ async function publish() {
         </section>
 
         <section class="card p-6">
-          <h2 class="mb-1 font-semibold text-slate-800">Fonctionnalités</h2>
-          <p class="mb-4 text-sm text-slate-500">Activez ou non les briques optionnelles de votre boutique.</p>
-          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-brand-300">
-            <input v-model="cfg.giftVouchersEnabled" type="checkbox" class="mt-1 h-4 w-4 accent-brand-600" />
-            <span>
-              <span class="font-medium text-slate-800">Chèques cadeaux 🎁</span>
-              <span class="mt-0.5 block text-sm text-slate-500">
-                Vos clients peuvent offrir une prestation (activé par défaut). Si désactivé : le mode « En cadeau »
-                disparaît du tunnel d'achat et les liens « Chèque cadeau » de la vitrine sont masqués.
-                Les chèques déjà vendus restent activables par leurs bénéficiaires.
-              </span>
-            </span>
-          </label>
           <div class="mt-4 grid gap-4 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
             <h3 class="font-medium text-slate-800 sm:col-span-2">Règles de réservation</h3>
             <div>
@@ -375,6 +327,53 @@ async function publish() {
           </div>
         </section>
 
+        <section class="card p-6">
+          <h2 class="mb-4 font-semibold text-slate-800">Coordonnées du centre</h2>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+              <label class="label">Adresse</label>
+              <input v-model="cfg.address.street" class="input" placeholder="2091 Goetz Rd" />
+            </div>
+            <div>
+              <label class="label">Code postal</label>
+              <input v-model="cfg.address.postcode" class="input" placeholder="92570" />
+            </div>
+            <div>
+              <label class="label">Ville</label>
+              <input v-model="cfg.address.city" class="input" placeholder="Perris" />
+            </div>
+            <div>
+              <label class="label">Téléphone</label>
+              <input v-model="cfg.contactPhone" type="tel" class="input" placeholder="+33 6 12 34 56 78" />
+            </div>
+            <div>
+              <label class="label">Email de contact</label>
+              <input v-model="cfg.contactEmail" type="email" class="input" placeholder="contact@moncentre.fr" />
+            </div>
+          </div>
+        </section>
+      </template>
+
+      <template v-else-if="tab === 'appearance'">
+        <section class="card p-6">
+          <h2 class="mb-4 font-semibold text-slate-800">Logo</h2>
+          <div class="flex flex-wrap items-center gap-5">
+            <img
+              v-if="previews.logo || cfg.logoUrl"
+              :src="previews.logo || cfg.logoUrl"
+              alt="Logo"
+              class="h-16 w-16 rounded-2xl border border-slate-200 object-cover"
+            />
+            <span v-else class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-accent-500 text-2xl">🪂</span>
+            <div>
+              <label class="btn-outline focus-within:ring-2 focus-within:ring-brand-600 cursor-pointer px-4 py-2 text-sm">
+                {{ cfg.logoUrl || files.logo ? 'Changer le logo…' : 'Ajouter un logo…' }}
+                <input type="file" accept="image/*" class="sr-only" @change="onImagePicked('logo', $event)" />
+              </label>
+              <p class="mt-1 text-xs text-slate-400">Carré conseillé (affiché 36×36 px), 4 Mo max.</p>
+            </div>
+          </div>
+        </section>
         <section class="card p-6">
           <div class="mb-4 flex items-center justify-between">
             <h2 class="font-semibold text-slate-800">Couleurs</h2>
@@ -416,31 +415,6 @@ async function publish() {
           </div>
         </section>
 
-        <section class="card p-6">
-          <h2 class="mb-4 font-semibold text-slate-800">Coordonnées du centre</h2>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div class="sm:col-span-2">
-              <label class="label">Adresse</label>
-              <input v-model="cfg.address.street" class="input" placeholder="2091 Goetz Rd" />
-            </div>
-            <div>
-              <label class="label">Code postal</label>
-              <input v-model="cfg.address.postcode" class="input" placeholder="92570" />
-            </div>
-            <div>
-              <label class="label">Ville</label>
-              <input v-model="cfg.address.city" class="input" placeholder="Perris" />
-            </div>
-            <div>
-              <label class="label">Téléphone</label>
-              <input v-model="cfg.contactPhone" type="tel" class="input" placeholder="+33 6 12 34 56 78" />
-            </div>
-            <div>
-              <label class="label">Email de contact</label>
-              <input v-model="cfg.contactEmail" type="email" class="input" placeholder="contact@moncentre.fr" />
-            </div>
-          </div>
-        </section>
       </template>
 
       <!-- ======================= PAGE D'ACCUEIL ======================= -->
@@ -468,9 +442,9 @@ async function publish() {
           >
             <img :src="previews.banner || cfg.bannerUrl" alt="Bannière" class="h-full w-full object-cover" />
           </div>
-          <label class="btn-outline cursor-pointer px-4 py-2 text-sm">
+          <label class="btn-outline focus-within:ring-2 focus-within:ring-brand-600 cursor-pointer px-4 py-2 text-sm">
             {{ cfg.bannerUrl || files.banner ? 'Changer la bannière…' : 'Ajouter une bannière…' }}
-            <input type="file" accept="image/*" class="hidden" @change="onImagePicked('banner', $event)" />
+            <input type="file" accept="image/*" class="sr-only" @change="onImagePicked('banner', $event)" />
           </label>
         </section>
 
@@ -486,9 +460,9 @@ async function publish() {
           >
             <img :src="previews.banner_mobile || cfg.bannerMobileUrl" alt="Bannière mobile" class="h-full w-full object-cover" />
           </div>
-          <label class="btn-outline cursor-pointer px-4 py-2 text-sm">
+          <label class="btn-outline focus-within:ring-2 focus-within:ring-brand-600 cursor-pointer px-4 py-2 text-sm">
             {{ cfg.bannerMobileUrl || files.banner_mobile ? 'Changer la bannière mobile…' : 'Ajouter une bannière mobile…' }}
-            <input type="file" accept="image/*" class="hidden" @change="onImagePicked('banner_mobile', $event)" />
+            <input type="file" accept="image/*" class="sr-only" @change="onImagePicked('banner_mobile', $event)" />
           </label>
         </section>
 
@@ -581,13 +555,27 @@ async function publish() {
           </p>
         </section>
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
-          💡 Le rendu utilise la charte du centre (nom en en-tête). Testez en passant une commande :
-          les emails partent sur MailHog en développement (localhost:8025).
+          Les emails utilisent le nom et les couleurs de votre établissement.
         </div>
       </template>
 
       <!-- ======================= BOUTIQUE (tri) ======================= -->
       <template v-else-if="tab === 'shop'">
+        <section class="card p-6">
+          <h2 class="mb-1 font-semibold text-slate-800">Fonctionnalités</h2>
+          <p class="mb-4 text-sm text-slate-500">Activez ou non les briques optionnelles de votre boutique.</p>
+          <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-brand-300">
+            <input v-model="cfg.giftVouchersEnabled" type="checkbox" class="mt-1 h-4 w-4 accent-brand-600" />
+            <span>
+              <span class="font-medium text-slate-800">Chèques cadeaux 🎁</span>
+              <span class="mt-0.5 block text-sm text-slate-500">
+                Vos clients peuvent offrir une prestation (activé par défaut). Si désactivé : le mode « En cadeau »
+                disparaît du tunnel d'achat et les liens « Chèque cadeau » de la vitrine sont masqués.
+                Les chèques déjà vendus restent activables par leurs bénéficiaires.
+              </span>
+            </span>
+          </label>
+        </section>
         <section class="card p-6">
           <h2 class="mb-1 font-semibold text-slate-800">Ordre des produits de la Boutique</h2>
           <p class="mb-4 text-sm text-slate-500">
@@ -632,7 +620,7 @@ async function publish() {
       </template>
 
       <div class="flex flex-wrap items-center justify-end gap-3">
-        <span v-if="saved" class="text-sm text-emerald-600">✓ Brouillon enregistré</span>
+        <span v-if="saved" role="status" class="text-sm text-emerald-600">✓ Brouillon enregistré</span>
         <button type="button" class="btn-outline px-5" @click="previewing = true">Aperçu responsive</button>
         <button class="btn-outline px-5" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer le brouillon' }}</button>
         <button type="button" class="btn-primary px-6" :disabled="saving || publishing" @click="publish">{{ publishing ? 'Publication…' : 'Publier' }}</button>
