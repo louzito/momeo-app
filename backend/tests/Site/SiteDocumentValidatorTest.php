@@ -31,7 +31,7 @@ final class SiteDocumentValidatorTest extends TestCase
     }
     public static function unsafeLinks(): iterable
     {
-        foreach (['javascript:alert(1)', 'data:text/html,hello', '//example.com', '/admin', 'https://user:pass@example.com', "https://example.com/\nfoo", 'https://example.com/\\evil'] as $url) yield $url => [['type' => 'external', 'target' => $url]];
+        foreach (['javascript:alert(1)', 'data:text/html,hello', '//example.com', '/admin', 'https://user:pass@example.com', "https://example.com/\nfoo", 'https://example.com/\\evil', '/autre-etablissement/contact'] as $url) yield $url => [['type' => 'external', 'target' => $url]];
         yield 'route' => [['type' => 'route', 'target' => 'admin']];
         yield 'extra key' => [['type' => 'route', 'target' => 'shop', 'onclick' => 'alert(1)']];
     }
@@ -46,6 +46,15 @@ final class SiteDocumentValidatorTest extends TestCase
         $item = ['label' => 'Boutique', 'link' => ['type' => 'route', 'target' => 'shop']];
         $this->expectException(\InvalidArgumentException::class);
         (new SiteDocumentValidator())->menu([$item + ['children' => [$item + ['children' => [$item]]]]]);
+    }
+    public function testHiddenMustBeBoolean(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new SiteDocumentValidator())->menu([['label' => 'Lien', 'link' => ['type' => 'route', 'target' => 'services'], 'hidden' => 'false']]);
+    }
+    public function testBookingDestinationDoesNotOpenGlobalCalendar(): void
+    {
+        self::assertSame('shop?categorie=prestations', SiteDocumentValidator::ROUTES['booking']);
     }
     public function testLimitedTiptapIsPreserved(): void
     {

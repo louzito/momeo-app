@@ -23,6 +23,8 @@ class SitePage
     private ?array $published = null;
     #[ORM\Column(name: 'published_slug', length: 120, unique: true, nullable: true)]
     private ?string $publishedSlug = null;
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $previousSlugs = null;
     #[ORM\Column(type: 'boolean')]
     private bool $archived = false;
     #[ORM\Column(type: 'integer')]
@@ -37,6 +39,7 @@ class SitePage
         $this->draft = $draft;
         $this->slug = $draft['slug'];
     }
+    public function getPreviousSlugs(): array { return $this->previousSlugs ?? []; }
     public function getId(): string { return $this->id; }
     public function getSlug(): string { return $this->slug; }
     public function getRole(): ?string { return $this->role; }
@@ -47,13 +50,14 @@ class SitePage
     public function revise(array $draft): void
     {
         if ($this->archived) throw new \InvalidArgumentException('Cette page est archivée.');
-        if (($this->role !== null || $this->published !== null) && $draft['slug'] !== $this->slug) throw new \InvalidArgumentException('L’adresse de cette page est protégée.');
+        if ($this->role !== null && $draft['slug'] !== $this->slug) throw new \InvalidArgumentException('L’adresse de cette page est protégée.');
         $this->draft = $draft;
         $this->slug = $draft['slug'];
     }
     public function publish(): void
     {
         if ($this->archived) throw new \InvalidArgumentException('Cette page est archivée.');
+        if ($this->publishedSlug !== null && $this->publishedSlug !== $this->slug) $this->previousSlugs = array_values(array_unique([...$this->getPreviousSlugs(), $this->publishedSlug]));
         $this->published = $this->draft;
         $this->publishedSlug = $this->slug;
     }

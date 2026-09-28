@@ -455,6 +455,7 @@ async function buildAdminSession(identity = {}) {
 
 // --- API reelle -------------------------------------------------------------
 export const httpApi = {
+  getSiteNavigation: () => apiGet('/shop/site/navigation'),
   // Sylius 2.2 : POST /shop/customers attend `password` (et non `plainPassword`,
   // nom historique du champ) et n'accepte que firstName/lastName/email/password
   // /subscribedToNewsletter. Le telephone est enregistre apres connexion.

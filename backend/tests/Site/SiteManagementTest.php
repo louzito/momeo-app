@@ -92,13 +92,73 @@ final class SiteManagementTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $service->archive($page);
     }
-    public function testPublishedAddressCannotBeChanged(): void
+    public function testMenuFollowsPublishedSlugAndKeepsHistoricAddress(): void
     {
-        [$service] = $this->tenant();
+        [$service, $links] = $this->tenant();
         $page = $service->create(['title' => 'Contact', 'slug' => 'contact']);
         $service->publish($page);
-        $this->expectException(\InvalidArgumentException::class);
+        $menu = $service->saveMenu('main', ['items' => [['label' => 'Contact', 'link' => ['type' => 'page', 'target' => $page->getId()]]]]);
+        $service->publishMenu($menu);
         $service->update($page, array_replace($page->getDraft(), ['slug' => 'new-contact']));
+        self::assertSame('contact', $links->menu($menu->getPublished(), true)[0]['url']);
+        $service->publish($page);
+        self::assertSame('new-contact', $links->menu($menu->getPublished(), true)[0]['url']);
+        self::assertSame($page, $service->publishedPage('contact'));
+        $this->expectException(\InvalidArgumentException::class);
+        $service->create(['title' => 'Collision historique', 'slug' => 'contact']);
+    }
+    public function testBatchPublicationVisibilityPrimaryAndIndependentMenus(): void
+    {
+        [$service, $links, $em] = $this->tenant();
+        $home = $service->create(['title' => 'Accueil', 'slug' => 'maison', 'role' => 'home']);
+        $page = $service->create(['title' => 'Contact', 'slug' => 'contact']);
+        $link = ['type' => 'page', 'target' => $page->getId()];
+        $main = $service->saveMenu('main', ['items' => [
+            ['label' => 'Contact', 'link' => $link],
+            ['label' => 'Masqué', 'link' => $link, 'hidden' => true],
+        ], 'primaryLink' => $link]);
+        $footer = $service->saveMenu('footer', ['items' => [['label' => 'Boutique', 'link' => ['type' => 'route', 'target' => 'store']]]]);
+        $public = new ShopSiteApiController($service, $links);
+        $service->publishMenu($footer);
+        self::assertNull(json_decode($public->navigation()->getContent(), true)['footer']);
+        $service->publishBatch([$home->getId(), $page->getId()], ['main', 'footer']);
+        $navigation = json_decode($public->navigation()->getContent(), true);
+        self::assertCount(1, $navigation['main']);
+        self::assertSame('contact', $navigation['primary']['url']);
+        self::assertSame('shop?categorie=produits', $navigation['footer'][0]['url']);
+        $service->deleteMenu('main');
+        self::assertSame($navigation, json_decode($public->navigation()->getContent(), true));
+        $service->publishMenu($main);
+        self::assertSame([], json_decode($public->navigation()->getContent(), true)['main']);
+        self::assertSame($navigation['footer'], json_decode($public->navigation()->getContent(), true)['footer']);
+        $em->clear();
+        self::assertNull($service->menu('main')->getPublishedPrimaryLink());
+    }
+    public function testFailedBatchDoesNotPublishAnyPageOrMenu(): void
+    {
+        [$service, , $em] = $this->tenant();
+        $first = $service->create(['title' => 'Première', 'slug' => 'premiere']);
+        $missing = $service->create(['title' => 'Autre', 'slug' => 'autre']);
+        $menu = $service->saveMenu('main', ['items' => [], 'primaryLink' => ['type' => 'page', 'target' => $missing->getId()]]);
+        try { $service->publishBatch([$first->getId()], ['main']); self::fail('Missing page must block the whole batch'); }
+        catch (\InvalidArgumentException) {
+            $id = $first->getId();
+            $em->clear();
+            self::assertNull($service->page($id)->getPublished());
+            self::assertNull($service->menu('main')->getPublished());
+        }
+    }
+    public function testArchivedPrimaryIsOmittedAndCannotBeRepublished(): void
+    {
+        [$service, $links] = $this->tenant();
+        $home = $service->create(['title' => 'Accueil', 'slug' => 'maison', 'role' => 'home']);
+        $page = $service->create(['title' => 'Contact', 'slug' => 'contact']);
+        $menu = $service->saveMenu('main', ['items' => [], 'primaryLink' => ['type' => 'page', 'target' => $page->getId()]]);
+        $service->publishBatch([$home->getId(), $page->getId()], ['main']);
+        $service->archive($page);
+        self::assertNull(json_decode((new ShopSiteApiController($service, $links))->navigation()->getContent(), true)['primary']);
+        $this->expectException(\InvalidArgumentException::class);
+        $service->publishMenu($menu);
     }
     public function testMenuPublicationOrderingAndArchival(): void
     {
@@ -121,6 +181,18 @@ final class SiteManagementTest extends TestCase
         self::assertSame('contact', $published[0]['children'][0]['url']);
         $service->archive($service->page($page->getId()));
         self::assertSame([], json_decode($public->menu('main')->getContent(), true)['items'][0]['children']);
+    }
+    public function testArchivedLinkCanBeHiddenButForeignHiddenReferenceIsRejected(): void
+    {
+        [$service, $links] = $this->tenant();
+        $page = $service->create(['title' => 'Contact', 'slug' => 'contact']);
+        $service->archive($page);
+        $menu = $service->saveMenu('main', ['items' => [['label' => 'Contact', 'hidden' => true, 'link' => ['type' => 'page', 'target' => $page->getId()]]]]);
+        $service->publishMenu($menu);
+        self::assertSame([], $links->menu($menu->getPublished(), true));
+        [$other] = $this->tenant();
+        $this->expectException(\InvalidArgumentException::class);
+        $other->saveMenu('main', ['items' => $menu->getPublished()]);
     }
     public function testUnpublishedLinksPreventPublication(): void
     {

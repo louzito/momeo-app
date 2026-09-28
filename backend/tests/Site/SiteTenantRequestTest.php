@@ -21,6 +21,8 @@ final class SiteTenantRequestTest extends TestCase
         yield ['/api/v2/admin/site/pages'];
         yield ['/api/v2/shop/site/pages/contact'];
         yield ['/api/v2/shop/site/menus/main'];
+        yield ['/api/v2/shop/site/navigation'];
+        yield ['/api/v2/admin/site/menus/footer'];
     }
     #[DataProvider('paths')]
     public function testNewSiteApisNeverFallBackToDefaultTenant(string $path): void

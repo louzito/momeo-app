@@ -34,6 +34,7 @@ const GROUPS = [
   ] },
   { id: 'site', label: 'Mon site internet', items: [
     { name: 'admin-site-pages', label: 'Pages' },
+    { name: 'admin-site-menus', label: 'Menus' },
     settings('home'), settings('appearance'), settings('terms'), settings('mentions'),
   ] },
   { id: 'settings', label: 'Réglages', items: [

@@ -981,3 +981,5 @@ export const updateSitePage = (id, data) => request('PUT', `/admin/site/pages/${
 export const duplicateSitePage = (id, data) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/duplicate`, data, 'application/json')
 export const archiveSitePage = (id) => request('DELETE', `/admin/site/pages/${encodeURIComponent(id)}`)
 export const restoreSitePage = (id) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/restore`, {}, 'application/json')
+export const getSiteMenu = (location) => request('GET', `/admin/site/menus/${location}`)
+export const saveSiteMenu = (location, data) => request('PUT', `/admin/site/menus/${location}`, data, 'application/json')

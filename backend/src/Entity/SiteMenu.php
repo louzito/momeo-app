@@ -15,6 +15,10 @@ class SiteMenu
     private string $location;
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $published = null;
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $primaryLink = null;
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $publishedPrimaryLink = null;
     #[ORM\Column(type: 'integer')]
     #[ORM\Version]
     private int $revision = 1;
@@ -27,5 +31,8 @@ class SiteMenu
     public function getLocation(): string { return $this->location; }
     public function getPublished(): ?array { return $this->published; }
     public function getRevision(): int { return $this->revision; }
-    public function publish(array $items): void { $this->published = $items; }
+    public function getPrimaryLink(): ?array { return $this->primaryLink; }
+    public function getPublishedPrimaryLink(): ?array { return $this->publishedPrimaryLink; }
+    public function setPrimaryLink(?array $link): void { $this->primaryLink = $link; }
+    public function publish(array $items): void { $this->published = $items; $this->publishedPrimaryLink = $this->primaryLink; }
 }

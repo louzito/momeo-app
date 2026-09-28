@@ -1,6 +1,8 @@
 <script setup>
 // MONO-CENTRE : plus de selecteur de centre — le site EST le centre.
 import { ref } from 'vue'
+import SitePublicMenu from '@/components/site/SitePublicMenu.vue'
+import SitePublicLink from '@/components/site/SitePublicLink.vue'
 import { RouterLink } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { useSessionStore } from '@/stores/session'
@@ -15,7 +17,7 @@ const mobileOpen = ref(false)
     class="sticky top-0 z-30 border-b border-white/10 backdrop-blur-xl"
     :style="{ backgroundColor: 'var(--sb-header-bg, #020617)', color: 'var(--sb-header-text, #ffffff)' }"
   >
-    <div class="section flex h-16 items-center justify-between gap-4">
+    <div class="section flex min-h-16 items-center justify-between gap-4">
       <!-- Logo (image configuree dans l'espace centre, sinon embleme par defaut) -->
       <RouterLink :to="{ name: 'tenant-home' }" class="flex items-center gap-2.5">
         <img
@@ -31,14 +33,18 @@ const mobileOpen = ref(false)
       </RouterLink>
 
       <!-- Nav desktop -->
-      <nav class="hidden items-center gap-1 md:flex">
+      <nav aria-label="Menu principal" class="hidden items-center gap-1 md:flex">
+        <SitePublicMenu v-if="tenantStore.siteNavigation?.main" :items="tenantStore.siteNavigation.main" horizontal />
+        <template v-else>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="nav-link">Prestations</RouterLink>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="nav-link">Boutique</RouterLink>
         <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'gift-card-purchase' }" class="nav-link">Carte cadeau</RouterLink>
+        </template>
       </nav>
 
       <!-- Actions -->
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <SitePublicLink v-if="tenantStore.siteNavigation?.primary" :link="tenantStore.siteNavigation.primary" class="rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">Prendre rendez-vous</SitePublicLink>
         <RouterLink
           v-if="session.isLoggedIn"
           :to="{ name: 'account-dashboard' }"
@@ -59,10 +65,13 @@ const mobileOpen = ref(false)
 
     <!-- Nav mobile -->
     <div v-if="mobileOpen" class="border-t border-white/10 md:hidden" :style="{ backgroundColor: 'var(--sb-header-bg, #020617)' }">
-      <nav id="mobile-navigation" class="section flex flex-col py-2">
+      <nav id="mobile-navigation" aria-label="Menu principal mobile" class="section flex flex-col py-2">
+        <SitePublicMenu v-if="tenantStore.siteNavigation?.main" :items="tenantStore.siteNavigation.main" @navigate="mobileOpen = false" />
+        <template v-else>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="nav-link justify-start" @click="mobileOpen = false">Prestations</RouterLink>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="nav-link justify-start" @click="mobileOpen = false">Boutique</RouterLink>
         <RouterLink v-if="tenantStore.current?.giftVouchersEnabled !== false" :to="{ name: 'gift-card-purchase' }" class="nav-link justify-start" @click="mobileOpen = false">Carte cadeau</RouterLink>
+        </template>
         <RouterLink :to="{ name: session.isLoggedIn ? 'account-dashboard' : 'account-login' }" class="nav-link justify-start" @click="mobileOpen = false">Mon compte</RouterLink>
       </nav>
     </div>

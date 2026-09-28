@@ -57,7 +57,7 @@ final class AdminSiteApiController
     {
         return $this->write(function () use ($location): array {
             $menu = $this->management->menu($location);
-            return ['location' => $location, 'items' => $menu ? $this->management->menuItems($menu) : [], 'published' => $menu?->getPublished()];
+            return ['location' => $location, 'items' => $menu ? $this->management->menuItems($menu) : [], 'primaryLink' => $menu?->getPrimaryLink(), 'published' => $menu?->getPublished()];
         });
     }
     #[Route('/menus/{location}', methods: ['PUT'])]
@@ -65,7 +65,7 @@ final class AdminSiteApiController
     {
         return $this->write(function () use ($location, $request): array {
             $menu = $this->management->saveMenu($location, $this->payload($request));
-            return ['location' => $location, 'items' => $this->management->menuItems($menu), 'published' => $menu->getPublished()];
+            return ['location' => $location, 'items' => $this->management->menuItems($menu), 'primaryLink' => $menu->getPrimaryLink(), 'published' => $menu->getPublished()];
         });
     }
     #[Route('/menus/{location}', methods: ['DELETE'])]

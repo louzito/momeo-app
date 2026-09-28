@@ -7,7 +7,7 @@ namespace App\Service\Site;
 /** Closed, versioned vocabulary. Extend explicitly when introducing new sections. */
 final class SiteDocumentValidator
 {
-    public const ROUTES = ['home' => '', 'shop' => 'shop', 'products' => 'products', 'booking' => 'checkout/schedule', 'account' => 'account', 'gift-card' => 'gift-card', 'terms' => 'legal/terms', 'mentions' => 'legal/mentions'];
+    public const ROUTES = ['home' => '', 'shop' => 'shop', 'products' => 'products', 'services' => 'shop?categorie=prestations', 'store' => 'shop?categorie=produits', 'booking' => 'shop?categorie=prestations', 'account' => 'account', 'gift-card' => 'gift-card', 'terms' => 'legal/terms', 'mentions' => 'legal/mentions'];
     public const RESERVED = ['accueil', 'services', 'products', 'jump', 'calendar', 'waitlist', 'gift-card', 'checkout', 't', 'beneficiary', 'account', 'boarding-pass', 'admin', 'status', 'shop', 'legal', 'api', 'media', 'assets', 'login', 'logout', 'payment', 'reservation', 'robots', 'sitemap'];
 
     public function keys(array $value, array $required, array $optional = []): void
@@ -110,7 +110,9 @@ final class SiteDocumentValidator
         if (!is_array($items) || !array_is_list($items) || count($items) > 30) $this->invalid();
         foreach ($items as $item) {
             if (!is_array($item)) $this->invalid();
-            $this->keys($item, ['label', 'link'], $depth === 0 ? ['children'] : []);
+            $this->keys($item, ['label', 'link'], $depth === 0 ? ['children', 'hidden'] : ['hidden']);
+            if (isset($item['hidden']) && !is_bool($item['hidden'])) $this->invalid();
+            if (array_key_exists('hidden', $item) && $item['hidden'] === null) $this->invalid();
             $this->text($item['label'], 100);
             $this->link($item['link']);
             if (array_key_exists('children', $item)) $this->menu($item['children'], 1);

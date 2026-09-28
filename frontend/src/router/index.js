@@ -223,6 +223,7 @@ const tenantRoutes = [
       { path: 'orders', name: 'admin-orders', component: () => import('@/views/admin/AdminOrders.vue'), meta: { title: 'Commandes', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
       { path: 'vouchers', name: 'admin-vouchers', component: () => import('@/views/admin/AdminVouchers.vue'), meta: { title: 'Chèques cadeaux', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
       { path: 'payments', name: 'admin-payments', component: () => import('@/views/admin/AdminPayments.vue'), meta: { title: 'Moyens de paiement', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
+      { path: 'site/menus', name: 'admin-site-menus', component: () => import('@/views/admin/AdminSiteMenus.vue'), meta: { title: 'Menus du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'site/pages', name: 'admin-site-pages', component: () => import('@/views/admin/AdminSitePages.vue'), meta: { title: 'Pages du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/AdminSettings.vue'), meta: { title: 'Configuration boutique', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
     ],

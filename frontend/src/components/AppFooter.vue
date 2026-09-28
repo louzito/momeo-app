@@ -2,6 +2,7 @@
 // Footer vitrine — alimente par la Configuration boutique (espace centre) :
 // couleurs (--sb-footer-bg / --sb-footer-text), logo, reseaux sociaux, coordonnees.
 import { computed } from 'vue'
+import SitePublicMenu from '@/components/site/SitePublicMenu.vue'
 import { RouterLink } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { SOCIAL_NETWORKS } from '@/utils/socialIcons'
@@ -74,6 +75,8 @@ const legalLinks = computed(() => {
         </div>
 
         <div>
+          <nav v-if="tenantStore.siteNavigation?.footer" aria-label="Pied de page"><SitePublicMenu :items="tenantStore.siteNavigation.footer" /></nav>
+          <template v-else>
           <p class="mb-3 text-sm font-semibold uppercase tracking-wide">Réserver</p>
           <ul class="space-y-2 text-sm">
             <li><RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="hover:underline">Prestations</RouterLink></li>
@@ -81,6 +84,7 @@ const legalLinks = computed(() => {
             <li v-if="tenant?.giftVouchersEnabled !== false"><RouterLink :to="{ name: 'gift-card-purchase' }" class="hover:underline">Offrir une carte cadeau</RouterLink></li>
             <li><RouterLink :to="{ name: 'beneficiary-login' }" class="hover:underline">Utiliser un chèque cadeau</RouterLink></li>
           </ul>
+          </template>
         </div>
 
         <div>

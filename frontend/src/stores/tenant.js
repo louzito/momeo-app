@@ -7,6 +7,7 @@ import { fetchPublicCatalog } from '@/api/publicCatalog'
 export const useTenantStore = defineStore('tenant', {
   state: () => ({
     tenants: [],
+    siteNavigation: null,
     current: null,
     jumpTypes: [],
     options: [],
@@ -38,11 +39,14 @@ export const useTenantStore = defineStore('tenant', {
       if (this.current && !force) return this.current
       this.loading = true
       this.error = null
+      this.siteNavigation = null
       this.current = null
       this.jumpTypes = []
       this.options = []
       try {
         const { tenant, jumpTypes, options } = await fetchPublicCatalog(api, slug)
+        const navigation = await api.getSiteNavigation().catch(() => null)
+        this.siteNavigation = navigation
         this.current = tenant
         applyBranding(tenant)
         this.jumpTypes = jumpTypes
