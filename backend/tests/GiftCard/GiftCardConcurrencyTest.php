@@ -36,10 +36,9 @@ final class GiftCardConcurrencyTest extends KernelTestCase
             $order->setChannel($channel);
             $order->setCurrencyCode('EUR');
             $order->setLocaleCode('fr_FR');
-            $item = new OrderItem();
-            $item->setUnitPrice(10000);
-            $item->setQuantity(1);
-            $order->addItem($item);
+            $adjustment = new \App\Entity\Order\Adjustment();
+            $adjustment->setType('test_amount'); $adjustment->setAmount(10000);
+            $order->addAdjustment($adjustment);
             $em->persist($order);
             $orders[] = $order;
         }

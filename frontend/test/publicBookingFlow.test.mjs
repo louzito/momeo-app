@@ -15,7 +15,7 @@ test('le checkout direct ne crée plus de commande ou paiement mock', () => {
 
 test('la confirmation est adressable par le jeton de réservation persisté', () => {
   assert.match(routerSource, /path: '\/checkout\/confirmation\/:bookingId'/)
-  assert.match(paymentSource, /params\.bookingId = result\.booking\.id/)
+  assert.match(paymentSource, /params: \{ bookingId: result\.booking\.id \}/)
   assert.match(confirmationSource, /api\.getBooking\(route\.params\.bookingId\)/)
 })
 

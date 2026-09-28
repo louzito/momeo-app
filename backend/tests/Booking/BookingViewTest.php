@@ -20,9 +20,9 @@ final class BookingViewTest extends TestCase
         $client = $this->json($view->client($booking, $policy));
         $history = $this->json($view->adminHistory($booking));
 
-        self::assertSame(explode(' ', 'id reference status source serviceCode serviceName planningCode resourceCode jumpTypeId jumpTypeName customerName jumperName staffMemberId staffName slotStart slotEnd options paymentState orderNumber amount totalAmount balanceDue currencyCode'), array_keys($public));
+        self::assertSame(explode(' ', 'id reference status source serviceCode serviceName planningCode resourceCode jumpTypeId jumpTypeName customerName jumperName staffMemberId staffName slotStart slotEnd options paymentState paymentBreakdown orderNumber amount totalAmount balanceDue currencyCode'), array_keys($public));
         self::assertSame(explode(' ', 'id publicId reference status source serviceCode serviceName planningCode resourceCode jumpTypeId jumpTypeName customerName jumperName customerEmail customerPhone customerNotes staffMemberId staffName slotStart slotEnd orderNumber voucherCode options amount totalAmount balanceDue currencyCode paymentState postponedReason createdAt updatedAt'), array_keys($admin));
-        self::assertSame(explode(' ', 'id reference status source jumpTypeId jumpTypeName jumperName customerName staffName resourceCode slotStart slotEnd options paymentState orderNumber amount totalAmount balanceDue currencyCode postponedReason changeHistory changePolicy'), array_keys($client));
+        self::assertSame(explode(' ', 'id reference status source jumpTypeId jumpTypeName jumperName customerName staffName resourceCode slotStart slotEnd options paymentState paymentBreakdown orderNumber amount totalAmount balanceDue currencyCode postponedReason changeHistory changePolicy'), array_keys($client));
         self::assertSame(explode(' ', 'id reference status source serviceCode serviceName staffName slotStart slotEnd amount totalAmount balanceDue currencyCode paymentState'), array_keys($history));
         self::assertSame('opaque-token', $public['id']);
         self::assertSame('opaque-token', $client['id']);

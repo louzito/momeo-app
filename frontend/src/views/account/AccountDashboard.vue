@@ -1,4 +1,5 @@
 <script setup>
+import PaymentBreakdown from '@/components/PaymentBreakdown.vue'
 import { ref, onMounted, computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
@@ -97,6 +98,7 @@ onMounted(loadAccount)
             <div class="flex items-center gap-3">
               <StatusBadge :status="o.status" />
               <span class="font-semibold text-slate-800">{{ formatMoney(o.total, o.currency) }}</span>
+              <PaymentBreakdown :value="o.paymentBreakdown" :currency="o.currency" />
             </div>
           </div>
         </div>

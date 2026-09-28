@@ -70,7 +70,7 @@ final class BookingCreationService
 
             $booking = new Booking();
             $this->identity->initialize($booking);
-            $cardPayment = $order->getLastPayment()?->getMethod()?->getCode() === 'stripe_web_elements';
+            $cardPayment = in_array($order->getLastPayment()?->getMethod()?->getCode(), ['stripe_web_elements', 'gift_card'], true);
             $booking->setStatus($cardPayment ? Booking::STATUS_AWAITING_PAYMENT : Booking::STATUS_CONFIRMED);
             $booking->setSource(\in_array($payload['source'] ?? '', ['direct', 'voucher'], true) ? $payload['source'] : 'direct');
             $booking->setServiceCode($serviceCode);

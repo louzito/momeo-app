@@ -34,7 +34,8 @@ final class PhysicalCheckoutServiceTest extends TestCase
             $item->setVariant($variant);
             $item->setProductName('Article');
             $item->setUnitPrice(1000);
-            $item->setQuantity(2);
+            new \App\Entity\Order\OrderItemUnit($item);
+            new \App\Entity\Order\OrderItemUnit($item);
             $order->addItem($item);
         }
         return $order;

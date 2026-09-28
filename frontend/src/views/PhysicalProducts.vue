@@ -4,6 +4,7 @@ import api from '@/api'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
 import { formatMoney } from '@/utils/format'
+import GiftCardPayment from '@/components/GiftCardPayment.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import CatalogError from '@/components/ui/CatalogError.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -20,6 +21,11 @@ const processing = ref(false)
 const error = ref('')
 const catalogError = ref('')
 const result = ref(null)
+const giftPayment = ref(null)
+function useGift(value) {
+  giftPayment.value = value
+  paymentMethod.value = value.code ? (value.remaining === 0 ? 'gift_card' : 'stripe_web_elements') : (methods.value[0]?.code || '')
+}
 const mode = ref('pickup')
 const customer = ref({ firstName: '', lastName: '', email: '', street: '', postcode: '', city: '', countryCode: 'FR' })
 
@@ -70,8 +76,12 @@ async function checkout() {
   try {
     result.value ||= await api.createPhysicalOrder({
       items: items.value.map((p) => ({ id: p.id, quantity: p.quantity })), mode: mode.value,
-      email: customer.value.email, address: customer.value, paymentMethod: paymentMethod.value,
+      email: customer.value.email, address: customer.value, paymentMethod: paymentMethod.value, giftCardCode: giftPayment.value?.code,
     })
+    if (giftPayment.value?.code && !result.value.giftSettled) {
+      const gift = await api.settleGiftCardPayment(result.value.orderToken)
+      Object.assign(result.value, { paymentId: gift.paymentId, paymentMethod: gift.paymentMethod, paymentBreakdown: gift, giftSettled: true })
+    }
     const destination = { name: 'checkout-shop-confirmation', params: { orderToken: result.value.orderToken } }
     if (result.value.paymentMethod === 'stripe_web_elements') {
       const confirmation = new URL(router.resolve(destination).href, window.location.origin)
@@ -138,11 +148,12 @@ async function checkout() {
           <div v-if="deliveryFee" class="mt-3 flex justify-between text-sm"><span>Livraison</span><span>{{ formatMoney(deliveryFee, tenant.currency) }}</span></div>
           <div class="mt-4 flex justify-between border-t pt-4 font-bold"><span>Total</span><span>{{ formatMoney(total, tenant.currency) }}</span></div>
           <div v-if="error" class="mt-3 text-sm text-rose-600">{{ error }}</div>
-          <label class="mt-4 block text-sm font-semibold" for="product-payment">Moyen de paiement</label>
-          <select id="product-payment" v-model="paymentMethod" class="input mt-2 w-full" :disabled="processing || !!result">
+          <GiftCardPayment :due="Math.round(total * 100)" :disabled="processing || !!result" @change="useGift" />
+          <label v-if="!giftPayment?.code" class="mt-4 block text-sm font-semibold" for="product-payment">Moyen de paiement</label>
+          <select v-if="!giftPayment?.code" id="product-payment" v-model="paymentMethod" class="input mt-2 w-full" :disabled="processing || !!result">
             <option v-for="method in methods" :key="method.code" :value="method.code">{{ method.name }}</option>
           </select>
-          <p v-if="!methods.length" role="alert" class="mt-3 text-sm text-rose-700">Aucun moyen de paiement n’est disponible. Contactez l’établissement.</p>
+          <p v-if="!methods.length && !giftPayment?.code" role="alert" class="mt-3 text-sm text-rose-700">Aucun moyen de paiement n’est disponible. Contactez l’établissement.</p>
           <p v-else-if="paymentMethod === 'bank_transfer'" class="mt-3 text-sm text-slate-600">La référence et les instructions de virement seront affichées après la commande. La préparation commencera après réception du paiement.</p>
           <button class="btn-primary mt-4 w-full" :disabled="processing || !paymentMethod" @click="checkout">{{ processing ? 'Enregistrement…' : 'Commander' }}</button>
         </template>

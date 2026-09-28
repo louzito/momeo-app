@@ -5,6 +5,7 @@ import { useCheckoutGuard } from '@/composables/useCheckoutGuard'
 import { useTenantContext } from '@/composables/useTenantContext'
 import { useSessionStore } from '@/stores/session'
 import api from '@/api'
+import GiftCardPayment from '@/components/GiftCardPayment.vue'
 import CheckoutLayout from '@/components/CheckoutLayout.vue'
 import { formatMoney } from '@/utils/format'
 
@@ -23,6 +24,13 @@ const canStripe = computed(() => !!stripeMethod.value)
 const noOnlinePayment = computed(() => !cart.isGift && cart.dueNowCents === 0)
 const method = ref('bank_transfer')
 
+const giftPayment = ref(null)
+const giftFull = computed(() => !!giftPayment.value?.code && giftPayment.value.remaining === 0)
+const dueNow = computed(() => giftPayment.value?.code ? giftPayment.value.remaining / 100 : cart.dueNow)
+function useGift(value) {
+  giftPayment.value = value; cart.giftCardCode = value.code
+  selectMethod(value.code ? (value.remaining === 0 ? 'gift_card' : 'stripe_web_elements') : (canStripe.value ? 'stripe_web_elements' : 'bank_transfer'))
+}
 const methodsError = ref('')
 
 async function loadMethods() {
@@ -56,7 +64,7 @@ function selectMethod(m) {
 // Sans moyen actif chez le centre : aucun moyen de creer une
 // vraie commande -> on bloque avant l'appel API plutot que de laisser passer
 // silencieusement un cheque cadeau mock.
-const blocked = computed(() => methodsLoaded.value && !noOnlinePayment.value && !canBankTransfer.value && !canStripe.value)
+const blocked = computed(() => methodsLoaded.value && !noOnlinePayment.value && !giftFull.value && (giftPayment.value?.code ? !canStripe.value : (!canBankTransfer.value && !canStripe.value)))
 
 async function pay() {
   if (processing.value || !methodsLoaded.value) return
@@ -71,7 +79,11 @@ async function pay() {
     if (!cart.lastResult && props.beforePay && !(await props.beforePay())) return
     cart.setPaymentMethod(method.value)
     const result = await cart.checkout(session.customer?.id || null)
-    if (method.value === 'stripe_web_elements') {
+    if (!cart.isGift && cart.giftCardCode && !result.order.giftSettled) {
+      const gift = await api.settleGiftCardPayment(result.order.orderToken)
+      Object.assign(result.order, { paymentId: gift.paymentId, paymentMethod: gift.paymentMethod, paymentBreakdown: gift, status: gift.status, giftSettled: true })
+    }
+    if (result.order.paymentMethod === 'stripe_web_elements') {
       const destination = cart.isGift
         ? { name: 'checkout-shop-confirmation', params: { orderToken: result.order.orderToken } }
         : { name: 'checkout-confirmation', params: { bookingId: result.booking.id } }
@@ -114,11 +126,13 @@ async function pay() {
         <p>{{ methodsError }}</p>
         <button type="button" class="btn-outline mt-2" @click="loadMethods">Réessayer</button>
       </div>
+      <GiftCardPayment v-if="!cart.isGift && cart.dueNowCents > 0" :due="cart.dueNowCents" :later="Math.round(cart.balanceDue * 100)" :disabled="processing || !!cart.lastResult" @change="useGift" />
+      <p v-if="giftFull" class="mb-4 text-sm text-emerald-700">Le montant dû maintenant sera réglé intégralement avec votre carte cadeau.</p>
       <!-- Choix du moyen de paiement -->
       <div v-if="noOnlinePayment" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
         Aucun paiement n’est demandé maintenant. Votre réservation sera enregistrée et le solde de {{ formatMoney(cart.balanceDue, tenant?.currency) }} sera à régler sur place.
       </div>
-      <div v-else class="grid gap-3 sm:grid-cols-2">
+      <div v-else-if="!giftFull" class="grid gap-3 sm:grid-cols-2">
         <button
           v-if="canStripe"
           type="button"
@@ -133,7 +147,7 @@ async function pay() {
         </button>
 
         <button
-          v-if="canBankTransfer"
+          v-if="canBankTransfer && !giftPayment?.code"
           type="button"
           class="card p-4 text-left transition hover:border-brand-400"
           :class="method === 'bank_transfer' ? 'border-brand-500 ring-2 ring-brand-500/20' : ''"
@@ -176,10 +190,10 @@ async function pay() {
       <button class="btn-primary mt-6 w-full py-3 text-base" :disabled="processing || !methodsLoaded || blocked" @click="pay">
         <template v-if="processing">Enregistrement…</template>
         <template v-else>
-          {{ noOnlinePayment ? 'Confirmer la réservation sans paiement'
+          {{ giftFull ? 'Confirmer avec la carte cadeau' : noOnlinePayment ? 'Confirmer la réservation sans paiement'
             : method === 'stripe_web_elements'
-              ? `Payer ${formatMoney(cart.dueNow, tenant?.currency)} par carte`
-              : `Commander ${formatMoney(cart.dueNow, tenant?.currency)} (payer par virement)` }}
+              ? `Payer ${formatMoney(dueNow, tenant?.currency)} par carte`
+              : `Commander ${formatMoney(dueNow, tenant?.currency)} (payer par virement)` }}
         </template>
       </button>
       <p class="mt-3 flex items-center justify-center gap-1 text-xs text-slate-400">

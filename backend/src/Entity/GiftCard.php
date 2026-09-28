@@ -74,7 +74,9 @@ class GiftCard
 
     public function debit(int $amount): void
     {
-        $this->assertUsable();
+        // Le crédit a été validé à la réservation ; honorer un paiement confirmé
+        // même si son webhook est reçu après l’expiration de la carte.
+        if ($this->status !== 'active') throw new \DomainException('Cette carte est inactive.');
         $this->assertReserved($amount);
         $this->reserved -= $amount;
     }

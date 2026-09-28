@@ -1,0 +1,11 @@
+[Unit]
+Description=Libération des crédits cadeaux abandonnés pour %i
+
+[Service]
+Type=oneshot
+User=www-data
+WorkingDirectory=/srv/todatempo/app/backend
+EnvironmentFile=/etc/todatempo/backend.env
+Environment=APP_ENV=prod
+Environment=SKYBOOK_TENANT=%i
+ExecStart=/usr/bin/php bin/console app:gift-card-payments:expire --no-interaction

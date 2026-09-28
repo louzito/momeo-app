@@ -11,13 +11,14 @@ use Symfony\Component\Workflow\Event\CompletedEvent;
 
 final class GiftCardPaymentListener
 {
-    public function __construct(private readonly GiftCardService $cards) {}
+    public function __construct(private readonly GiftCardService $cards, private readonly \App\Service\GiftCard\GiftCardPaymentService $payments) {}
 
     #[AsEventListener(event: 'workflow.sylius_payment.completed.complete')]
     public function completed(CompletedEvent $event): void
     {
         $payment = $event->getSubject();
         if ($payment instanceof PaymentInterface) $this->cards->issueFromPayment($payment);
+        if ($payment instanceof \App\Entity\Payment\Payment) $this->payments->paid($payment);
     }
 
     #[AsEventListener(event: 'workflow.sylius_payment.completed.fail')]
@@ -26,7 +27,7 @@ final class GiftCardPaymentListener
     {
         $payment = $event->getSubject();
         if ($payment instanceof PaymentInterface && $payment->getOrder()?->getId() !== null) {
-            $this->cards->releaseForOrder($payment->getOrder()->getId());
+            $this->payments->failed($payment->getOrder());
         }
     }
 }

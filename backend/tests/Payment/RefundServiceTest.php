@@ -17,7 +17,8 @@ class RefundServiceTest extends TestCase
     public function testPartialThenFullAndReplayKeepActorCreditNoteAndSingleProviderCallPerKey(): void
     {
         [$service, $payment, $order, $booking, $provider, $em, $connection, , $workflow] = $this->fixture();
-        $em->expects(self::exactly(2))->method('lock')->with($payment, LockMode::PESSIMISTIC_WRITE);
+        $locked = [];
+        $em->expects(self::exactly(4))->method('lock')->willReturnCallback(function ($entity, $mode) use (&$locked): void { self::assertSame(LockMode::PESSIMISTIC_WRITE, $mode); $locked[] = $entity; });
         $em->expects(self::exactly(2))->method('refresh')->with($payment);
         $connection->expects(self::exactly(2))->method('beginTransaction');
         $connection->expects(self::exactly(2))->method('commit');
@@ -42,6 +43,7 @@ class RefundServiceTest extends TestCase
         self::assertSame('refunded', $booking->getPaymentState());
         self::assertSame(Booking::STATUS_CANCELLED, $booking->getStatus());
         self::assertSame([[$payment, 300, 'refund-01'], [$payment, 700, 'refund-02']], $provider->calls);
+        self::assertSame([$order, $payment, $order, $payment], $locked);
     }
 
     public function testPendingKeyWithOtherAmountRollsBackWithoutProvider(): void

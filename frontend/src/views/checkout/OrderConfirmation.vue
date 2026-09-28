@@ -1,4 +1,5 @@
 <script setup>
+import PaymentBreakdown from '@/components/PaymentBreakdown.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useTenantContext } from '@/composables/useTenantContext'
@@ -62,6 +63,7 @@ onMounted(async () => {
     </div>
     <template v-else-if="order && booking">
     <CheckoutStepper current="confirmation" />
+    <PaymentBreakdown class="mx-auto max-w-2xl" :value="booking.paymentBreakdown" :currency="booking.currencyCode" />
     <div class="mx-auto max-w-2xl text-center">
       <div
         class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-3xl"

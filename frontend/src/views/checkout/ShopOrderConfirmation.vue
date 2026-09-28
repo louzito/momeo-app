@@ -1,4 +1,5 @@
 <script setup>
+import PaymentBreakdown from '@/components/PaymentBreakdown.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import api from '@/api'
@@ -55,6 +56,7 @@ onUnmounted(() => { stopped = true; clearTimeout(timer) })
       <section v-if="order" class="card space-y-4 p-6" aria-live="polite">
         <p>Référence : <strong class="break-all">{{ order.number }}</strong></p>
         <p>Montant : <strong>{{ formatMoney(order.total, order.currency) }}</strong></p>
+        <PaymentBreakdown :value="order.paymentBreakdown" :currency="order.currency" />
         <div v-if="order.giftCardTerms" class="space-y-2">
           <p>Crédit offert : <strong>{{ formatMoney(order.total, order.currency) }}</strong>, utilisable dans la boutique de {{ order.giftCardTerms.shopName }}.</p>
           <p>Validité : {{ order.giftCardTerms.validityMonths }} mois à compter de la confirmation du paiement.</p>

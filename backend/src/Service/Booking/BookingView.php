@@ -14,6 +14,15 @@ use App\Entity\Booking;
  */
 final class BookingView
 {
+    public function __construct(private readonly ?\Doctrine\ORM\EntityManagerInterface $em = null) {}
+
+    private function payments(Booking $booking): ?array
+    {
+        if (!$booking->getOrderNumber() || $this->em === null) return null;
+        $order = $this->em->getRepository(\App\Entity\Order\Order::class)->findOneBy(['number' => $booking->getOrderNumber()]);
+        return $order instanceof \App\Entity\Order\Order ? \App\Service\GiftCard\GiftCardPaymentService::breakdown($order) : null;
+    }
+
     /** @return array<string, mixed> */
     public function publicBooking(Booking $booking): array
     {
@@ -37,6 +46,7 @@ final class BookingView
             'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
             'options' => $booking->getOptions(),
             'paymentState' => $booking->getPaymentState(),
+            'paymentBreakdown' => $this->payments($booking),
             'orderNumber' => $booking->getOrderNumber(),
             'amount' => $booking->getAmount(),
             'totalAmount' => $booking->getTotalAmount(),
@@ -98,6 +108,7 @@ final class BookingView
             'slotStart' => $booking->getSlotStart()->format(\DateTimeInterface::ATOM),
             'slotEnd' => $booking->getSlotEnd()->format(\DateTimeInterface::ATOM),
             'options' => $booking->getOptions(), 'paymentState' => $booking->getPaymentState(),
+            'paymentBreakdown' => $this->payments($booking),
             'orderNumber' => $booking->getOrderNumber(), 'amount' => $booking->getAmount(),
             'totalAmount' => $booking->getTotalAmount(), 'balanceDue' => $booking->getBalanceDue(),
             'currencyCode' => $booking->getCurrencyCode(), 'postponedReason' => $booking->getPostponedReason(),

@@ -19,6 +19,7 @@ final class RefundService
         private readonly EntityManagerInterface $entityManager,
         private readonly RefundProvider $provider,
         private readonly Registry $workflows,
+        private readonly ?\App\Service\GiftCard\GiftCardService $cards = null,
     ) {}
 
     /** @return list<RefundOperation> */
@@ -37,6 +38,8 @@ final class RefundService
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
         try {
+            $lockedOrder = $payment->getOrder();
+            if ($lockedOrder instanceof Order) $this->entityManager->lock($lockedOrder, LockMode::PESSIMISTIC_WRITE);
             $this->entityManager->lock($payment, LockMode::PESSIMISTIC_WRITE);
             $this->entityManager->refresh($payment);
             $existing = $this->entityManager->getRepository(RefundOperation::class)->findOneBy(['idempotencyKey' => $key]);
@@ -51,7 +54,13 @@ final class RefundService
             $operation = $existing instanceof RefundOperation ? $existing : new RefundOperation($payment, $order, $key, $amount, (string) $order->getCurrencyCode(), $providerName, $actor, $reason);
             if (!$existing instanceof RefundOperation) { $this->entityManager->persist($operation); $this->entityManager->flush(); }
 
-            $result = $this->provider->refund($payment, $amount, $key);
+            if (isset($payment->getDetails()['gift_card_code'])) {
+                if ($this->cards === null) throw new \LogicException('Service de restitution cadeau indisponible.');
+                $this->cards->refund($payment->getDetails()['gift_card_code'], $order->getId(), $amount, $key);
+                $result = ['reference' => 'gift-card-'.$key];
+            } else {
+                $result = $this->provider->refund($payment, $amount, $key);
+            }
             $newRefundedAmount = $payment->getRefundedAmount() + $amount;
             $payment->setRefundedAmount($newRefundedAmount);
             $full = $newRefundedAmount === (int) $payment->getAmount();
@@ -59,11 +68,15 @@ final class RefundService
                 $workflow = $this->workflows->get($payment, 'sylius_payment');
                 if ($workflow->can($payment, 'refund')) $workflow->apply($payment, 'refund');
             }
-            $order->setPaymentState($full ? 'refunded' : 'partially_refunded');
+            $allRefunded = true;
+            foreach ($order->getPayments() as $part) {
+                if ($part instanceof Payment && in_array($part->getState(), ['completed', 'refunded'], true) && $part->getRefundableAmount() > 0) $allRefunded = false;
+            }
+            $order->setPaymentState($allRefunded ? 'refunded' : 'partially_refunded');
             $booking = $this->entityManager->getRepository(Booking::class)->findOneBy(['orderNumber' => $order->getNumber()]);
             if ($booking instanceof Booking) {
-                $booking->setPaymentState($full ? 'refunded' : 'partially_refunded');
-                if ($full) $booking->setStatus(Booking::STATUS_CANCELLED);
+                $booking->setPaymentState($allRefunded ? 'refunded' : 'partially_refunded');
+                if ($allRefunded) $booking->setStatus(Booking::STATUS_CANCELLED);
                 $booking->recordChange(['action' => $full ? 'refunded' : 'partially_refunded', 'actor' => $actor, 'amount' => $amount, 'idempotencyKey' => $key, 'at' => (new \DateTimeImmutable())->format(DATE_ATOM)]);
             }
             $creditNote = sprintf('AV-%s-%s', $order->getNumber(), strtoupper(substr(hash('sha256', $key), 0, 8)));

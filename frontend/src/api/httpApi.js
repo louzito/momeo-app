@@ -755,7 +755,7 @@ export const httpApi = {
     if (payload.kind === 'gift' && ['bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
       return this._createGiftOrder(payload)
     }
-    if (payload.kind !== 'direct' || !['none', 'bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
+    if (payload.kind !== 'direct' || !['none', 'gift_card', 'bank_transfer', 'stripe_web_elements'].includes(payload.paymentMethod)) {
       throw new Error('Ce moyen de paiement ne permet pas de créer une réservation réelle.')
     }
 
@@ -796,7 +796,9 @@ export const httpApi = {
     const addressed = await apiGet(`/shop/orders/${t}`)
     const paymentId = addressed.payments?.[0]?.id
     const paymentTerms = await apiWrite('POST', `/shop/orders/${t}/payment-terms`, {})
-    if (paymentTerms.dueNow > 0 && paymentId != null) {
+    if (payload.giftCardCode && paymentTerms.dueNow > 0) {
+      await apiWrite('POST', '/shop/gift-cards/prepare', { orderToken: t, code: payload.giftCardCode })
+    } else if (paymentTerms.dueNow > 0 && paymentId != null) {
       await apiWrite('PATCH', `/shop/orders/${t}/payments/${paymentId}`, {
         paymentMethod: `/api/v2/shop/payment-methods/${payload.paymentMethod}`,
       })
@@ -874,7 +876,9 @@ export const httpApi = {
     }
     addressed = await apiGet(`/shop/orders/${token}`)
     const paymentId = addressed.payments?.[0]?.id
-    if (paymentId != null) {
+    if (payload.giftCardCode) {
+      await apiWrite('POST', '/shop/gift-cards/prepare', { orderToken: token, code: payload.giftCardCode })
+    } else if (paymentId != null) {
       await apiWrite('PATCH', `/shop/orders/${token}/payments/${paymentId}`, {
         paymentMethod: `/api/v2/shop/payment-methods/${payload.paymentMethod || 'bank_transfer'}`,
       })
@@ -883,6 +887,14 @@ export const httpApi = {
     return { id: completed.tokenValue, number: completed.number, total: (completed.total || 0) / 100,
       currency: completed.currencyCode, preparationState: 'pending', fulfillmentMode: payload.mode,
       orderToken: completed.tokenValue, paymentId, paymentMethod: payload.paymentMethod }
+  },
+
+  async settleGiftCardPayment(orderToken) {
+    return apiWrite('POST', '/shop/gift-cards/settle', { orderToken })
+  },
+
+  async getGiftCardBalance(code) {
+    return apiWrite('POST', '/shop/gift-cards/balance', { code })
   },
 
   async getGiftCardOffer() {

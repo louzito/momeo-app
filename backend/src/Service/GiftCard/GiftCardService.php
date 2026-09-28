@@ -152,7 +152,10 @@ final class GiftCardService
                 // Le verrou commande sérialise aussi les réservations faites avec différentes cartes.
                 $committed = 0;
                 foreach ($repository->findForOrderForUpdate($number) as $movement) {
-                    if ($movement->getKind() === 'reserve') $committed += $movement->getAmount();
+                    if ($movement->getKind() === 'reserve') {
+                        if ($movement->getCard() !== $card) throw new \DomainException('Une seule carte cadeau est autorisée par commande.');
+                        $committed += $movement->getAmount();
+                    }
                     if ($movement->getKind() === 'release') $committed -= $movement->getAmount();
                 }
                 if ($amount === null || $amount > $order->getTotal() - $committed) throw new \DomainException('Le montant dépasse le total de la commande.');

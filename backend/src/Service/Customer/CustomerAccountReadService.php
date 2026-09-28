@@ -52,6 +52,7 @@ final class CustomerAccountReadService
             'status' => $order->getState(),
             'paymentState' => $order->getPaymentState(),
             'total' => $order->getTotal() / 100,
+            'paymentBreakdown' => \App\Service\GiftCard\GiftCardPaymentService::breakdown($order),
             'currency' => $order->getCurrencyCode(),
             'createdAt' => $order->getCreatedAt()?->format(\DateTimeInterface::ATOM),
             'kind' => null !== $this->giftVoucherRepository->findOneBy(['purchaseOrderNumber' => $order->getNumber()]) ? 'gift' : 'direct',

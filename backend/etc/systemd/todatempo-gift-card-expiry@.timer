@@ -1,0 +1,10 @@
+[Unit]
+Description=Vérification des crédits cadeaux abandonnés pour %i
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=todatempo-gift-card-expiry@%i.service
+
+[Install]
+WantedBy=timers.target

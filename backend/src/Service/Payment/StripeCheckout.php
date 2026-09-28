@@ -47,6 +47,13 @@ final class StripeCheckout
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
         ];
+        foreach ($order->getPayments() as $part) {
+            if ($part->getState() === 'new' && isset($part->getDetails()['gift_card_expires'])) {
+                $expiry = $part->getDetails()['gift_card_expires'];
+                if ($expiry < time() + 1800) throw new \DomainException('Ce paiement a expiré. Recommencez votre commande.');
+                $parameters['expires_at'] = $expiry;
+            }
+        }
         $customerEmail = $order->getCustomer()?->getEmail();
         if (\is_string($customerEmail) && $customerEmail !== '') {
             $parameters['customer_email'] = $customerEmail;

@@ -24,3 +24,10 @@ Le demarrage manuel suit la meme regle :
 ```bash
 SKYBOOK_TENANT=skyline APP_ENV=prod bin/console messenger:consume async --no-interaction
 ```
+
+Les unités `todatempo-gift-card-expiry@.service` et `.timer` exécutent chaque minute
+`app:gift-card-payments:expire` sur le tenant explicite de l’instance. Les installer
+avec le déploiement puis activer `todatempo-gift-card-expiry@skyline.timer` pour
+chaque établissement. Le crédit sans session bancaire est libéré après une heure.
+Lorsqu’une session Stripe a commencé, les webhooks signés d’expiration/échec
+libèrent le crédit ; un simple retour navigateur ne fait pas foi.

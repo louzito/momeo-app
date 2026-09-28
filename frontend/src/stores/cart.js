@@ -41,6 +41,7 @@ export const useCartStore = defineStore('cart', {
     gift: { name: '', email: '', message: '', purchaserName: '', purchaserEmail: '' },
     // Moyens réels Sylius : virement ou Stripe Checkout.
     paymentMethod: 'bank_transfer',
+    giftCardCode: '',
     eligibilityChecked: false,
     lastResult: null, // { order, booking, voucher }
   }),
@@ -86,6 +87,7 @@ export const useCartStore = defineStore('cart', {
       this.gift = { name: '', email: '', message: '', purchaserName: '', purchaserEmail: '' }
       this.kind = 'direct'
       this.paymentMethod = 'bank_transfer'
+      this.giftCardCode = ''
       this.eligibilityChecked = false
       this.lastResult = null
     },
@@ -150,6 +152,7 @@ export const useCartStore = defineStore('cart', {
         },
         gift: this.gift,
         paymentMethod: this.paymentMethod,
+        giftCardCode: this.isGift || this.dueNowCents === 0 ? '' : this.giftCardCode,
         customerId,
       }
       const pending = api.createOrder(payload).then((result) => {
