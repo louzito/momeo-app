@@ -855,6 +855,8 @@ export const httpApi = {
     }
   },
 
+  async createUnifiedOrder(payload) { return apiWrite('POST', '/shop/checkout', payload) },
+
   async createPhysicalOrder(payload) {
     if (!payload.items?.length) throw new Error('Votre panier est vide.')
     const cart = await apiWrite('POST', '/shop/orders', {})

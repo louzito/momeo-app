@@ -16,6 +16,25 @@ use Sylius\MolliePlugin\Entity\RecurringOrderTrait;
 #[ORM\Table(name: 'sylius_order')]
 class Order extends BaseOrder implements OrderInterface
 {
+    #[ORM\Column(name: 'checkout_key', length: 64, unique: true, nullable: true)]
+    private ?string $checkoutKey = null;
+    #[ORM\Column(name: 'checkout_context', type: 'json', nullable: true)]
+    private ?array $checkoutContext = null;
+    public function getCheckoutKey(): ?string { return $this->checkoutKey; }
+    public function getCheckoutContext(): ?array { return $this->checkoutContext; }
+    public function configureCheckout(string $key, array $context): void
+    {
+        if ($this->checkoutKey !== null || !preg_match('/^[a-f0-9]{32,64}$/D', $key)) throw new \DomainException('Référence de panier invalide.');
+        $this->checkoutKey = $key; $this->checkoutContext = $context;
+    }
+    public function updateCheckoutContext(array $context): void { $this->checkoutContext = $context; }
+    public function getMixedGiftPurchases(): array { return $this->checkoutContext['gifts'] ?? []; }
+    public function getGiftEligibleTotal(): int
+    {
+        if ($this->giftCardAmount !== null) return 0;
+        return max(0, $this->getTotal() - array_sum(array_column($this->getMixedGiftPurchases(), 'amount')));
+    }
+
     /** Marquage serveur d’une commande dédiée à l’achat d’une carte monétaire. */
     #[ORM\Column(name: 'gift_card_amount', type: 'integer', nullable: true)]
     private ?int $giftCardAmount = null;

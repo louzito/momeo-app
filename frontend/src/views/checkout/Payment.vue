@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCheckoutGuard } from '@/composables/useCheckoutGuard'
+import { useCartStore } from '@/stores/cart'
 import { useTenantContext } from '@/composables/useTenantContext'
 import { useSessionStore } from '@/stores/session'
 import api from '@/api'
@@ -13,7 +13,7 @@ const props = defineProps({ embedded: Boolean, beforePay: { type: Function, defa
 const emit = defineEmits(['processing'])
 const router = useRouter()
 const session = useSessionStore()
-const { cart } = useCheckoutGuard()
+const cart = useCartStore()
 const { tenant } = useTenantContext()
 
 const bankMethod = ref(null)
@@ -31,6 +31,7 @@ function useGift(value) {
   giftPayment.value = value; cart.giftCardCode = value.code
   selectMethod(value.code ? (value.remaining === 0 ? 'gift_card' : 'stripe_web_elements') : (canStripe.value ? 'stripe_web_elements' : 'bank_transfer'))
 }
+watch(() => cart.eligibleCents, value => { if (value === 0 && !cart.checkoutPayload) useGift({ code: '', remaining: cart.dueNowCents }) })
 const methodsError = ref('')
 
 async function loadMethods() {
@@ -46,12 +47,13 @@ async function loadMethods() {
     methodsError.value = 'Impossible de charger les moyens de paiement.'
   }
   methodsLoaded.value = true
-  if (cart.lastResult) selectMethod(cart.lastResult.order.paymentMethod)
+  if (cart.checkoutPayload) selectMethod(cart.checkoutPayload.paymentMethod)
+  else if (cart.lastResult) selectMethod(cart.lastResult.order.paymentMethod)
   else if (noOnlinePayment.value) selectMethod('none')
   else if (canStripe.value) selectMethod('stripe_web_elements')
   else if (canBankTransfer.value) selectMethod('bank_transfer')
 }
-onMounted(loadMethods)
+onMounted(() => { if (!cart.checkoutPayload) cart.giftCardCode = ''; loadMethods() })
 
 const processing = ref(false)
 const error = ref('')
@@ -64,7 +66,7 @@ function selectMethod(m) {
 // Sans moyen actif chez le centre : aucun moyen de creer une
 // vraie commande -> on bloque avant l'appel API plutot que de laisser passer
 // silencieusement un cheque cadeau mock.
-const blocked = computed(() => methodsLoaded.value && !noOnlinePayment.value && !giftFull.value && (giftPayment.value?.code ? !canStripe.value : (!canBankTransfer.value && !canStripe.value)))
+const blocked = computed(() => !cart.checkoutPayload && !cart.lastResult && methodsLoaded.value && !noOnlinePayment.value && !giftFull.value && (giftPayment.value?.code ? !canStripe.value : (!canBankTransfer.value && !canStripe.value)))
 
 async function pay() {
   if (processing.value || !methodsLoaded.value) return
@@ -76,7 +78,7 @@ async function pay() {
   emit('processing', true)
   error.value = ''
   try {
-    if (!cart.lastResult && props.beforePay && !(await props.beforePay())) return
+    if (!cart.lastResult && !cart.checkoutPayload && props.beforePay && !(await props.beforePay())) return
     cart.setPaymentMethod(method.value)
     const result = await cart.checkout(session.customer?.id || null)
     if (!cart.isGift && cart.giftCardCode && !result.order.giftSettled) {
@@ -84,9 +86,7 @@ async function pay() {
       Object.assign(result.order, { paymentId: gift.paymentId, paymentMethod: gift.paymentMethod, paymentBreakdown: gift, status: gift.status, giftSettled: true })
     }
     if (result.order.paymentMethod === 'stripe_web_elements') {
-      const destination = cart.isGift
-        ? { name: 'checkout-shop-confirmation', params: { orderToken: result.order.orderToken } }
-        : { name: 'checkout-confirmation', params: { bookingId: result.booking.id } }
+      const destination = { name: 'checkout-shop-confirmation', params: { orderToken: result.order.orderToken } }
       const confirmation = new URL(router.resolve(destination).href, window.location.origin)
       const stripe = await api.createStripeCheckoutSession({
         orderToken: result.order.orderToken,
@@ -98,9 +98,7 @@ async function pay() {
       window.location.assign(stripe.url)
       return
     }
-    await router.push(cart.isGift
-      ? { name: 'checkout-shop-confirmation', params: { orderToken: result.order.orderToken } }
-      : { name: 'checkout-confirmation', params: { bookingId: result.booking.id } })
+    await router.push({ name: 'checkout-shop-confirmation', params: { orderToken: result.order.orderToken } })
   } catch (e) {
     error.value = e?.message || 'La commande a échoué. Réessayez.'
   } finally {
@@ -114,7 +112,7 @@ async function pay() {
   <component
     :is="embedded ? 'section' : CheckoutLayout"
     :class="embedded ? 'mt-8' : ''"
-    v-if="cart.jumpType"
+    v-if="cart.hasItems"
     step="payment"
     title="Paiement"
     subtitle="Choisissez votre moyen de paiement."
@@ -126,7 +124,7 @@ async function pay() {
         <p>{{ methodsError }}</p>
         <button type="button" class="btn-outline mt-2" @click="loadMethods">Réessayer</button>
       </div>
-      <GiftCardPayment v-if="!cart.isGift && cart.dueNowCents > 0" :due="cart.dueNowCents" :later="Math.round(cart.balanceDue * 100)" :disabled="processing || !!cart.lastResult" @change="useGift" />
+      <GiftCardPayment v-if="!cart.isGift && cart.eligibleCents > 0" :due="cart.dueNowCents" :eligible="cart.eligibleCents" :later="Math.round(cart.balanceDue * 100)" :disabled="processing || !!cart.lastResult || !!cart.checkoutPayload" @change="useGift" />
       <p v-if="giftFull" class="mb-4 text-sm text-emerald-700">Le montant dû maintenant sera réglé intégralement avec votre carte cadeau.</p>
       <!-- Choix du moyen de paiement -->
       <div v-if="noOnlinePayment" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
@@ -138,7 +136,7 @@ async function pay() {
           type="button"
           class="card p-4 text-left transition hover:border-brand-400"
           :class="method === 'stripe_web_elements' ? 'border-brand-500 ring-2 ring-brand-500/20' : ''"
-          :disabled="processing || !!cart.lastResult"
+          :disabled="processing || !!cart.lastResult || !!cart.checkoutPayload"
           @click="selectMethod('stripe_web_elements')"
         >
           <div class="text-2xl">💳</div>
@@ -151,7 +149,7 @@ async function pay() {
           type="button"
           class="card p-4 text-left transition hover:border-brand-400"
           :class="method === 'bank_transfer' ? 'border-brand-500 ring-2 ring-brand-500/20' : ''"
-          :disabled="processing || !!cart.lastResult"
+          :disabled="processing || !!cart.lastResult || !!cart.checkoutPayload"
           @click="selectMethod('bank_transfer')"
         >
           <div class="text-2xl">🏦</div>

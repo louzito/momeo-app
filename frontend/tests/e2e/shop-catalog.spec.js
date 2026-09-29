@@ -60,8 +60,8 @@ for (const width of [360, 1280]) {
     await expect(categories(page).getByRole('link', { name: 'Produits', exact: true })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('link', { name: 'Choisir Huile' }).click()
     await expect(page).toHaveURL(/products\?produit=physical_oil/)
-    await expect(page.locator('aside')).toContainText('Huile × 1')
-    await expect(page.locator('aside')).toContainText('17,40')
+    await expect(page.getByRole('heading', { name: 'Huile', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Ajouter au panier' }).first()).toBeEnabled()
     await page.goBack()
     await categories(page).getByRole('link', { name: 'Cartes cadeaux' }).click()
     await expect(page.getByRole('article')).toContainText('10,00')
@@ -122,7 +122,7 @@ test('erreur du catalogue expliquée et nouvelle tentative', async ({ page }) =>
   const settings = { failServices: true }
   await catalog(page, settings)
   await page.goto('/centre-e2e/shop')
-  await expect(page.getByRole('alert')).toContainText('Impossible de charger la boutique')
+  await expect(page.getByRole('alert')).toContainText('Catalogue temporairement indisponible')
   settings.failServices = false
   await page.getByRole('button', { name: 'Réessayer' }).click()
   await expect(page.getByRole('heading', { name: 'Massage', exact: true })).toBeVisible()

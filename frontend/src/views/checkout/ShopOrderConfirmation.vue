@@ -36,7 +36,7 @@ async function resumePayment() {
   try {
     const confirmation = new URL(router.resolve({ name: 'checkout-shop-confirmation', params: { orderToken: route.params.orderToken } }).href, window.location.origin)
     const stripe = await api.createStripeCheckoutSession({
-      orderToken: route.params.orderToken, paymentId: order.value.paymentId,
+      orderToken: route.params.orderToken, paymentId: order.value.paymentId, bookingToken: order.value.booking?.id,
       successUrl: `${confirmation}?payment=success`, cancelUrl: `${confirmation}?payment=cancelled`,
     })
     window.location.assign(stripe.url)
@@ -56,6 +56,9 @@ onUnmounted(() => { stopped = true; clearTimeout(timer) })
       <section v-if="order" class="card space-y-4 p-6" aria-live="polite">
         <p>Référence : <strong class="break-all">{{ order.number }}</strong></p>
         <p>Montant : <strong>{{ formatMoney(order.total, order.currency) }}</strong></p>
+        <ul v-if="order.items?.length" class="space-y-2"><li v-for="(item, index) in order.items" :key="index">{{ item.name }} × {{ item.quantity }} — {{ formatMoney(item.total / 100, order.currency) }}</li></ul>
+        <p v-if="order.fulfillmentMode">Remise des produits : {{ order.fulfillmentMode === 'delivery' ? 'livraison' : 'retrait au centre' }}.</p>
+        <div v-if="order.booking" class="rounded bg-brand-50 p-4"><p>Rendez-vous : {{ order.booking.serviceName }} — {{ new Date(order.booking.slotStart).toLocaleString('fr-FR') }}</p><p>{{ order.booking.status === 'cancelled' ? 'Réservation annulée' : order.booking.status === 'awaiting_payment' ? 'Créneau réservé en attente du paiement' : 'Réservation enregistrée' }}</p></div>
         <PaymentBreakdown :value="order.paymentBreakdown" :currency="order.currency" />
         <div v-if="order.giftCardTerms" class="space-y-2">
           <p>Crédit offert : <strong>{{ formatMoney(order.total, order.currency) }}</strong>, utilisable dans la boutique de {{ order.giftCardTerms.shopName }}.</p>
@@ -64,7 +67,7 @@ onUnmounted(() => { stopped = true; clearTimeout(timer) })
         </div>
         <template v-if="paid">
           <p v-if="order.kind === 'gift'">Le paiement de votre cadeau a été encaissé. Le code et le document imprimable sont envoyés à l’adresse choisie lors de l’achat.</p>
-          <p v-else>Votre commande peut être préparée. État : {{ preparation }}.</p>
+          <p v-else-if="order.preparationState">Votre commande peut être préparée. État : {{ preparation }}.</p><p v-else>Votre commande est confirmée.</p>
         </template>
         <p v-else-if="failed">Le paiement a échoué ou a été annulé. Contactez l’établissement avec votre référence pour organiser un nouveau règlement.</p>
         <template v-else-if="transfer">

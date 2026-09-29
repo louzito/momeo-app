@@ -13,9 +13,9 @@ test('le checkout direct ne crée plus de commande ou paiement mock', () => {
   assert.doesNotMatch(paymentSource, /processPayment|card_demo|4242/)
 })
 
-test('la confirmation est adressable par le jeton de réservation persisté', () => {
+test('la confirmation commune utilise la commande et conserve les anciennes URL de réservation', () => {
   assert.match(routerSource, /path: '\/checkout\/confirmation\/:bookingId'/)
-  assert.match(paymentSource, /params: \{ bookingId: result\.booking\.id \}/)
+  assert.match(paymentSource, /params: \{ orderToken: result\.order\.orderToken \}/)
   assert.match(confirmationSource, /api\.getBooking\(route\.params\.bookingId\)/)
 })
 

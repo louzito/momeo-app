@@ -94,6 +94,18 @@ final class GiftCardCheckoutService
         });
     }
 
+    public function mixedPurchase(int $amount, array $data): array
+    {
+        if (!$this->config->salesEnabled()) throw new \DomainException('La vente de cartes cadeaux est désactivée.');
+        $purchase = array_intersect_key($data, array_flip(['buyerName', 'buyerEmail', 'recipientName', 'recipientEmail', 'message', 'delivery']));
+        $purchase += ['recipientEmail' => '', 'message' => ''];
+        $purchase['validityMonths'] = $this->config->validityMonths();
+        $purchase['shopUrl'] = $this->urls->url($this->tenant->getSlug(), 'shop');
+        $purchase['documentUrl'] = $this->urls->url($this->tenant->getSlug(), 'gift-card/print');
+        $validation = new Order(); $validation->configureGiftCardPurchase($amount, $purchase);
+        return $validation->getGiftCardPurchase() + ['amount' => $amount];
+    }
+
     /** Le code aléatoire de 128 bits est la preuve de possession, jamais un ID séquentiel. */
     public function document(string $code): ?array
     {
@@ -102,7 +114,7 @@ final class GiftCardCheckoutService
         $order = $this->em->getRepository(Order::class)->findOneBy(['number' => $card->getPurchaseOrderNumber()]);
         if (!$order instanceof Order) return null;
         $card->assertShop($this->tenant->getSlug(), (string) $order->getChannel()?->getCode(), (string) $order->getCurrencyCode());
-        $purchase = $order->getGiftCardPurchase();
+        $purchase = $card->getPurchaseLine() > 0 ? ($order->getMixedGiftPurchases()[$card->getPurchaseLine() - 1] ?? null) : $order->getGiftCardPurchase();
         return [
             'code' => $card->getCode(), 'amount' => $card->getInitialAmount(), 'currency' => $card->getCurrency(),
             'expiresAt' => $card->getExpiresAt()->format('Y-m-d'), 'shopName' => $order->getChannel()?->getName(),

@@ -7,6 +7,7 @@ import { createPinia, setActivePinia } from 'pinia'
 const source = (await readFile(new URL('../src/stores/cart.js', import.meta.url), 'utf8'))
   .replace("from 'pinia'", `from '${import.meta.resolve('pinia')}'`)
   .replace("import api from '@/api'", 'export const api = {}')
+  .replace("import { TENANT_SLUG } from '@/api/config'", "const TENANT_SLUG = 'test'")
 const { useCartStore, api } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
 const makeCart = () => {
   setActivePinia(createPinia())
@@ -42,10 +43,10 @@ test('double clic et nouvelle tentative Stripe réutilisent la même commande', 
   const cart = makeCart()
   let calls = 0
   let resolve
-  api.createOrder = (payload) => {
+  api.createUnifiedOrder = (payload) => {
     calls++
-    assert.equal(payload.kind, 'direct')
-    assert.equal(payload.slotId, 'slot')
+    assert.equal(payload.items[0].code, 'service')
+    assert.equal(payload.slot.id, 'slot')
     return new Promise((done) => { resolve = done })
   }
   const first = cart.checkout()
@@ -61,9 +62,9 @@ test('double clic et nouvelle tentative Stripe réutilisent la même commande', 
 
 test('une erreur libère le verrou et un nouvel achat efface la commande précédente', async () => {
   const cart = makeCart()
-  api.createOrder = async () => { throw new Error('Indisponible') }
+  api.createUnifiedOrder = async () => { throw new Error('Indisponible') }
   await assert.rejects(cart.checkout(), /Indisponible/)
-  api.createOrder = async () => ({ booking: { id: 'ok' } })
+  api.createUnifiedOrder = async () => ({ booking: { id: 'ok' } })
   assert.equal((await cart.checkout()).booking.id, 'ok')
   cart.startPurchase('tenant-b', { id: 'another', basePrice: 50 })
   assert.equal(cart.lastResult, null)
@@ -98,4 +99,36 @@ test('un cadeau exige le montant complet même si la prestation prévoit un acom
   assert.equal(cart.dueNow, 100)
   cart.setKind('direct')
   assert.equal(cart.dueNow, 0)
+})
+
+test('panier mixte : seul le service reçoit un acompte, les cadeaux sont exclus du crédit', () => {
+  const cart = makeCart()
+  cart.addProduct('tenant-a', { id: 'cream', price: 20, stock: 5, deliveryFee: 5, pickupEnabled: true, deliveryEnabled: true })
+  cart.addProduct('tenant-a', { id: 'cream', price: 20, stock: 5, deliveryFee: 5, pickupEnabled: true, deliveryEnabled: true })
+  cart.addGift('tenant-a', { amount: 5000, recipientName: 'Marie' })
+  cart.fulfillmentMode = 'delivery'
+  assert.equal(cart.total, 195)
+  assert.equal(cart.dueNow, 125)
+  assert.equal(cart.balanceDue, 70)
+  assert.equal(cart.eligibleCents, 7500)
+})
+
+test('une réponse perdue conserve la même référence et le même contenu à la reprise', async () => {
+  const cart = makeCart()
+  let first
+  api.createUnifiedOrder = async payload => { first = payload; throw new Error('Réseau') }
+  await assert.rejects(cart.checkout(), /Réseau/)
+  cart.jumper.firstName = 'Modification après envoi'
+  api.createUnifiedOrder = async payload => { assert.deepEqual(payload, first); return { order: { orderToken: 'same' } } }
+  assert.equal((await cart.checkout()).order.orderToken, 'same')
+})
+
+test('un refus explicite permet de corriger le panier et changer sa référence', async () => {
+  const cart = makeCart()
+  let key
+  api.createUnifiedOrder = async payload => { key = payload.key; throw Object.assign(new Error('Stock'), { status: 409 }) }
+  await assert.rejects(cart.checkout(), /Stock/)
+  assert.equal(cart.checkoutPayload, null)
+  api.createUnifiedOrder = async payload => { assert.notEqual(payload.key, key); return { order: { orderToken: 'new' } } }
+  await cart.checkout()
 })

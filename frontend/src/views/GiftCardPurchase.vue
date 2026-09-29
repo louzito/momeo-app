@@ -2,9 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import api from '@/api'
+import { useCartStore } from '@/stores/cart'
+import { useTenantContext } from '@/composables/useTenantContext'
 import { formatMoney } from '@/utils/format'
 
 const router = useRouter()
+const cart = useCartStore()
+const { tenant } = useTenantContext()
 const offer = ref(null)
 const loading = ref(true)
 const submitting = ref(false)
@@ -34,10 +38,10 @@ async function submit() {
   submitting.value = true
   error.value = ''
   try {
-    const result = await api.purchaseGiftCard({ ...form.value, amount: amount.value })
-    await router.push({ name: 'checkout-shop-confirmation', params: { orderToken: result.orderToken } })
+    if (!cart.addGift(tenant.value.id, { recipientName: form.value.recipientName, recipientEmail: form.value.recipientEmail, message: form.value.message, delivery: form.value.delivery, amount: amount.value })) throw new Error('Terminez la commande en cours ou limitez le panier à dix cartes cadeaux.')
+    await router.push({ name: 'cart' })
   } catch (e) {
-    error.value = e?.status === 422 ? e.message
+    error.value = e?.message ? e.message
       : e?.status === 429 ? 'Veuillez patienter une minute avant de réessayer.'
         : 'Impossible de préparer votre carte cadeau. Veuillez réessayer.'
   }
@@ -71,11 +75,6 @@ onMounted(load)
           <p id="amount-help" class="text-sm text-slate-600">Entre {{ formatMoney(offer.minimum / 100, offer.currency) }} et {{ formatMoney(offer.maximum / 100, offer.currency) }}, au centime près.</p>
         </fieldset>
         <fieldset class="card space-y-4 p-5" :disabled="submitting">
-          <legend class="font-semibold">Vos coordonnées</legend>
-          <label class="block">Votre nom <input v-model="form.buyerName" class="input mt-2 w-full" autocomplete="name" required maxlength="100" /></label>
-          <label class="block">Votre e-mail <input v-model="form.buyerEmail" class="input mt-2 w-full" type="email" autocomplete="email" required maxlength="254" /></label>
-        </fieldset>
-        <fieldset class="card space-y-4 p-5" :disabled="submitting">
           <legend class="font-semibold">Votre cadeau</legend>
           <label class="block">Nom du destinataire <input v-model="form.recipientName" class="input mt-2 w-full" required maxlength="100" /></label>
           <label class="block">Un message (facultatif) <textarea v-model="form.message" class="input mt-2 w-full" rows="4" maxlength="1000" /></label>
@@ -91,10 +90,7 @@ onMounted(load)
           <p v-else class="text-rose-700">Saisissez un montant valide.</p>
           <p>Envoi à : {{ form.delivery === 'buyer' ? (form.buyerEmail || 'votre adresse e-mail') : (form.recipientEmail || 'l’adresse e-mail du destinataire') }}.</p>
           <p class="text-sm text-slate-600">Le code et le lien imprimable seront envoyés uniquement après encaissement du montant complet.</p>
-          <label class="block">Moyen de paiement
-            <select v-model="form.paymentMethod" class="input mt-2 w-full" required :disabled="submitting"><option v-for="method in offer.paymentMethods" :key="method.code" :value="method.code">{{ method.label }}</option></select>
-          </label>
-          <button class="btn-primary w-full" type="submit" :disabled="submitting || !validAmount || !form.paymentMethod">{{ submitting ? 'Préparation de votre commande…' : 'Continuer vers le paiement' }}</button>
+          <button class="btn-primary w-full" type="submit" :disabled="submitting || !validAmount">{{ submitting ? 'Préparation de votre commande…' : 'Ajouter au panier' }}</button>
         </section>
       </form>
       <p class="text-sm"><RouterLink :to="{ name: 'beneficiary-login' }" class="underline">Vous possédez un ancien bon pour une prestation ? Accédez à votre espace bénéficiaire.</RouterLink></p>

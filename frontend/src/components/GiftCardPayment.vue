@@ -2,15 +2,15 @@
 import { computed, ref, watch } from 'vue'
 import api from '@/api'
 import { formatMoney } from '@/utils/format'
-const props = defineProps({ due: { type: Number, required: true }, later: { type: Number, default: 0 }, disabled: Boolean })
+const props = defineProps({ due: { type: Number, required: true }, later: { type: Number, default: 0 }, eligible: { type: Number, default: null }, disabled: Boolean })
 const emit = defineEmits(['change'])
 const code = ref('')
 const available = ref(null)
 const loading = ref(false)
 const error = ref('')
-const applied = computed(() => Math.min(props.due, available.value || 0))
+const applied = computed(() => Math.min(props.eligible ?? props.due, available.value || 0))
 function notify() { emit('change', { code: available.value === null ? '' : code.value, amount: applied.value, remaining: props.due - applied.value }) }
-watch(() => props.due, notify)
+watch(() => [props.due, props.eligible], notify)
 function clear() { available.value = null; error.value = ''; notify() }
 async function check() {
   loading.value = true; error.value = ''; available.value = null; notify()

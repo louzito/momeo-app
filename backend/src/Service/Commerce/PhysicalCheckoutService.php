@@ -39,6 +39,7 @@ final class PhysicalCheckoutService
                 if (!$variant instanceof ProductVariant) throw new \DomainException('Un article du panier est invalide.');
                 $this->entityManager->lock($variant, LockMode::PESSIMISTIC_WRITE);
                 $product = $variant->getProduct();
+                if ($product instanceof Product && !$product->isPhysical() && $order->getCheckoutKey() !== null) continue;
                 if (!$product instanceof Product || !$product->isPhysical()) {
                     throw new \DomainException('Les produits physiques doivent être commandés séparément des prestations et options.');
                 }

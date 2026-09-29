@@ -37,7 +37,7 @@ watch([tenant, selectedJumpTypeId], async () => {
 })
 
 function onSelect(slot) {
-  cart.startPurchase(tenant.value.id, currentJumpType.value)
+  if (cart.startPurchase(tenant.value.id, currentJumpType.value) === false) return
   cart.ensureMandatoryOptions(options.value)
   cart.setKind('direct')
   cart.setSlot(slot)

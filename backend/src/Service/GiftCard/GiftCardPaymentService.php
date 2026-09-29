@@ -16,6 +16,7 @@ use Symfony\Component\Workflow\Registry;
 /** Le crédit est un paiement distinct, jamais une remise sur le prix. */
 final class GiftCardPaymentService
 {
+    private array $cancelling = [];
     public function __construct(private readonly EntityManagerInterface $em, private readonly GiftCardService $cards, private readonly Registry $workflows) {}
 
     public function quote(string $code): array
@@ -32,10 +33,10 @@ final class GiftCardPaymentService
     {
         return $this->em->wrapInTransaction(function () use ($token, $code): array {
             $order = $this->order($token);
-            if ($order->getCheckoutState() === 'completed' || $order->getTotal() <= 0 || $order->getGiftCardAmount() !== null || GiftOrderMarker::decode($order->getNotes()) !== null) throw new \DomainException('Cette commande ne peut pas utiliser de carte cadeau.');
+            if ($order->getCheckoutState() === 'completed' || $order->getGiftEligibleTotal() <= 0 || $order->getGiftCardAmount() !== null || GiftOrderMarker::decode($order->getNotes()) !== null) throw new \DomainException('Cette commande ne peut pas utiliser de carte cadeau.');
             $card = $this->cards->consult($code, (string) $order->getChannel()?->getCode(), (string) $order->getCurrencyCode());
             if ($card->getStatus() !== 'active' || $card->getAvailable() <= 0) throw new \DomainException('Cette carte ne dispose pas de crédit utilisable.');
-            $amount = min($order->getTotal(), $card->getAvailable());
+            $amount = min($order->getGiftEligibleTotal(), $card->getAvailable());
             $payment = $order->getLastPayment();
             if (!$payment instanceof Payment || !in_array($payment->getState(), ['new', 'cart'], true)) throw new \DomainException('Le paiement a déjà commencé.');
             $method = $amount === $order->getTotal() ? $this->giftMethod($order) : $this->stripeMethod($order);
@@ -62,7 +63,7 @@ final class GiftCardPaymentService
             $code = $payment?->getDetails()['gift_card_prepared'] ?? null;
             if (!$payment instanceof Payment || !is_string($code) || !in_array($payment->getState(), ['new', 'processing'], true)) throw new \DomainException('Préparez votre carte cadeau avant le paiement.');
             $booking = $this->em->getRepository(Booking::class)->findOneBy(['orderNumber' => $order->getNumber()]);
-            if ($order->getFulfillmentMode() === null && !$booking instanceof Booking) throw new \DomainException('Le créneau doit être réservé avant le paiement.');
+            if ($order->getCheckoutKey() === null && $order->getFulfillmentMode() === null && !$booking instanceof Booking) throw new \DomainException('Le créneau doit être réservé avant le paiement.');
             if ($booking instanceof Booking && !in_array($booking->getStatus(), [Booking::STATUS_CONFIRMED, Booking::STATUS_AWAITING_PAYMENT], true)) throw new \DomainException('La réservation n’est plus disponible.');
             $card = $this->cards->consult($code, (string) $order->getChannel()?->getCode(), (string) $order->getCurrencyCode());
             $this->em->refresh($card, LockMode::PESSIMISTIC_WRITE);
@@ -107,10 +108,21 @@ final class GiftCardPaymentService
 
     public function failed(Order $order): void
     {
-        $this->cards->releaseForOrder($order->getId());
-        foreach ($order->getPayments() as $gift) {
-            if (isset($gift->getDetails()['gift_card_code']) && $gift->getState() === 'new') $gift->setState('cancelled');
-        }
+        $id = $order->getId();
+        if (isset($this->cancelling[$id])) return;
+        $this->cancelling[$id] = true;
+        try {
+            $this->cards->releaseForOrder($id);
+            if ($order->getCheckoutKey() !== null && $order->getState() !== 'cancelled' && $order->getPaymentState() !== 'paid') {
+                $workflow = $this->workflows->get($order, 'sylius_order');
+                if ($workflow->can($order, 'cancel')) $workflow->apply($order, 'cancel');
+                $booking = $this->em->getRepository(Booking::class)->findOneBy(['orderNumber' => $order->getNumber()]);
+                if ($booking instanceof Booking) { $booking->setStatus(Booking::STATUS_CANCELLED); $booking->setPaymentState('cancelled'); }
+            }
+            foreach ($order->getPayments() as $gift) {
+                if (isset($gift->getDetails()['gift_card_code']) && $gift->getState() === 'new') $gift->setState('cancelled');
+            }
+        } finally { unset($this->cancelling[$id]); }
     }
 
     /** Même échéance que la session Stripe ; un abandon sans session est aussi libéré. */
@@ -120,11 +132,12 @@ final class GiftCardPaymentService
         $pending = $this->em->getRepository(Payment::class)->findBy(['state' => 'new']);
         foreach ($pending as $payment) {
             $details = $payment->getDetails();
-            if (!isset($details['gift_card_code'], $details['gift_card_expires']) || $details['gift_card_expires'] > time() || ($details['gift_card_stripe_started'] ?? false)) continue;
+            $expiry = $details['gift_card_expires'] ?? ($payment->getMethod()?->getCode() === 'stripe_web_elements' ? ($details['checkout_expires'] ?? null) : null);
+            if ($expiry === null || $expiry > time() || ($details['gift_card_stripe_started'] ?? false) || ($details['checkout_stripe_started'] ?? false)) continue;
             $this->em->wrapInTransaction(function () use ($payment, &$count): void {
                 $order = $this->order((string) $payment->getOrder()?->getTokenValue());
                 $this->em->refresh($payment, LockMode::PESSIMISTIC_WRITE);
-                if ($payment->getState() !== 'new' || ($payment->getDetails()['gift_card_stripe_started'] ?? false)) return;
+                if ($payment->getState() !== 'new' || ($payment->getDetails()['gift_card_stripe_started'] ?? false) || ($payment->getDetails()['checkout_stripe_started'] ?? false)) return;
                 $this->failed($order);
                 foreach ($order->getPayments() as $part) {
                     if (in_array($part->getState(), ['new', 'processing'], true)) {

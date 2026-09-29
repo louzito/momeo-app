@@ -31,7 +31,7 @@ final class OrderPaymentTermsService
         $service = null;
         foreach ($order->getItems() as $item) {
             $candidate = $item->getVariant()?->getProduct();
-            if ($candidate instanceof Product && (str_starts_with((string) $candidate->getCode(), 'service_') || str_starts_with((string) $candidate->getCode(), 'jump_'))) {
+            if ($candidate instanceof Product && (($order->getCheckoutContext()['serviceCode'] ?? null) === $candidate->getCode() || str_starts_with((string) $candidate->getCode(), 'service_') || str_starts_with((string) $candidate->getCode(), 'jump_'))) {
                 if ($service instanceof Product) {
                     throw new \DomainException('Une commande de réservation ne peut contenir qu’une prestation.');
                 }
@@ -50,6 +50,14 @@ final class OrderPaymentTermsService
         }
 
         $result = $this->terms->calculate($service, $order->getTotal());
+        if ($order->getCheckoutKey() !== null) {
+            $serviceTotal = 0;
+            foreach ($order->getItems() as $item) if (!$item->getVariant()->getProduct()->isPhysical()) $serviceTotal += $item->getTotal();
+            $serviceTerms = $this->terms->calculate($service, $serviceTotal);
+            $other = $order->getTotal() - $serviceTotal;
+            $result = array_replace($serviceTerms, ['totalAmount' => $order->getTotal(), 'dueNow' => $serviceTerms['dueNow'] + $other]);
+            $order->updateCheckoutContext(array_replace($order->getCheckoutContext(), ['serviceTerms' => $serviceTerms, 'paymentTerms' => $result]));
+        }
 
         $difference = $result['dueNow'] - $result['totalAmount'];
         if ($difference !== 0) {

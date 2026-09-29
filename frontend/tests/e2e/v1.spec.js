@@ -73,16 +73,16 @@ for (const width of [1280, 390]) {
     const header = page.locator('header')
     if (width < 768) await header.getByRole('button', { name: 'Menu' }).click()
     await expect(header.getByRole('link', { name: 'Prestations', exact: true }).filter({ visible: true })).toBeVisible()
-    await expect(header.getByRole('link', { name: /Calendrier|professionnel|cadeau/i })).toHaveCount(0)
+    await expect(header.getByRole('link', { name: /Calendrier|professionnel/i })).toHaveCount(0)
     await expect(page.locator('a[href$="/calendar"]')).toHaveCount(0)
     await expect(page.locator('footer').getByRole('link', { name: 'Espace professionnel' })).toBeVisible()
     await expect(page.locator('footer').getByRole('link', { name: 'Utiliser un chèque cadeau' })).toHaveAttribute('href', '/centre-e2e/beneficiary/login')
     await header.getByRole('link', { name: 'Boutique', exact: true }).filter({ visible: true }).click()
-    await expect(page).toHaveURL(/\/centre-e2e\/products$/)
-    await expect(page.getByText('Aucun produit disponible')).toBeVisible()
+    await expect(page).toHaveURL(/\/centre-e2e\/shop\?categorie=produits$/)
+    await expect(page.getByText(/Aucun produit disponible|La boutique est actuellement vide/)).toBeVisible()
     expect(requests.some((r) => r.path.endsWith('/shop/availability'))).toBe(false)
     await page.reload()
-    await expect(page.getByText('Aucun produit disponible')).toBeVisible()
+    await expect(page.getByText(/Aucun produit disponible|La boutique est actuellement vide/)).toBeVisible()
   })
 }
 
@@ -150,23 +150,14 @@ for (const mode of ['none', 'percentage', 'fixed', 'full']) {
     let orders = 0
     let bookings = 0
     let savedBooking
-    await page.route('**/shop/orders**', async (route) => {
-      const req = route.request()
-      const path = new URL(req.url()).pathname
-      if (path.endsWith('/orders') && req.method() === 'POST') orders++
-      if (path.endsWith('/payment-terms')) return json(route, { dueNow: mode === 'none' ? 0 : mode === 'fixed' ? 2000 : mode === 'full' ? 6000 : 1800 })
-      return json(route, { tokenValue: 'order-test', number: 'ORDER-1', total: 6000, currencyCode: 'EUR', payments: [{ id: 1 }] })
+    await page.route('**/shop/checkout', async route => {
+      orders++; bookings++; savedBooking = route.request().postDataJSON()
+      await new Promise(resolve => setTimeout(resolve, 150))
+      return json(route, { order: { orderToken: 'order-test', number: 'ORDER-1', total: 60, paymentMethod: mode === 'none' ? 'none' : 'bank_transfer', giftSettled: true }, booking: { id: 'booking-test' } })
     })
-    await page.route('**/shop/bookings', async (route) => {
-      bookings++
-      savedBooking = route.request().postDataJSON()
-      await new Promise((resolve) => setTimeout(resolve, 150))
-      return json(route, { id: 'booking-test' })
-    })
-    await page.route('**/shop/account/bookings/booking-test', (route) => json(route, {
-      id: 'booking-test', orderNumber: 'ORDER-1', amount: 6000, currencyCode: 'EUR',
-      status: 'confirmed', paymentState: mode === 'none' ? 'paid' : 'awaiting_payment',
-      slotStart: '2026-10-15T10:00:00Z', slotEnd: '2026-10-15T11:00:00Z', options: [],
+    await page.route('**/shop/payments/stripe/orders/order-test', route => json(route, {
+      number: 'ORDER-1', total: 60, currency: 'EUR', status: mode === 'none' ? 'paid' : 'new', paymentMethod: mode === 'none' ? 'none' : 'bank_transfer',
+      booking: { id: 'booking-test', serviceName: 'Massage détente', status: 'confirmed', slotStart: '2026-10-15T10:00:00Z' },
     }))
     await page.goto('/centre-e2e/services/service_test')
     await page.getByRole('button', { name: 'Réserver cette prestation' }).click()
@@ -187,14 +178,15 @@ for (const mode of ['none', 'percentage', 'fixed', 'full']) {
     await expect(page.getByPlaceholder('Prenom', { exact: true })).toHaveValue('Ada')
     const due = mode === 'none' ? '0,00' : mode === 'fixed' ? '20,00' : mode === 'full' ? '60,00' : '18,00'
     await expect(page.getByText('Montant dû maintenant').locator('..')).toContainText(due)
+    await page.getByRole('button', { name: 'Continuer vers le panier' }).click()
     await page.getByRole('button', { name: /Confirmer la réservation sans paiement|Commander/ }).evaluate((button) => { button.click(); button.click() })
-    await expect(page).toHaveURL(/\/checkout\/confirmation\/booking-test$/)
+    await expect(page).toHaveURL(/\/checkout\/shop-confirmation\/order-test$/)
     expect(orders).toBe(1)
     expect(bookings).toBe(1)
-    expect(savedBooking.orderToken).toBe('order-test')
-    expect(savedBooking.start).toBe('2026-10-15T10:00:00Z')
-    expect(savedBooking.options).toEqual([{ name: 'Huile parfumée', price: 10 }])
+    expect(savedBooking.key).toMatch(/^[a-f0-9]{32}$/)
+    expect(savedBooking.slot.start).toBe('2026-10-15T10:00:00Z')
+    expect(savedBooking.items).toEqual([{ code: 'service_test', quantity: 1 }, { code: 'opt_pj_test', quantity: 1 }])
     await page.reload()
-    await expect(page.getByText(/Commande enregistrée !|Réservation confirmée !/)).toBeVisible()
+    await expect(page.getByText(/Paiement confirmé|Suivi de votre commande/)).toBeVisible()
   })
 }

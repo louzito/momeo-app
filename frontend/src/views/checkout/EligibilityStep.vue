@@ -6,7 +6,8 @@ import { useTenantContext } from '@/composables/useTenantContext'
 import api from '@/api'
 import CheckoutLayout from '@/components/CheckoutLayout.vue'
 import EligibilityForm from '@/components/EligibilityForm.vue'
-import Payment from './Payment.vue'
+import { useRouter } from 'vue-router'
+const router = useRouter()
 import OrderSummaryCard from '@/components/OrderSummaryCard.vue'
 import CustomerDetailsForm from '@/components/CustomerDetailsForm.vue'
 
@@ -75,7 +76,8 @@ async function verify() {
       <OrderSummaryCard :jump-type="cart.jumpType" :options="cart.selectedOptions" :slot="cart.slot" :currency="tenant?.currency" />
     </div>
 
-    <Payment embedded :before-pay="verify" @processing="processing = $event" />
+    <button class="btn-primary mt-6" @click="async () => { if (await verify()) router.push({ name: 'cart' }) }">Continuer vers le panier</button>
+    <RouterLink :to="{ name: 'shop' }" class="btn-outline ml-3 mt-6">Ajouter des produits ou cadeaux</RouterLink>
     <RouterLink v-if="!processing && !cart.lastResult" :to="{ name: 'checkout-schedule' }" class="btn-ghost mt-6">← Modifier la date ou les options</RouterLink>
   </CheckoutLayout>
 </template>

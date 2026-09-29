@@ -16,9 +16,9 @@ class GiftCardRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry) { parent::__construct($registry, GiftCard::class); }
 
     /** Lecture courante InnoDB, même si une transaction englobante a déjà ouvert un snapshot. */
-    public function findIssuedForOrder(string $number): ?GiftCard
+    public function findIssuedForOrder(string $number, int $line = 0): ?GiftCard
     {
-        return $this->createQueryBuilder('c')->where('c.purchaseOrderNumber = :number')->setParameter('number', $number)
+        return $this->createQueryBuilder('c')->where('c.purchaseOrderNumber = :number')->setParameter('number', $number)->andWhere('c.purchaseLine = :line')->setParameter('line', $line)
             ->getQuery()->setLockMode(LockMode::PESSIMISTIC_WRITE)->setHint(Query::HINT_REFRESH, true)->getOneOrNullResult();
     }
 }

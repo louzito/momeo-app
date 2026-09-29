@@ -54,6 +54,7 @@ final class StripeCheckout
                 $parameters['expires_at'] = $expiry;
             }
         }
+        if (isset($payment->getDetails()['checkout_expires'])) $parameters['expires_at'] = $payment->getDetails()['checkout_expires'];
         $customerEmail = $order->getCustomer()?->getEmail();
         if (\is_string($customerEmail) && $customerEmail !== '') {
             $parameters['customer_email'] = $customerEmail;

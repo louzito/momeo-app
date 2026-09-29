@@ -53,6 +53,10 @@ final class BookingCreationService
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
         try {
+            $this->entityManager->lock($order, LockMode::PESSIMISTIC_WRITE);
+            $existing = $this->bookingRepository->findOneBy(['orderNumber' => $order->getNumber()]);
+            if ($existing instanceof Booking) return $this->existingBooking($existing, $serviceCode, $connection);
+            if ($order->getCheckoutKey() !== null && ($order->getCheckoutContext()['serviceCode'] ?? null) !== $serviceCode) throw new InvalidBooking('La prestation ne correspond pas à la commande.');
             $staffId = (int) ($payload['staffMemberId'] ?? 0);
             $planningCodeInput = (string) ($payload['planningCode'] ?? '');
             if ($staffId > 0) {
@@ -104,11 +108,11 @@ final class BookingCreationService
                 $totalAmount -= $paymentTermsAdjustment->getAmount();
             }
             try {
-                $terms = $this->paymentTerms->calculate($product, $totalAmount);
+                $terms = $order->getCheckoutContext()['serviceTerms'] ?? $this->paymentTerms->calculate($product, $totalAmount);
             } catch (\DomainException $exception) {
                 throw new InvalidBooking($exception->getMessage());
             }
-            if ($order->getTotal() !== $terms['dueNow']) {
+            if ($order->getTotal() !== ($order->getCheckoutContext()['paymentTerms']['dueNow'] ?? $terms['dueNow'])) {
                 throw new InvalidBooking('Le montant de la commande ne correspond pas à la règle de paiement de la prestation.');
             }
             $booking->setAmount($terms['dueNow']);
@@ -129,6 +133,13 @@ final class BookingCreationService
             throw new SlotUnavailable('Ce créneau vient d’être réservé. Choisissez-en un autre.');
         }
 
+        return $booking;
+    }
+
+    private function existingBooking(Booking $booking, string $serviceCode, \Doctrine\DBAL\Connection $connection): Booking
+    {
+        if ($booking->getServiceCode() !== $serviceCode) throw new InvalidBooking('La prestation ne correspond pas à la commande.');
+        $connection->commit();
         return $booking;
     }
 

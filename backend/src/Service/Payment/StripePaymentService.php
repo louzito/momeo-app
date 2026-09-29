@@ -28,12 +28,13 @@ final class StripePaymentService
             throw new PaymentNotFound('Commande ou réservation introuvable.');
         }
 
+        if ($order->getCheckoutKey() !== null && $booking === null) $booking = $this->entityManager->getRepository(Booking::class)->findOneBy(['orderNumber' => $order->getNumber()]);
         $payment = $this->payment($order, (int) ($data['paymentId'] ?? 0));
         $method = $payment?->getMethod();
         if (!$payment instanceof Payment || !$method instanceof PaymentMethod || $method->getCode() !== 'stripe_web_elements' || !$method->isEnabled() || ($order->getChannel() !== null && !$method->hasChannel($order->getChannel()))) {
             throw new \DomainException('Le paiement Stripe est invalide.');
         }
-        if (!$booking && $order->getFulfillmentMode() === null && $order->getGiftCardAmount() === null && GiftOrderMarker::decode($order->getNotes()) === null) {
+        if (!$booking && $order->getCheckoutKey() === null && $order->getFulfillmentMode() === null && $order->getGiftCardAmount() === null && GiftOrderMarker::decode($order->getNotes()) === null) {
             throw new PaymentNotFound('Commande ou réservation introuvable.');
         }
         if ($order->getCheckoutState() !== 'completed' || in_array($payment->getState(), ['completed', 'cancelled', 'failed', 'refunded'], true)) {
@@ -48,7 +49,7 @@ final class StripePaymentService
         foreach ($order->getPayments() as $other) {
             if ($other !== $payment && ($other->getState() === 'completed' || ($other->getState() === 'new' && isset($other->getDetails()['gift_card_code']))) && $other->getCurrencyCode() === $order->getCurrencyCode()) $due -= $other->getAmount();
         }
-        if ($due <= 0 || $payment->getCurrencyCode() !== $order->getCurrencyCode() || $payment->getAmount() !== $due || ($booking && $booking->getAmount() !== $order->getTotal()) || ($order->getGiftCardAmount() !== null && ($due !== $order->getGiftCardAmount() || $due !== $order->getTotal()))) {
+        if ($due <= 0 || $payment->getCurrencyCode() !== $order->getCurrencyCode() || $payment->getAmount() !== $due || ($booking && $booking->getAmount() !== ($order->getCheckoutContext()['serviceTerms']['dueNow'] ?? $order->getTotal())) || ($order->getGiftCardAmount() !== null && ($due !== $order->getGiftCardAmount() || $due !== $order->getTotal()))) {
             throw new \DomainException('Le montant du paiement ne correspond pas à la commande.');
         }
 
@@ -63,6 +64,11 @@ final class StripePaymentService
                     $gift->setDetails(array_replace($gift->getDetails(), ['gift_card_stripe_started' => true]));
                     $this->entityManager->flush();
                 }
+            }
+            if ($order->getCheckoutKey() !== null) {
+                if (($payment->getDetails()['checkout_expires'] ?? 0) < time() + 1800) throw new \DomainException('Ce paiement a expiré. Recommencez votre commande.');
+                $payment->setDetails(array_replace($payment->getDetails(), ['checkout_stripe_started' => true]));
+                $this->entityManager->flush();
             }
             $session = $this->checkout->createSession($order, $payment, $booking, $method->getGatewayConfig()?->getConfig() ?? [], $successUrl, $cancelUrl);
         } catch (\DomainException|\InvalidArgumentException $exception) {
@@ -88,14 +94,17 @@ final class StripePaymentService
         }
         return [
             'paymentBreakdown' => \App\Service\GiftCard\GiftCardPaymentService::breakdown($order),
+            'booking' => $order->getCheckoutKey() !== null && ($booking = $this->entityManager->getRepository(Booking::class)->findOneBy(['orderNumber' => $order->getNumber()])) ? (new \App\Service\Booking\BookingView())->publicBooking($booking) : null,
+            'items' => $order->getCheckoutContext()['summary'] ?? [],
+            'fulfillmentMode' => $order->getFulfillmentMode(),
             'number' => $order->getNumber(), 'total' => $order->getTotal() / 100,
             'currency' => $order->getCurrencyCode(),
             'status' => $paid >= $order->getTotal() && $order->getTotal() > 0 ? 'paid' : ($payment?->getState() ?? 'pending'),
-            'kind' => $order->getGiftCardAmount() !== null || GiftOrderMarker::decode($order->getNotes()) !== null ? 'gift' : 'products',
+            'kind' => $order->getCheckoutKey() !== null ? 'mixed' : ($order->getGiftCardAmount() !== null || GiftOrderMarker::decode($order->getNotes()) !== null ? 'gift' : 'products'),
             'paymentId' => $payment?->getId(),
             'canPay' => $payment?->getMethod()?->getCode() === 'stripe_web_elements' && $payment->getMethod()->isEnabled() && in_array($payment->getState(), ['new', 'processing'], true) && $paid < $order->getTotal(),
             'paymentMethod' => $payment?->getMethod()?->getCode(),
-            'paymentInstructions' => $payment?->getMethod()?->getInstructions(),
+            'paymentInstructions' => ($translation = $payment?->getMethod()?->getTranslations()->first()) ? $translation->getInstructions() : '',
             'preparationState' => $order->getPreparationState(),
             'giftCardTerms' => $order->getGiftCardPurchase() === null ? null : [
                 'validityMonths' => $order->getGiftCardPurchase()['validityMonths'],

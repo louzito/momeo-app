@@ -26,8 +26,8 @@ const products = await readFile(new URL('../src/views/PhysicalProducts.vue', imp
 test('cadeaux et produits utilisent Stripe sans réservation fictive', () => {
   assert.doesNotMatch(payment, /canStripe = computed\([^\n]*!cart.isGift/)
   assert.match(payment, /bookingToken: result.booking\?\.id/)
-  assert.match(products, /getCheckoutPaymentMethods/)
-  assert.match(products, /createStripeCheckoutSession/)
+  assert.match(payment, /getCheckoutPaymentMethods/)
+  assert.match(payment, /createStripeCheckoutSession/)
   assert.doesNotMatch(products, /paymentMethod: 'bank_transfer'/)
 })
 

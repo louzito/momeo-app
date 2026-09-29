@@ -46,7 +46,7 @@ final class TenantRequestListener
             $slug = $this->registry->slugForVerifiedDomain($request->getHost());
         }
         if ($slug === null) {
-            if (preg_match('#^/api/v2/(admin|shop)/site(?:/|$)#', $request->getPathInfo())) {
+            if (preg_match('#^/api/v2/(?:(admin|shop)/site|shop/checkout)(?:/|$)#', $request->getPathInfo())) {
                 throw new NotFoundHttpException('Établissement requis.');
             }
             return;

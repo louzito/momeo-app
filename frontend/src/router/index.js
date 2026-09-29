@@ -31,6 +31,9 @@ const tenantRoutes = [
     meta: { title: 'Détail de la prestation' },
   },
   {
+    path: '/cart', name: 'cart', component: () => import('@/views/checkout/CartCheckout.vue'), meta: { title: 'Votre panier' },
+  },
+  {
     path: '/products',
     name: 'physical-products',
     component: () => import('@/views/PhysicalProducts.vue'),

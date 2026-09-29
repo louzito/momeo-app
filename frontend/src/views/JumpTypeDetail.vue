@@ -25,7 +25,7 @@ const characteristics = computed(() => serviceCharacteristics(jumpType.value))
 
 function book() {
   if (cart.tenantId !== tenant.value.id || cart.jumpType?.id !== jumpType.value.id || cart.lastResult) {
-    cart.startPurchase(tenant.value.id, jumpType.value)
+    if (cart.startPurchase(tenant.value.id, jumpType.value) === false) return
   }
   cart.ensureMandatoryOptions(applicableOptions.value)
   router.push({ name: 'checkout-schedule', params: { slug: slug.value } })

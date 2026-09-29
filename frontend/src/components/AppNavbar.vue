@@ -44,6 +44,7 @@ const mobileOpen = ref(false)
 
       <!-- Actions -->
       <div class="flex flex-wrap items-center gap-2">
+        <RouterLink :to="{ name: 'cart' }" class="nav-link">Panier</RouterLink>
         <SitePublicLink v-if="tenantStore.siteNavigation?.primary" :link="tenantStore.siteNavigation.primary" class="rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">Prendre rendez-vous</SitePublicLink>
         <RouterLink
           v-if="session.isLoggedIn"

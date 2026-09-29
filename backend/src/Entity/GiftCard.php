@@ -10,6 +10,7 @@ use App\Entity\Customer\Customer;
 /** Crédit monétaire ; les GiftVoucher historiques restent indépendants. */
 #[ORM\Entity(repositoryClass: \App\Repository\GiftCardRepository::class)]
 #[ORM\Table(name: 'todatempo_gift_card')]
+#[ORM\UniqueConstraint(name: 'gift_card_purchase_line', columns: ['purchase_order_number', 'purchase_line'])]
 class GiftCard
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
@@ -34,7 +35,7 @@ class GiftCard
         #[ORM\Column(name: 'channel_code', length: 255)] private string $channelCode,
         #[ORM\Column(length: 3)] private string $currency,
         #[ORM\Column(name: 'initial_amount')] private int $initialAmount,
-        #[ORM\Column(name: 'purchase_order_number', length: 255, unique: true)] private string $purchaseOrderNumber,
+        #[ORM\Column(name: 'purchase_order_number', length: 255)] private string $purchaseOrderNumber,
         #[ORM\Column(name: 'expires_at', type: 'datetime_immutable')] private \DateTimeImmutable $expiresAt,
     ) {
         self::positive($initialAmount);
@@ -46,6 +47,11 @@ class GiftCard
         $this->code = strtoupper(bin2hex(random_bytes(16)));
         $this->available = $initialAmount;
     }
+
+    #[ORM\Column(name: 'purchase_line', options: ['default' => 0])]
+    private int $purchaseLine = 0;
+    public function getPurchaseLine(): int { return $this->purchaseLine; }
+    public function setPurchaseLine(int $line): void { if ($line < 0) throw new \InvalidArgumentException('Ligne invalide.'); $this->purchaseLine = $line; }
 
     public function getBeneficiary(): ?Customer { return $this->beneficiary; }
 

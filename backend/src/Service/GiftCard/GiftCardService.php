@@ -22,6 +22,7 @@ final class GiftCardService
     public function issueFromPayment(PaymentInterface $payment): ?GiftCard
     {
         $order = $payment->getOrder();
+        if ($order instanceof Order && $order->getCheckoutKey() !== null) return $this->issueMixed($payment, $order);
         if ($payment->getState() !== PaymentInterface::STATE_COMPLETED || !$order instanceof Order || $order->getGiftCardAmount() === null) return null;
 
         return $this->em->wrapInTransaction(function () use ($order): ?GiftCard {
@@ -65,6 +66,41 @@ final class GiftCardService
             }
 
             return $card;
+        });
+    }
+
+    /** One issue per gift line, after the entire mixed order has been paid. */
+    private function issueMixed(PaymentInterface $payment, Order $order): ?GiftCard
+    {
+        if ($payment->getState() !== PaymentInterface::STATE_COMPLETED || $order->getMixedGiftPurchases() === []) return null;
+        return $this->em->wrapInTransaction(function () use ($order): ?GiftCard {
+            $this->em->lock($order, LockMode::PESSIMISTIC_WRITE);
+            if ($order->getCheckoutState() !== 'completed' || $order->getState() === 'cancelled') throw new \DomainException('Commande invalide.');
+            $paid = $bank = 0;
+            foreach ($order->getPayments() as $part) {
+                if ($part->getState() !== PaymentInterface::STATE_COMPLETED || $part->getCurrencyCode() !== $order->getCurrencyCode()) continue;
+                $paid += $part->getAmount();
+                if ($part->getMethod()?->getCode() !== 'gift_card') $bank += $part->getAmount();
+            }
+            $giftTotal = array_sum(array_column($order->getMixedGiftPurchases(), 'amount'));
+            if ($paid < $order->getTotal()) return null;
+            if ($paid !== $order->getTotal() || $bank < $giftTotal) throw new \DomainException('Les cartes offertes doivent être payées intégralement sans crédit cadeau.');
+            $first = null; $number = $this->orderNumber($order);
+            foreach ($order->getMixedGiftPurchases() as $index => $purchase) {
+                $line = $index + 1;
+                $card = $this->em->getRepository(GiftCard::class)->findIssuedForOrder($number, $line);
+                if ($card !== null) { $first ??= $card; continue; }
+                $card = new GiftCard($this->tenant->getSlug(), (string) $order->getChannel()?->getCode(), (string) $order->getCurrencyCode(), $purchase['amount'], $number, new \DateTimeImmutable(sprintf('+%d months', $purchase['validityMonths'])));
+                $card->setPurchaseLine($line);
+                $this->em->persist($card);
+                $this->record($card, 'issue', $number, $purchase['amount'], $this->key('issue', $number, (string) $line));
+                $this->sender->send('gift_card', [$purchase['delivery'] === 'recipient' ? $purchase['recipientEmail'] : $purchase['buyerEmail']], [
+                    'card' => $card, 'channel' => $order->getChannel(), 'purchase' => $purchase,
+                    'documentUrl' => $purchase['documentUrl'].'#'.$card->getCode(), 'shopUrl' => $purchase['shopUrl'],
+                ]);
+                $first ??= $card;
+            }
+            return $first;
         });
     }
 
@@ -158,7 +194,7 @@ final class GiftCardService
                     }
                     if ($movement->getKind() === 'release') $committed -= $movement->getAmount();
                 }
-                if ($amount === null || $amount > $order->getTotal() - $committed) throw new \DomainException('Le montant dépasse le total de la commande.');
+                if ($amount === null || $amount > $order->getGiftEligibleTotal() - $committed) throw new \DomainException('Le montant dépasse le total de la commande.');
                 $card->reserve($amount);
             } elseif ($kind === 'refund') {
                 if ($amount === null || $amount > $debited - $refunded) throw new \DomainException('Le montant dépasse le débit de cette commande.');

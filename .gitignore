@@ -36,3 +36,6 @@
 /Thumbs.db
 
 /.deploy.lock
+
+/frontend/test-results/
+/frontend/playwright-report/
