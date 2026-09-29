@@ -1,13 +1,12 @@
 <script setup>
 // Les rubriques partagent le même brouillon et les mêmes API historiques.
 // Le paramètre section permet les liens directs sans recréer la configuration.
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { SETTINGS_SECTIONS, settingsSection } from '@/utils/adminNavigation'
 import { useAdminStore } from '@/stores/admin'
 import api from '@/api'
 import { displayImageUrl } from '@/api/config'
-import { SHOP_DEFAULT_COLORS } from '@/composables/useBranding'
 import { SOCIAL_NETWORKS } from '@/utils/socialIcons'
 import Spinner from '@/components/ui/Spinner.vue'
 import { validateSiteConfig } from '@/utils/siteConfig'
@@ -21,6 +20,8 @@ const previewing = ref(false)
 const error = ref('')
 
 const cfg = ref(null)
+const lastSaved = ref('')
+const dirty = computed(() => cfg.value && (JSON.stringify(cfg.value) !== lastSaved.value || Object.values(files.value).some(Boolean)))
 
 const route = useRoute()
 const router = useRouter()
@@ -39,12 +40,7 @@ const IMAGE_RULES = {
   banner_mobile: { label: 'bannière mobile', maxMo: 6, minWidth: 600, minHeight: 800 },
 }
 
-const COLOR_FIELDS = [
-  { key: 'header', label: 'Fond du header' },
-  { key: 'textHeader', label: 'Texte du header' },
-  { key: 'footer', label: 'Fond du footer' },
-  { key: 'textFooter', label: 'Texte du footer' },
-]
+
 
 const EMAIL_TYPES = [
   {
@@ -110,6 +106,7 @@ async function load() {
   error.value = ''
   try {
     cfg.value = await api.getShopConfig()
+    lastSaved.value = JSON.stringify(cfg.value)
     try { jumps.value = await api.getJumpTypes(admin.tenantId) } catch { jumps.value = [] }
   } catch (e) {
     error.value = e?.message || 'Impossible de charger la configuration.'
@@ -117,7 +114,10 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+function beforeUnload(event) { if (dirty.value) { event.preventDefault(); event.returnValue = '' } }
+onMounted(() => { load(); window.addEventListener('beforeunload', beforeUnload) })
+onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload); Object.values(previews.value).filter(Boolean).forEach(url => URL.revokeObjectURL(url)) })
+onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistrer vos modifications ?'))
 
 async function onImagePicked(type, e) {
   const f = e.target.files?.[0]
@@ -141,10 +141,6 @@ async function onImagePicked(type, e) {
   files.value[type] = f
   if (previews.value[type]) URL.revokeObjectURL(previews.value[type])
   previews.value[type] = URL.createObjectURL(f)
-}
-
-function resetColors() {
-  cfg.value.colors = { ...SHOP_DEFAULT_COLORS }
 }
 
 function validateBookingRules(rules) {
@@ -237,6 +233,7 @@ async function save() {
       files.value[type] = null
     }
     await api.saveShopConfig(admin.tenantId, cfg.value)
+    lastSaved.value = JSON.stringify(cfg.value)
     saved.value = true
     setTimeout(() => (saved.value = false), 2500)
   } catch (e) {
@@ -253,6 +250,7 @@ async function publish() {
   try {
     const publication = await api.publishShopConfig(admin.tenantId, cfg.value)
     cfg.value._publication = publication
+    lastSaved.value = JSON.stringify(cfg.value)
     saved.value = false
   } catch (e) { error.value = e?.message || 'Échec de la publication.' }
   finally { publishing.value = false }
@@ -352,55 +350,6 @@ async function publish() {
             </div>
           </div>
         </section>
-      </template>
-
-      <template v-else-if="tab === 'appearance'">
-        <section class="card p-6">
-          <h2 class="mb-4 font-semibold text-slate-800">Logo</h2>
-          <div class="flex flex-wrap items-center gap-5">
-            <img
-              v-if="previews.logo || cfg.logoUrl"
-              :src="previews.logo || cfg.logoUrl"
-              alt="Logo"
-              class="h-16 w-16 rounded-2xl border border-slate-200 object-cover"
-            />
-            <span v-else class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-accent-500 text-2xl">🪂</span>
-            <div>
-              <label class="btn-outline focus-within:ring-2 focus-within:ring-brand-600 cursor-pointer px-4 py-2 text-sm">
-                {{ cfg.logoUrl || files.logo ? 'Changer le logo…' : 'Ajouter un logo…' }}
-                <input type="file" accept="image/*" class="sr-only" @change="onImagePicked('logo', $event)" />
-              </label>
-              <p class="mt-1 text-xs text-slate-400">Carré conseillé (affiché 36×36 px), 4 Mo max.</p>
-            </div>
-          </div>
-        </section>
-        <section class="card p-6">
-          <div class="mb-4 flex items-center justify-between">
-            <h2 class="font-semibold text-slate-800">Couleurs</h2>
-            <button type="button" class="btn-ghost px-3 py-1 text-xs" @click="resetColors">↺ Couleurs par défaut</button>
-          </div>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div v-for="f in COLOR_FIELDS" :key="f.key">
-              <label class="label">{{ f.label }}</label>
-              <div class="flex items-center gap-2">
-                <input v-model="cfg.colors[f.key]" type="color" class="h-10 w-14 cursor-pointer rounded-lg border border-slate-200" />
-                <input v-model="cfg.colors[f.key]" class="input font-mono text-xs" />
-              </div>
-            </div>
-          </div>
-          <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
-            <div class="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold" :style="{ backgroundColor: cfg.colors.header, color: cfg.colors.textHeader }">
-              <img v-if="previews.logo || cfg.logoUrl" :src="previews.logo || cfg.logoUrl" class="h-5 w-5 rounded object-cover" />
-              <span v-else>🪂</span>
-              {{ cfg.name || 'Mon établissement' }} <span class="ml-auto font-normal opacity-70">Prestations · Réserver</span>
-            </div>
-            <div class="bg-white px-4 py-3 text-xs text-slate-400">… contenu du site …</div>
-            <div class="px-4 py-2.5 text-xs" :style="{ backgroundColor: cfg.colors.footer, color: cfg.colors.textFooter }">
-              <span class="opacity-70">© {{ cfg.name || 'Ma boutique' }} — footer</span>
-            </div>
-          </div>
-        </section>
-
         <section class="card p-6">
           <h2 class="mb-1 font-semibold text-slate-800">Réseaux sociaux</h2>
           <p class="mb-4 text-sm text-slate-500">Affichés dans le footer de la boutique (seuls les liens renseignés apparaissent).</p>
@@ -414,7 +363,6 @@ async function publish() {
             </div>
           </div>
         </section>
-
       </template>
 
       <!-- ======================= PAGE D'ACCUEIL ======================= -->

@@ -21,6 +21,7 @@ async function session(page, permissions = allPermissions) {
       }
       body = { code: 'todatempo_config', translations: { en_US: { description: JSON.stringify(document) } }, images: [] }
     }
+    if (path.endsWith('/site/appearance')) body = { revision: 'initial', primaryLink: null }
     if (path.includes('/admin/channels/')) body = { name: 'Institut test' }
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
   })
@@ -48,8 +49,8 @@ test('les groupes donnent accès aux écrans existants et sélectionnent les dé
   await expect(nav.getByRole('link', { name: 'Commandes et factures' })).toHaveAttribute('href', '/centre-e2e/admin/orders')
   await expect(page.getByRole('link', { name: 'Voir mon site' })).toHaveAttribute('href', '/centre-e2e/')
   await expand(page, 'Mon site internet')
-  await expect(nav.getByRole('link', { name: 'Menus', exact: true })).toHaveCount(0)
-  await expect(nav.getByRole('link', { name: 'Images', exact: true })).toHaveCount(0)
+  await expect(nav.getByRole('link', { name: 'Menus', exact: true })).toHaveCount(1)
+  await expect(nav.getByRole('link', { name: 'Images', exact: true })).toHaveCount(1)
   await page.goto('/centre-e2e/admin/options/example')
   await expect(navigation(page).locator('[aria-current="page"]')).toHaveText('Options et suppléments')
   await page.goto('/centre-e2e/admin/products/example')
@@ -99,6 +100,8 @@ test('navigation clavier sur mobile, fermeture et retour du focus', async ({ pag
   await page.keyboard.press('Tab')
   await expect(navigation(page).getByRole('link', { name: 'Menus', exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
+  await expect(navigation(page).getByRole('link', { name: 'Images', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
   await expect(navigation(page).getByRole('link', { name: 'Page d’accueil', exact: true })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page d’accueil')
@@ -112,10 +115,12 @@ test('les rubriques conservent le brouillon commun, les anciennes URLs et la pub
   await page.goto('/centre-e2e/admin/settings')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Établissement')
   await page.getByPlaceholder('Institut TodaTempo').fill('Nouveau nom')
+  await page.getByRole('button', { name: 'Enregistrer le brouillon', exact: true }).click()
+  await expect(page.getByRole('status')).toHaveText('✓ Brouillon enregistré')
   await expand(page, 'Mon site internet')
   await navigation(page).getByRole('link', { name: 'Apparence', exact: true }).click()
   await expect(navigation(page).locator('[aria-current="page"]')).toHaveText('Apparence')
-  await expect(page.getByRole('heading', { name: 'Couleurs', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Couleurs et caractères', exact: true })).toBeVisible()
   await page.goBack()
   await expect(page.getByPlaceholder('Institut TodaTempo')).toHaveValue('Nouveau nom')
   await page.goForward()
@@ -141,7 +146,7 @@ test('une erreur de chargement des réglages permet de réessayer', async ({ pag
   await page.goto('/centre-e2e/admin/settings?section=appearance')
   await expect(page.getByRole('alert')).toBeVisible()
   api.failConfig(false)
-  await page.getByRole('button', { name: 'Réessayer' }).click()
-  await expect(page.getByRole('heading', { name: 'Couleurs', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Recharger' }).click()
+  await expect(page.getByRole('heading', { name: 'Couleurs et caractères', exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })

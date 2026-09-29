@@ -13,7 +13,7 @@ export function normalizeSiteConfig(value = {}) {
     : []
   return {
     ...cfg,
-    colors: { ...DEFAULT_SHOP_COLORS, ...(cfg.colors || {}) },
+    colors: { ...DEFAULT_SHOP_COLORS, ...(cfg.colors || {}), textHeader: cfg.colors?.textHeader || cfg.colors?.text || DEFAULT_SHOP_COLORS.textHeader, textFooter: cfg.colors?.textFooter || cfg.colors?.text || DEFAULT_SHOP_COLORS.textFooter },
     socials: { instagram: '', facebook: '', x: '', youtube: '', ...(cfg.socials || {}) },
     home: {
       title: '', subtitle: '', highlights: [], catalogTitle: '', catalogText: '', featured: [],

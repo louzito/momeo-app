@@ -26,3 +26,10 @@ test('valide les contrastes, liens sociaux et textes légaux', () => {
   assert.ok(errors.some((e) => /HTTPS/.test(e)))
   assert.ok(errors.some((e) => /activé mais vide/.test(e)))
 })
+
+test('reprend la couleur de texte historique sans écraser les couleurs existantes', () => {
+  const doc = readSiteConfigDocument({ colors: { header: '#123456', text: '#abcdef' } })
+  assert.equal(doc.draft.colors.header, '#123456')
+  assert.equal(doc.draft.colors.textHeader, '#abcdef')
+  assert.equal(doc.published.colors.textFooter, '#abcdef')
+})

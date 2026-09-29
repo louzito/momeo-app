@@ -20,7 +20,7 @@ test('pages : création, erreur conservée, renommage, duplication et archivage 
         pages[0].draft = route.request().postDataJSON(); body = pages[0]
       } else if (method === 'DELETE') {
         pages[0].archived = true; body = { ok: true }
-      } else body = { member: pages }
+      } else body = /\/pages\/[^/]+$/.test(path) ? pages.find(p => p.id === path.split('/').at(-1)) : { member: pages }
     }
     await route.fulfill({ json: body })
   })
@@ -35,8 +35,11 @@ test('pages : création, erreur conservée, renommage, duplication et archivage 
   await expect(page.getByRole('alert')).toContainText('déjà utilisée')
   await expect(page.getByLabel('Titre', { exact: true })).toHaveValue('Contact')
   fail = false
+  await page.getByLabel('Modèle de départ').selectOption('contact')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Contact', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Composer la page' })).toBeVisible()
+  await page.getByRole('link', { name: 'Retour aux pages' }).click()
   await page.getByRole('button', { name: 'Renommer Contact', exact: true }).click()
   await page.getByLabel('Titre', { exact: true }).fill('Nous contacter')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()

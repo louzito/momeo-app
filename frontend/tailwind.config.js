@@ -27,8 +27,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'sans-serif'],
+        sans: ['var(--site-font-body, Inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--site-font-heading, "Plus Jakarta Sans")', 'Inter', 'ui-sans-serif', 'sans-serif'],
       },
       boxShadow: {
         soft: '0 10px 40px -12px rgba(15, 23, 42, 0.18)',

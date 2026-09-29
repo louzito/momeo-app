@@ -36,6 +36,10 @@ final class AdminApiPermissionSubscriber
         }
 
         $permission = $this->permissionFor($path, $request->getMethod());
+        if ($request->isMethod('POST') && rtrim($path, '/') === '/api/v2/admin/taxons') {
+            $payload = json_decode($request->getContent(), true);
+            if (in_array($payload['code'] ?? null, ['todatempo_config', 'skybook_config'], true)) $permission = TeamPermission::Settings;
+        }
         if ($permission !== null && !TeamPermissions::allows($user->getTeamRole(), $permission)) {
             throw new AccessDeniedHttpException(sprintf('Permission "%s" requise.', $permission->value));
         }
@@ -50,6 +54,8 @@ final class AdminApiPermissionSubscriber
     private function permissionFor(string $path, string $method): ?TeamPermission
     {
         $resource = substr($path, strlen('/api/v2/admin/'));
+
+        if (preg_match('#^taxons?/(?:todatempo_config|skybook_config)(?:/|$)#', $resource)) return TeamPermission::Settings;
 
         if (preg_match('#^(bookings|plannings|staff-time-offs|waitlist)(?:/|$)#', $resource)) {
             return TeamPermission::Agenda;

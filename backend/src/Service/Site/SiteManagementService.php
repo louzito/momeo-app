@@ -9,7 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class SiteManagementService
 {
-    public function __construct(private readonly EntityManagerInterface $em, private readonly SiteDocumentValidator $validator, private readonly SiteLinkResolver $links, private readonly SiteMediaReferences $media) {}
+    public function __construct(private readonly EntityManagerInterface $em, private readonly SiteDocumentValidator $validator, private readonly SiteLinkResolver $links, private readonly SiteMediaReferences $media, private readonly ?SiteTemplateService $templates = null) {}
 
     public function publicMedia(array $document): array { return $this->media->publicMedia($document); }
     public function pages(): array { return $this->em->getRepository(SitePage::class)->findBy([], ['slug' => 'ASC']); }
@@ -23,14 +23,20 @@ final class SiteManagementService
     }
     public function create(array $data): SitePage
     {
-        $this->validator->keys($data, ['title', 'slug'], ['role']);
+        $this->validator->keys($data, ['title', 'slug'], ['role', 'template']);
         $role = $data['role'] ?? null;
         if (!in_array($role, [null, 'home', 'terms', 'mentions'], true)) throw new \InvalidArgumentException('Rôle invalide.');
         if ($role !== null && $this->em->getRepository(SitePage::class)->findOneBy(['role' => $role])) throw new \InvalidArgumentException('Cette page système existe déjà.');
-        $draft = $this->validator->page(['title' => $data['title'], 'slug' => $data['slug'], 'document' => ['schemaVersion' => 1, 'blocks' => []], 'seo' => ['title' => '', 'description' => '']]);
+        if (isset($data['template']) && !is_string($data['template'])) throw new \InvalidArgumentException('Modèle invalide.');
+        $document = isset($data['template']) ? ($this->templates ?? new SiteTemplateService($this->em))->document($data['template']) : ['schemaVersion' => 1, 'blocks' => []];
+        $draft = $this->validator->page(['title' => $data['title'], 'slug' => $data['slug'], 'document' => $document, 'seo' => ['title' => '', 'description' => '']]);
         $this->uniqueSlug($draft['slug']);
+        $this->links->validatePage($draft);
+        $this->media->validate($draft);
+        $this->validateCatalog($draft);
         $page = new SitePage($draft, $role);
         $this->em->persist($page);
+        $this->media->sync($page);
         $this->em->flush();
         return $page;
     }
@@ -113,7 +119,7 @@ final class SiteManagementService
     public function saveMenu(string $location, array $data): SiteMenu
     {
         $this->validator->keys($data, ['items'], ['primaryLink']);
-        $primary = $data['primaryLink'] ?? null;
+        $primary = array_key_exists('primaryLink', $data) ? $data['primaryLink'] : $this->menu($location)?->getPrimaryLink();
         if ($primary !== null) {
             if ($location !== 'main') throw new \InvalidArgumentException('Le bouton principal appartient au menu principal.');
             $this->links->resolve($this->validator->link($primary));
@@ -133,7 +139,7 @@ final class SiteManagementService
     {
         $menu = $this->menu($location);
         if ($menu === null) return;
-        $this->saveMenu($location, ['items' => []]);
+        $this->saveMenu($location, ['items' => [], 'primaryLink' => null]);
     }
     public function publishMenu(SiteMenu $menu): void
     {

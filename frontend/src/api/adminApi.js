@@ -532,7 +532,11 @@ export async function getShopConfig() {
   const document = readSiteConfigDocument(cfg)
   cfg = document.draft
   // NB : ne JAMAIS retomber sur images[0] — le taxon porte aussi les bannieres.
-  const imgOf = (type) => (t.images || []).find((i) => i.type === type)
+  let legacyImages = []
+  if (!(t.images || []).some(i => i.type === 'logo')) {
+    try { legacyImages = (await request('GET', '/admin/taxons/skybook_config')).images || [] } catch (e) { if (e.status !== 404) throw e }
+  }
+  const imgOf = (type) => [...(t.images || []), ...legacyImages].find((i) => i.type === type)
   return normalizeSiteConfig({
     name: cfg.name || ch.name || '',
     timezone: typeof cfg.timezone === 'string' ? cfg.timezone : 'Europe/Paris',
@@ -541,6 +545,8 @@ export async function getShopConfig() {
     address: { street: '', postcode: '', city: '', ...(cfg.address || {}) },
     // Normalise + migre l'ancien champ unique `text` vers textHeader/textFooter.
     colors: normalizeShopColors(cfg.colors),
+    branding: cfg.branding || { brandPalette: 'sky', accent: 'orange' },
+    typography: cfg.typography || 'modern',
     socials: { instagram: '', facebook: '', x: '', youtube: '', ...(cfg.socials || {}) },
     // Page d'accueil : hero, points forts, section catalogue, produits mis en avant.
     home: {
@@ -583,7 +589,7 @@ export async function getShopConfig() {
       terms: { enabled: false, content: '', ...(cfg.legal?.terms || {}) },
       mentions: { enabled: false, content: '', ...(cfg.legal?.mentions || {}) },
     },
-    assets: { ...(cfg.assets || {}) },
+    assets: { logo: imgOf('logo')?.path, banner: imgOf('banner')?.path, bannerMobile: imgOf('banner_mobile')?.path, ...(cfg.assets || {}) },
     logoUrl: displayImageUrl(cfg.assets?.logo || imgOf('draft_logo')?.path || imgOf('logo')?.path),
     bannerUrl: displayImageUrl(cfg.assets?.banner || imgOf('draft_banner')?.path || imgOf('banner')?.path),
     bannerMobileUrl: displayImageUrl(cfg.assets?.bannerMobile || imgOf('draft_banner_mobile')?.path || imgOf('banner_mobile')?.path),
@@ -995,3 +1001,6 @@ export function uploadSiteMedia(file, alt = '') {
 }
 
 export const getSitePage = (id) => request('GET', `/admin/site/pages/${encodeURIComponent(id)}`)
+
+export const getSiteAppearance = () => request('GET', '/admin/site/appearance')
+export const saveSiteAppearance = (value) => request('PUT', '/admin/site/appearance', value, 'application/json')

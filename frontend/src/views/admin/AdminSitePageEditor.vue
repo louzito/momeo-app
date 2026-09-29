@@ -1,10 +1,12 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
-import { getSitePage, getSitePages, getSiteMedia, updateSitePage } from '@/api/adminApi'
+import { siteThemeStyle } from '@/utils/siteTheme'
+import { getShopConfig, getSitePage, getSitePages, getSiteMedia, updateSitePage } from '@/api/adminApi'
 import SiteSections from '@/components/site/SiteSections.vue'
 import SiteSectionFields from '@/components/site/SiteSectionFields.vue'
 const route = useRoute()
+const appearance = ref({})
 const page = ref(null), draft = ref(null), saved = ref(''), pages = ref([]), media = ref({})
 const loading = ref(true), saving = ref(false), error = ref(''), notice = ref(''), conflict = ref(false)
 const selected = ref(null), kind = ref('banner'), mobile = ref(false), dragged = ref(null)
@@ -21,7 +23,8 @@ async function load() {
   if (dirty.value && !window.confirm('Abandonner vos modifications et recharger la version enregistrée ?')) return
   loading.value = true; error.value = ''
   try {
-    const [value, list, images] = await Promise.all([getSitePage(route.params.id), getSitePages(), getSiteMedia()])
+    const [value, list, images, config] = await Promise.all([getSitePage(route.params.id), getSitePages(), getSiteMedia(), getShopConfig()])
+    appearance.value = config
     page.value = value; draft.value = structuredClone(value.draft); saved.value = JSON.stringify(draft.value)
     pages.value = list.member; media.value = Object.fromEntries(images.member.map(i => [i.id, i])); selected.value = draft.value.document.blocks[0]?.id
     conflict.value = false
@@ -87,7 +90,7 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
       </div>
       <section class="min-w-0 rounded-xl border bg-slate-100 p-3" aria-label="Aperçu de la page">
         <div class="mb-4 flex flex-wrap items-center gap-3"><h2 class="font-semibold">Aperçu</h2><button class="btn-outline" :aria-pressed="!mobile" @click="mobile = false">Ordinateur</button><button class="btn-outline" :aria-pressed="mobile" @click="mobile = true">Mobile</button></div>
-        <div class="mx-auto max-w-full" :style="{ width: mobile ? '360px' : '100%', containerType: 'inline-size', containerName: 'site-page' }"><SiteSections :blocks="draft.document.blocks" editor :media="media" :links="links" /></div>
+        <div class="mx-auto max-w-full" :style="{ ...siteThemeStyle(appearance), width: mobile ? '360px' : '100%', containerType: 'inline-size', containerName: 'site-page' }"><SiteSections :blocks="draft.document.blocks" editor :media="media" :links="links" /></div>
       </section>
     </template>
   </div>

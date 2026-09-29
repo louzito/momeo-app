@@ -23,6 +23,8 @@ export async function fetchPublicCatalog(api, slug) {
     socials: config?.socials || {},
     logoUrl: config?.logoUrl || '',
     colors: config?.colors || null,
+    branding: config?.branding || null,
+    typography: config?.typography || 'modern',
     home: config?.home || null,
     shopOrder: Array.isArray(config?.shopOrder) ? config.shopOrder : [],
     highlights: config?.home?.highlights || [],

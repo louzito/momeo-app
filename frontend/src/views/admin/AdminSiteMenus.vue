@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { getSitePages, getSiteMenu, saveSiteMenu } from '@/api/adminApi'
 import SiteMenuListEditor from '@/components/site/SiteMenuListEditor.vue'
-import SiteLinkEditor from '@/components/site/SiteLinkEditor.vue'
 const pages = ref([]), menus = ref({}), location = ref('main')
 const loading = ref(true), saving = ref(false), error = ref(''), notice = ref('')
 const dirty = ref({ main: false, footer: false })
@@ -37,7 +36,7 @@ async function save() {
   saving.value = true; error.value = ''; notice.value = ''
   const selected = location.value
   try {
-    await saveSiteMenu(selected, { items: clean(current.value.items), ...(selected === 'main' ? { primaryLink: current.value.primaryLink } : {}) })
+    await saveSiteMenu(selected, { items: clean(current.value.items) })
     dirty.value[selected] = false
     notice.value = 'Brouillon enregistré. Les visiteurs voient toujours la dernière version publiée.'
   } catch (e) { error.value = [409, 422].includes(e.status) ? e.message : 'Impossible d’enregistrer. Vos modifications sont conservées.' }
@@ -63,12 +62,7 @@ onMounted(load)
         <div v-if="warnings.length" role="status" class="rounded-xl bg-amber-50 p-4 text-amber-900"><p v-for="warning in warnings" :key="warning">{{ warning }}</p></div>
         <p v-if="!current.items.length">Ce menu est vide. Ajoutez votre premier lien.</p>
         <SiteMenuListEditor :key="location" :items="current.items" :pages="pages" :disabled="saving" @change="changed" />
-        <section v-if="location === 'main'" class="card space-y-3 p-4">
-          <h2 class="font-semibold">Bouton « Prendre rendez-vous »</h2>
-          <label class="flex gap-2"><input type="checkbox" :checked="!!current.primaryLink" @change="current.primaryLink = $event.target.checked ? { type: 'route', target: 'booking' } : null; changed()" />Afficher le bouton</label>
-          <SiteLinkEditor v-if="current.primaryLink" v-model="current.primaryLink" :pages="pages" @update:model-value="changed" />
-          <p class="text-sm text-slate-500">La réservation commence par le choix d’une prestation.</p>
-        </section>
+        <RouterLink v-if="location === 'main'" class="block underline" :to="{ name: 'admin-site-appearance' }">Personnaliser le bouton principal dans Apparence</RouterLink>
         <button class="btn-primary" :disabled="!dirty[location]">{{ saving ? 'Enregistrement…' : 'Enregistrer le brouillon' }}</button>
       </fieldset>
     </form>

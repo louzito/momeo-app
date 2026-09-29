@@ -698,7 +698,11 @@ export const httpApi = {
         cfg = JSON.parse(t.description || '{}')
       } catch { /* pas encore configure */ }
       cfg = readSiteConfigDocument(cfg).published
-      const imgOf = (type) => (t.images || []).find((i) => i.type === type)
+      let legacyImages = []
+      if (t.code !== 'skybook_config' && !(t.images || []).some(i => i.type === 'logo')) {
+        try { legacyImages = (await apiGet('/shop/taxons/skybook_config')).images || [] } catch (error) { if (error.status !== 404) throw error }
+      }
+      const imgOf = (type) => [...(t.images || []), ...legacyImages].find((i) => i.type === type)
       return {
         ...cfg,
         logoUrl: displayImageUrl(cfg.assets?.logo || imgOf('logo')?.path),

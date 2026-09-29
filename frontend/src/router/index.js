@@ -227,6 +227,7 @@ const tenantRoutes = [
       { path: 'vouchers', name: 'admin-vouchers', component: () => import('@/views/admin/AdminVouchers.vue'), meta: { title: 'Chèques cadeaux', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
       { path: 'payments', name: 'admin-payments', component: () => import('@/views/admin/AdminPayments.vue'), meta: { title: 'Moyens de paiement', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
       { path: 'site/images', name: 'admin-site-images', component: () => import('@/views/admin/AdminSiteImages.vue'), meta: { title: 'Images du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
+      { path: 'site/appearance', name: 'admin-site-appearance', component: () => import('@/views/admin/AdminSiteAppearance.vue'), meta: { title: 'Apparence', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'site/menus', name: 'admin-site-menus', component: () => import('@/views/admin/AdminSiteMenus.vue'), meta: { title: 'Menus du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'site/pages', name: 'admin-site-pages', component: () => import('@/views/admin/AdminSitePages.vue'), meta: { title: 'Pages du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'site/pages/:id/edit', name: 'admin-site-page-editor', component: () => import('@/views/admin/AdminSitePageEditor.vue'), meta: { title: 'Composer la page', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
@@ -309,6 +310,7 @@ const router = createRouter({
 
 // La garde améliore l'UX ; l'autorisation réelle reste appliquée par l'API.
 router.beforeEach(async (to) => {
+  if (to.name === 'admin-settings' && (to.query.section === 'appearance' || to.query.tab === 'appearance')) return { name: 'admin-site-appearance' }
   document.title = to.meta?.title ? `${to.meta.title} · TodaTempo` : 'TodaTempo'
 
   if (['checkout-schedule', 'checkout-eligibility', 'checkout-gift'].includes(to.name)) {

@@ -36,7 +36,7 @@ const GROUPS = [
     { name: 'admin-site-pages', label: 'Pages', details: ['admin-site-page-editor'] },
     { name: 'admin-site-menus', label: 'Menus' },
     { name: 'admin-site-images', label: 'Images' },
-    settings('home'), settings('appearance'), settings('terms'), settings('mentions'),
+    settings('home'), { name: 'admin-site-appearance', label: 'Apparence' }, settings('terms'), settings('mentions'),
   ] },
   { id: 'settings', label: 'Réglages', items: [
     settings('general'),
@@ -60,6 +60,7 @@ export function adminNavigation(router, can) {
 }
 
 export function isAdminItemActive(item, route) {
+  if (route.name === 'admin-settings' && settingsSection(route.query) === 'appearance') return item.name === 'admin-site-appearance'
   if (item.name !== route.name && !item.details?.includes(route.name)) return false
   return !item.section || item.section === settingsSection(route.query)
 }
