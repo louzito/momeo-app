@@ -37,7 +37,7 @@ async function save() {
   try {
     const fields = { title: value.title, slug: value.slug }
     if (value.duplicate) await duplicateSitePage(value.page.id, fields)
-    else if (value.page) await updateSitePage(value.page.id, { ...value.page.draft, ...fields, document: { ...value.page.draft.document, blocks: value.blocks } })
+    else if (value.page) await updateSitePage(value.page.id, { ...value.page.draft, ...fields, revision: value.page.revision, document: { ...value.page.draft.document, blocks: value.blocks } })
     else await createSitePage({ ...fields, role: value.role || null })
     await close()
     await load()
@@ -85,6 +85,7 @@ async function action(page, restore = false) {
         <h2 class="break-words text-lg font-semibold">{{ page.draft.title }}</h2>
         <p class="break-all text-sm text-slate-500">/{{ page.draft.slug }} · {{ page.archived ? 'Archivée' : page.published ? 'Publiée' : 'Brouillon' }}<span v-if="page.role"> · {{ roles[page.role] }} protégée</span></p>
         <div class="mt-4 flex flex-wrap gap-2">
+          <RouterLink v-if="!page.archived" class="btn-primary" :to="{ name: 'admin-site-page-editor', params: { id: page.id } }">Modifier les sections</RouterLink>
           <button v-if="!page.archived" class="btn-outline" :disabled="saving" @click="edit(page, false, true)">Images</button>
           <button v-if="!page.archived" class="btn-outline" :disabled="saving" :aria-label="`Renommer ${page.draft.title}`" @click="edit(page)">Renommer</button>
           <button class="btn-outline" :disabled="saving" :aria-label="`Dupliquer ${page.draft.title}`" @click="edit(page, true)">Dupliquer</button>

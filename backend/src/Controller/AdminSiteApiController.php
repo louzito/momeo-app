@@ -34,7 +34,12 @@ final class AdminSiteApiController
     {
         return $this->write(function () use ($id, $request): array {
             $page = $this->find($id);
-            $this->management->update($page, $this->payload($request));
+            $data = $this->payload($request);
+            $revision = $data['revision'] ?? null;
+            if (!is_int($revision) || $revision < 1) throw new \InvalidArgumentException('Rechargez la page avant de l’enregistrer.');
+            unset($data['revision']);
+            if ($revision !== $page->getRevision()) throw OptimisticLockException::lockFailed($page);
+            $this->management->update($page, $data);
             return $this->normalize($page);
         });
     }

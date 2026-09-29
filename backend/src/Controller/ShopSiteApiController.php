@@ -17,7 +17,17 @@ final class ShopSiteApiController
     {
         $page = $this->management->publishedPage($slug);
         $published = $page?->getPublished();
-        if ($published !== null) $published['media'] = $this->management->publicMedia($published);
+        if ($published !== null) {
+            $published['document']['blocks'] = array_values(array_filter($published['document']['blocks'], static fn (array $block): bool => !($block['hidden'] ?? false)));
+            $published['media'] = $this->management->publicMedia($published);
+            $published['links'] = [];
+            foreach ($published['document']['blocks'] as $block) {
+                $link = $block['props']['button']['link'] ?? $block['props']['link'] ?? null;
+                if ($link !== null && ($url = $this->links->resolve($link, true)) !== null) {
+                    $published['links'][json_encode($link, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)] = ['url' => $url, 'external' => $link['type'] === 'external'];
+                }
+            }
+        }
         return new JsonResponse($published ?? ['error' => 'Page introuvable.'], $published === null ? 404 : 200, ['Cache-Control' => 'private, no-store']);
     }
     #[Route('/navigation', methods: ['GET'])]

@@ -28,7 +28,13 @@ final class SiteLinkResolver
     public function validatePage(array $page, bool $published = false, array $publishing = []): void
     {
         foreach ($page['document']['blocks'] as $block) {
-            if ($block['type'] === 'button' && $this->resolve($block['props']['link'], $published, $publishing) === null) throw new \InvalidArgumentException('Publiez d’abord la page liée.');
+            if ($published && ($block['hidden'] ?? false)) continue;
+            $link = match ($block['type']) {
+                'button', 'practical' => $block['props']['link'] ?? null,
+                'banner' => $block['props']['button']['link'] ?? null,
+                default => null,
+            };
+            if ($link !== null && $this->resolve($link, $published, $publishing) === null) throw new \InvalidArgumentException('Publiez d’abord la page liée.');
         }
     }
     public function menu(array $items, bool $published = false, bool $hiddenParent = false): array

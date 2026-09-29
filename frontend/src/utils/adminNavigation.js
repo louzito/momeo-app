@@ -33,7 +33,7 @@ const GROUPS = [
     { name: 'admin-vouchers', label: 'Cartes et chèques cadeaux' },
   ] },
   { id: 'site', label: 'Mon site internet', items: [
-    { name: 'admin-site-pages', label: 'Pages' },
+    { name: 'admin-site-pages', label: 'Pages', details: ['admin-site-page-editor'] },
     { name: 'admin-site-menus', label: 'Menus' },
     { name: 'admin-site-images', label: 'Images' },
     settings('home'), settings('appearance'), settings('terms'), settings('mentions'),

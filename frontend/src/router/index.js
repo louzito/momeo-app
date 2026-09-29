@@ -226,6 +226,7 @@ const tenantRoutes = [
       { path: 'site/images', name: 'admin-site-images', component: () => import('@/views/admin/AdminSiteImages.vue'), meta: { title: 'Images du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'site/menus', name: 'admin-site-menus', component: () => import('@/views/admin/AdminSiteMenus.vue'), meta: { title: 'Menus du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'site/pages', name: 'admin-site-pages', component: () => import('@/views/admin/AdminSitePages.vue'), meta: { title: 'Pages du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
+      { path: 'site/pages/:id/edit', name: 'admin-site-page-editor', component: () => import('@/views/admin/AdminSitePageEditor.vue'), meta: { title: 'Composer la page', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/AdminSettings.vue'), meta: { title: 'Configuration boutique', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
     ],
   },

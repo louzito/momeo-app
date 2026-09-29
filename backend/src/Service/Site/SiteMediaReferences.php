@@ -15,7 +15,8 @@ final class SiteMediaReferences
         $ids = [];
         foreach ($document['document']['blocks'] ?? [] as $block) {
             $images = match ($block['type']) {
-                'image', 'banner' => [$block['props']],
+                'image', 'banner' => empty($block['props']['mediaId']) ? [] : [$block['props']],
+                'imageText' => empty($block['props']['image']) ? [] : [$block['props']['image']],
                 'gallery' => $block['props']['images'],
                 default => [],
             };

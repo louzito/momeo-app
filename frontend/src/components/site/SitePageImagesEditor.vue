@@ -26,7 +26,7 @@ function add(image) {
 }
 function choose(block, image, index) {
   const value = reference(image)
-  change(block, item => { if (item.type === 'gallery') item.props.images[index] = value; else item.props = value; return item })
+  change(block, item => { if (item.type === 'gallery') item.props.images[index] = value; else Object.assign(item.props, value); return item })
 }
 function text(block, index, alt) { change(block, item => { if (item.type === 'gallery') item.props.images[index].alt = alt; else item.props.alt = alt; return item }) }
 function remove(block) { emit('update:modelValue', props.modelValue.filter(item => item.id !== block.id)) }

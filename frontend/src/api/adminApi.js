@@ -993,3 +993,5 @@ export function uploadSiteMedia(file, alt = '') {
   form.append('alt', alt)
   return request('POST', '/admin/site/media', form, null)
 }
+
+export const getSitePage = (id) => request('GET', `/admin/site/pages/${encodeURIComponent(id)}`)
