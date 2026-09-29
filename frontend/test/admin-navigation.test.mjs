@@ -5,6 +5,7 @@ import { adminNavigation, adminItemLocation, isAdminItemActive, settingsSection 
 
 // Resolve the real application routes without a browser or loading their views.
 const source = (await readFile(new URL('../src/router/index.js', import.meta.url), 'utf8'))
+  .replace("from '@/utils/siteMetadata'", `from '${new URL('../src/utils/siteMetadata.js', import.meta.url).href}'`)
   .replace('createWebHistory', 'createMemoryHistory as createWebHistory')
   .replace("from 'vue-router'", `from '${import.meta.resolve('vue-router')}'`)
   .replace("import { TENANT_SLUG, TENANT_ERROR, APP_BASE } from '@/api/config'", "const TENANT_SLUG = 'centre-test', TENANT_ERROR = '', APP_BASE = '/'")

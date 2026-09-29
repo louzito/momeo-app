@@ -6,13 +6,14 @@
   "description": "Front Vue 3 des espaces professionnels et boutiques de réservation TodaTempo.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run build:site-ssr",
     "preview": "vite preview",
     "test": "npm run test:unit",
     "test:unit": "node --test test/*.test.* tests/*.test.*",
     "test:e2e": "playwright test",
-    "test:production": "vite build && node --test tests/production/*.test.mjs",
-    "test:ci": "npm run test:unit && npm run test:production && npm run test:e2e"
+    "test:production": "npm run build && node --test tests/production/*.test.mjs",
+    "test:ci": "npm run test:unit && npm run test:production && npm run test:e2e",
+    "build:site-ssr": "vite build --config vite.site-ssr.config.js"
   },
   "dependencies": {
     "@tiptap/core": "3.31.3",

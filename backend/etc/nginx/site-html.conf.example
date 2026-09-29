@@ -1,0 +1,21 @@
+# Inside the existing server{} for the shared host, before its SPA fallback.
+# Example mount: /todatempo-app ; use the actual frontend root and backend upstream.
+# Keep existing API, media, Sylius and payment locations with their current priority.
+location ^~ /todatempo-app/site-assets/ {
+    alias /srv/todatempo/frontend/dist/site-assets/;
+}
+location ~ "^/todatempo-app/(?<site_tenant>[a-z0-9][a-z0-9-]{0,62})(?<site_path>/.*)$" {
+    proxy_set_header Host $host;
+    # Overwrite, never append the tenant supplied by the browser.
+    proxy_set_header X-TodaTempo-Tenant $site_tenant;
+    proxy_set_header X-Skybook-Tenant "";
+    proxy_pass http://todatempo_backend/api/v2/shop/site/html$site_path$is_args$args;
+    proxy_intercept_errors off;
+    proxy_cache off;
+}
+# A custom-domain virtual host uses the same locations, with the verified tenant
+# literally in the public pattern, e.g. ^/institut-demo(?<site_path>/.*)$, and:
+# proxy_set_header X-TodaTempo-Tenant institut-demo;
+# Reject other tenant paths and unknown Host values there (default server: 404).
+# Serve the compiled /todatempo-app/site-assets prefix on custom domains as well.
+# Node's dist-ssr directory is private: NEVER expose it through a static alias.

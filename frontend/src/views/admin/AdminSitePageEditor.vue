@@ -3,6 +3,7 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { siteThemeStyle } from '@/utils/siteTheme'
 import { getShopConfig, getSitePage, getSitePages, getSiteMedia, updateSitePage } from '@/api/adminApi'
+import SiteMediaPicker from '@/components/site/SiteMediaPicker.vue'
 import SiteSections from '@/components/site/SiteSections.vue'
 import SiteSectionFields from '@/components/site/SiteSectionFields.vue'
 const route = useRoute()
@@ -74,6 +75,15 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
     <template v-if="draft && !loading">
       <div class="flex flex-wrap items-center gap-3"><h2 class="text-xl font-semibold">{{ draft.title }}</h2><button class="btn-primary" :disabled="saving || conflict || page.archived" @click="save">{{ saving ? 'Enregistrement…' : 'Enregistrer le brouillon' }}</button><span role="status">{{ notice && !dirty ? notice : dirty ? 'Modifications non enregistrées' : 'Brouillon enregistré' }}</span></div>
       <p class="text-sm text-slate-600">Préparez vos sections ici. Elles ne seront visibles du public qu’après publication.</p>
+      <fieldset class="space-y-3 rounded-xl border p-4" :disabled="saving || page.archived">
+        <legend class="font-semibold">Référencement et partage</legend>
+        <p class="text-sm">Sans personnalisation, le titre, le texte et la première image visible de la page seront utilisés. Ces informations suivent la publication de la page.</p>
+        <label class="block">Titre dans les moteurs de recherche<input v-model="draft.seo.title" maxlength="160" class="input" :placeholder="draft.title" /></label>
+        <label class="block">Description<textarea v-model="draft.seo.description" maxlength="320" class="input" rows="3" /></label>
+        <p>Image de partage : {{ media[draft.seo.imageId]?.name || (draft.seo.imageId ? 'Image choisie' : 'Automatique') }}</p>
+        <SiteMediaPicker @select="draft.seo.imageId = $event.id; media[$event.id] = $event" />
+        <button v-if="draft.seo.imageId" type="button" class="btn-outline" @click="delete draft.seo.imageId">Utiliser l’image automatique</button>
+      </fieldset>
       <div class="grid min-w-0 gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
         <fieldset class="min-w-0 space-y-3" :disabled="saving || page.archived">
           <legend class="mb-3 font-semibold">Sections</legend>

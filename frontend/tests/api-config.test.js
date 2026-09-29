@@ -35,3 +35,13 @@ test('le préfixe hébergé est retiré sans fallback vers un autre centre', () 
   assert.equal(config.resolveTenantSlug('/todatempo-app/', '/todatempo-app/'), null)
   assert.equal(config.resolveTenantSlug('/autre/centre-paris/', '/todatempo-app/'), null)
 })
+
+test('la base fournie par le HTML permet le domaine personnalisé avec un build préfixé', async () => {
+  globalThis.document = { querySelector: () => ({ content: '/' }) }
+  globalThis.window = { location: { pathname: '/centre-paris/contact', origin: 'https://centre.example.test' } }
+  try {
+    const runtime = await import('../src/api/config.js?canonical-domain')
+    assert.equal(runtime.APP_BASE, '/')
+    assert.equal(runtime.TENANT_SLUG, 'centre-paris')
+  } finally { delete globalThis.document; delete globalThis.window }
+})

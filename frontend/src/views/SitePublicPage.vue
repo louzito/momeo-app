@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { applySiteMetadata } from '@/utils/siteMetadata'
 import { getPublishedSitePage } from '@/api/sitePublication'
 import SitePageContent from '@/components/site/SitePageContent.vue'
 import LegacyHome from './TenantHome.vue'
@@ -21,10 +22,10 @@ async function load() {
     if (value) {
       const canonical = value.role === 'home' ? '/' : ['terms', 'mentions'].includes(value.role) ? `/legal/${value.role}` : `/${value.slug}`
       if (route.path !== canonical) { await router.replace(canonical); return }
-      document.title = `${value.seo.title || value.title} · TodaTempo`
+      applySiteMetadata(value.metadata)
     }
   } catch (e) { if (current === request) error.value = e.message }
-  finally { if (current === request) loading.value = false }
+  finally { if (current === request) { loading.value = false; document.getElementById('site-initial')?.remove() } }
 }
 watch(() => route.path, load, { immediate: true })
 </script>

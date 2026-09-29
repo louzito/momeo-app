@@ -65,4 +65,15 @@ final class CustomDomainTest extends TestCase
         self::assertStringContainsString('redir @booking_example_org_root /alpha/ 308', $caddy);
         self::assertStringContainsString('@booking_example_org_wrong_tenant', $caddy);
     }
+    public function testPrefixedEditorialRequestsReachTheBackendAndAssetsStaySeparate(): void
+    {
+        $dumper = new CaddyConfigDumper($this->registry, $this->directory, 'alpha', 'https://app.todatempo.test/prefix');
+        $config = file_get_contents($dumper->dump());
+        self::assertStringContainsString('handle /prefix/alpha/*', $config);
+        self::assertStringContainsString('uri strip_prefix /prefix/alpha', $config);
+        self::assertStringContainsString('rewrite * /api/v2/shop/site/html{uri}', $config);
+        self::assertStringContainsString('header_up X-TodaTempo-Tenant "alpha"', $config);
+        self::assertStringContainsString('/prefix/site-assets/*', $config);
+        self::assertStringContainsString('handle /alpha/*', $config);
+    }
 }

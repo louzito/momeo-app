@@ -34,6 +34,8 @@ const tenantRewrite = () => ({
 export default defineConfig(({ mode }) => ({
   base: loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_').VITE_APP_BASE || '/',
   plugins: [vue(), tenantRewrite()],
+  // Avoid collisions with Sylius' /assets on the shared reverse proxy.
+  build: { assetsDir: 'site-assets' },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

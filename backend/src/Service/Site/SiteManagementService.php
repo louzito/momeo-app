@@ -9,7 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class SiteManagementService
 {
-    public function __construct(private readonly EntityManagerInterface $em, private readonly SiteDocumentValidator $validator, private readonly SiteLinkResolver $links, private readonly SiteMediaReferences $media, private readonly ?SiteTemplateService $templates = null) {}
+    public function __construct(private readonly EntityManagerInterface $em, private readonly SiteDocumentValidator $validator, private readonly SiteLinkResolver $links, private readonly SiteMediaReferences $media, private readonly ?SiteTemplateService $templates = null, private readonly ?SiteSeoService $seo = null) {}
 
     public function publicMedia(array $document): array { return $this->media->publicMedia($document); }
     public function pages(): array { return $this->em->getRepository(SitePage::class)->findBy([], ['slug' => 'ASC']); }
@@ -97,6 +97,7 @@ final class SiteManagementService
         $document['role'] = $page->getRole();
         $document['media'] = (object) $document['media'];
         $document['links'] = (object) $document['links'];
+        if (!$preview && $this->seo) $document['metadata'] = $this->seo->metadata($document);
         return $document;
     }
     /** The active Doctrine connection is the current establishment's database. */

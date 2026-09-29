@@ -13,6 +13,8 @@ Application métier TodaTempo destinée aux établissements de soin et réunissa
   configuration, permissions, migrations, tenants, worker, cron,
   paiement/webhooks, SMTP, PDF, sauvegardes, santé, smoke test et rollback.
 
+- [Référencement et partage des pages](docs/site/search-and-sharing.md) : rendu HTML, sitemap, Node et routage du proxy.
+
 ## Configuration locale
 
 Les dépendances installées, fichiers générés, clés privées, factures et configurations locales ne sont pas enregistrés dans Git.
@@ -58,7 +60,7 @@ sur les dépendances, les assets et le cache Symfony. Yarn 1.22.22 est fixé dan
 `backend/package.json` et appelé par Corepack.
 
 `make deploy` utilise `APP_ENV=prod` et `APP_DEBUG=0`, vérifie la configuration
-privée du backend, construit `frontend/dist/` et `backend/public/build/`,
+privée du backend, construit `frontend/dist/`, le bundle privé `frontend/dist-ssr/` et `backend/public/build/`,
 recrée le cache Symfony, installe les assets des bundles puis demande l'arrêt
 propre des workers Messenger. Leur superviseur doit les relancer automatiquement.
 Apache/Nginx doit déjà servir ces répertoires et acheminer les appels API vers

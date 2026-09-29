@@ -11,7 +11,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * proxy (port 80) qui fait le decoupage multi-centres cote back —
  *   localhost/{slug}/api/*  -> Sylius (nginx) avec X-TodaTempo-Tenant: {slug}
  *                              (le prefixe est retire : Sylius ne le voit jamais)
- *   localhost/{slug}/*      -> front Vue (Vite en dev, build en prod)
+ *   localhost/{slug}/*      -> HTML editorial Symfony + bundle Vue SSR
  *   slug inconnu            -> 404 propre au proxy
  *   /admin, /_profiler, /api, /media, /assets -> Sylius (tenant par defaut)
  *
@@ -41,6 +41,8 @@ final class CaddyConfigDumper
             fn (string $slug): bool => $this->registry->isServable($slug),
         ));
         sort($slugs);
+        $prefix = rtrim((string) parse_url($this->publicBaseUrl, PHP_URL_PATH), '/');
+        if (!preg_match('#^(?:/[a-zA-Z0-9_-]+)*$#D', $prefix)) throw new \RuntimeException('Préfixe public invalide.');
         $fallbackHost = parse_url($this->publicBaseUrl, PHP_URL_HOST);
         $knownHosts = \is_string($fallbackHost) && $fallbackHost !== '' ? [$fallbackHost] : ['localhost'];
         $customDomains = [];
@@ -85,7 +87,7 @@ final class CaddyConfigDumper
             $out[] = "\t}";
             $out[] = "\t@{$id}_wrong_tenant {";
             $out[] = "\t\thost {$domain}";
-            $out[] = "\t\tnot path /{$slug} /{$slug}/* /media/* /assets/* /build/* /bundles/* /payment-methods/* /src/* /@vite/* /@id/* /@fs/* /favicon* /vite.svg";
+            $out[] = "\t\tnot path /{$slug} /{$slug}/* /media/* /assets/* /site-assets/* {$prefix}/site-assets/* /build/* /bundles/* /payment-methods/* /src/* /@vite/* /@id/* /@fs/* /favicon* /vite.svg";
             $out[] = "\t}";
             $out[] = "\trespond @{$id}_wrong_tenant \"Centre inconnu.\" 404";
         }
@@ -93,7 +95,7 @@ final class CaddyConfigDumper
             $out[] = '';
         }
         $out[] = "\t# Racine -> centre par defaut";
-        $out[] = "\tredir / /{$this->defaultTenant}/ 302";
+        $out[] = "\tredir / {$prefix}/{$this->defaultTenant}/ 302";
         $out[] = '';
         $out[] = "\t# Panel Sylius, profiler, API legacy (tenant par defaut), medias, assets Sylius";
         $out[] = "\t@sylius path /admin* /_profiler* /_wdt* /api/* /media/* /assets/* /build/* /bundles/* /payment-methods/*";
@@ -104,23 +106,32 @@ final class CaddyConfigDumper
 
         foreach ($slugs as $slug) {
             $id = str_replace('-', '_', $slug);
-            $out[] = "\t# --- centre : {$slug}";
-            $out[] = "\t@{$id}_api path_regexp {$id}api ^/{$slug}/api(/.*)?$";
-            $out[] = "\thandle @{$id}_api {";
-            $out[] = "\t\turi strip_prefix /{$slug}";
-            $out[] = "\t\treverse_proxy {$sylius} {";
-            $out[] = sprintf("\t\t\theader_up %s \"%s\"", TenantIdentifierResolver::HTTP_HEADER, $slug);
-            $out[] = "\t\t}";
-            $out[] = "\t}";
-            $out[] = "\tredir /{$slug} /{$slug}/ 302";
-            $out[] = "\thandle /{$slug}/* {";
-            $out[] = "\t\treverse_proxy {$front}";
-            $out[] = "\t}";
-            $out[] = '';
+            // Shared host may have a prefix; verified custom domains retain /{tenant}/.
+            $paths = $prefix === '' ? ["/{$slug}"] : ["{$prefix}/{$slug}", "/{$slug}"];
+            foreach ($paths as $index => $tenantPath) {
+                $id = str_replace('-', '_', $slug).'_'.$index;
+                $out[] = "\t# --- centre : {$slug}";
+                $out[] = "\t@{$id}_api path_regexp {$id}api ^{$tenantPath}/api(/.*)?$";
+                $out[] = "\thandle @{$id}_api {";
+                $out[] = "\t\turi strip_prefix {$tenantPath}";
+                $out[] = "\t\treverse_proxy {$sylius} {";
+                $out[] = sprintf("\t\t\theader_up %s \"%s\"", TenantIdentifierResolver::HTTP_HEADER, $slug);
+                $out[] = "\t\t}";
+                $out[] = "\t}";
+                $out[] = "\tredir {$tenantPath} {$tenantPath}/ 302";
+                $out[] = "\thandle {$tenantPath}/* {";
+                $out[] = "\t\turi strip_prefix {$tenantPath}";
+                $out[] = "\t\trewrite * /api/v2/shop/site/html{uri}";
+                $out[] = "\t\treverse_proxy {$sylius} {";
+                $out[] = sprintf("\t\t\theader_up %s \"%s\"", TenantIdentifierResolver::HTTP_HEADER, $slug);
+                $out[] = "\t\t}";
+                $out[] = "\t}";
+                $out[] = '';
+            }
         }
 
         $out[] = "\t# Assets du dev server Vite (chemins absolus sans slug)";
-        $out[] = "\t@vite path /src/* /@vite/* /@id/* /@fs/* /@react-refresh /node_modules/* /favicon* /vite.svg";
+        $out[] = "\t@vite path /site-assets/* {$prefix}/site-assets/* /src/* /@vite/* /@id/* /@fs/* /@react-refresh /node_modules/* /favicon* /vite.svg";
         $out[] = "\thandle @vite {";
         $out[] = "\t\treverse_proxy {$front}";
         $out[] = "\t}";

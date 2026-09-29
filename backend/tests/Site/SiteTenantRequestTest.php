@@ -23,6 +23,8 @@ final class SiteTenantRequestTest extends TestCase
         yield ['/api/v2/admin/site/import'];
         yield ['/api/v2/admin/site/pages/123/preview'];
         yield ['/api/v2/shop/site/roles/home'];
+        yield ['/api/v2/shop/site/html/contact'];
+        yield ['/api/v2/shop/site/html/sitemap.xml'];
         yield ['/api/v2/admin/site/appearance'];
         yield ['/api/v2/shop/checkout'];
         yield ['/api/v2/admin/site/media'];

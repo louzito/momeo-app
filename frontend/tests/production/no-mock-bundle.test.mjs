@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 test('le bundle de production ne contient aucune fixture ni API mock', async () => {
-  const assets = new URL('../../dist/assets/', import.meta.url)
+  const assets = new URL('../../dist/site-assets/', import.meta.url)
   const files = (await readdir(assets)).filter((name) => name.endsWith('.js'))
   assert.ok(files.length > 0, 'le build doit produire au moins un asset JavaScript')
   const bundle = (await Promise.all(files.map((name) => readFile(new URL(name, assets), 'utf8')))).join('\n')

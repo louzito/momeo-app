@@ -1,3 +1,4 @@
+import { clearSiteMetadata } from '@/utils/siteMetadata'
 import { createRouter, createWebHistory } from 'vue-router'
 import { TENANT_SLUG, TENANT_ERROR, APP_BASE } from '@/api/config'
 
@@ -319,6 +320,7 @@ const router = createRouter({
 // La garde améliore l'UX ; l'autorisation réelle reste appliquée par l'API.
 router.beforeEach(async (to) => {
   if (to.name === 'admin-settings' && (to.query.section === 'appearance' || to.query.tab === 'appearance')) return { name: 'admin-site-appearance' }
+  clearSiteMetadata()
   document.title = to.meta?.title ? `${to.meta.title} · TodaTempo` : 'TodaTempo'
 
   if (['checkout-schedule', 'checkout-eligibility', 'checkout-gift'].includes(to.name)) {
@@ -365,3 +367,7 @@ router.beforeEach(async (to) => {
 })
 
 export default router
+
+router.afterEach((to) => {
+  if (!['tenant-home', 'legal-page', 'site-page'].includes(to.name)) document.getElementById('site-initial')?.remove()
+})

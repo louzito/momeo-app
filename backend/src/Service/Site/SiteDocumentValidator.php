@@ -30,7 +30,8 @@ final class SiteDocumentValidator
         $this->text($page['title'], 160);
         $this->slug($page['slug']);
         if (!is_array($page['seo']) || !is_array($page['document'])) $this->invalid();
-        $this->keys($page['seo'], ['title', 'description']);
+        $this->keys($page['seo'], ['title', 'description'], ['imageId']);
+        if (isset($page['seo']['imageId'])) $this->text($page['seo']['imageId'], 32);
         $this->text($page['seo']['title'], 160, true);
         $this->text($page['seo']['description'], 320, true);
         $doc = $page['document'];

@@ -9,7 +9,8 @@
 
 export const USE_REAL_API = true
 
-export const APP_BASE = import.meta.env?.BASE_URL || '/'
+// The HTML gateway knows the registered domain's base, including custom domains.
+export const APP_BASE = (typeof document !== 'undefined' ? document.querySelector('meta[name="todatempo-app-base"]')?.content : null) || import.meta.env?.BASE_URL || '/'
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/
 

@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { RouterLink } from 'vue-router'
+const serverBase = inject('siteServerBase', null)
 const props = defineProps({ link: { type: Object, required: true } })
 // Internal destinations always stay relative to Vue Router's tenant base.
 const safe = computed(() => props.link.external
@@ -9,5 +10,6 @@ const safe = computed(() => props.link.external
 </script>
 <template>
   <a v-if="safe && link.external" :href="link.url" rel="noopener noreferrer"><slot /></a>
+  <a v-else-if="safe && serverBase" :href="serverBase + link.url"><slot /></a>
   <RouterLink v-else-if="safe" :to="'/' + link.url"><slot /></RouterLink>
 </template>

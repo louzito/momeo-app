@@ -12,7 +12,7 @@ final class SiteMediaReferences
     public function __construct(private readonly EntityManagerInterface $em) {}
     public static function ids(?array $document): array
     {
-        $ids = [];
+        $ids = isset($document['seo']['imageId']) ? [$document['seo']['imageId']] : [];
         foreach ($document['document']['blocks'] ?? [] as $block) {
             $images = match ($block['type']) {
                 'image', 'banner' => empty($block['props']['mediaId']) ? [] : [$block['props']],
