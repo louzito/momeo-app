@@ -8,12 +8,12 @@ const route = useRoute()
 const page = ref(null), draft = ref(null), saved = ref(''), pages = ref([]), media = ref({})
 const loading = ref(true), saving = ref(false), error = ref(''), notice = ref(''), conflict = ref(false)
 const selected = ref(null), kind = ref('banner'), mobile = ref(false), dragged = ref(null)
-const labels = { banner: 'Bannière', text: 'Texte riche', imageText: 'Image et texte', gallery: 'Galerie', faq: 'Questions fréquentes', practical: 'Informations pratiques' }
+const labels = { banner: 'Bannière', text: 'Texte riche', imageText: 'Image et texte', gallery: 'Galerie', faq: 'Questions fréquentes', practical: 'Informations pratiques', catalog: 'Catalogue', giftCard: 'Carte cadeau' }
 const dirty = computed(() => draft.value && JSON.stringify(draft.value) !== saved.value)
 const active = computed(() => draft.value?.document.blocks.find(b => b.id === selected.value))
 const blank = () => ({ type: 'doc', content: [{ type: 'paragraph' }] })
 function add() {
-  const value = { banner: { mediaId: null, alt: '', title: 'Bienvenue', text: '', button: null }, text: { content: blank() }, imageText: { image: null, title: '', content: blank(), position: 'left' }, gallery: { images: [] }, faq: { title: 'Questions fréquentes', items: [] }, practical: { title: 'Informations pratiques', address: '', phone: '', email: '', hours: '', link: null } }[kind.value]
+  const value = { catalog: { title: 'Notre sélection', mode: 'selection', category: 'prestations', codes: [], limit: 3, buttonLabel: 'Voir la boutique' }, giftCard: { title: 'Offrir une carte cadeau', text: '', image: null, buttonLabel: 'Choisir le montant' }, banner: { mediaId: null, alt: '', title: 'Bienvenue', text: '', button: null }, text: { content: blank() }, imageText: { image: null, title: '', content: blank(), position: 'left' }, gallery: { images: [] }, faq: { title: 'Questions fréquentes', items: [] }, practical: { title: 'Informations pratiques', address: '', phone: '', email: '', hours: '', link: null } }[kind.value]
   const block = { id: crypto.randomUUID(), type: kind.value, props: value, hidden: false, variant: 'light', align: 'left' }
   draft.value.document.blocks.push(block); selected.value = block.id
 }
@@ -87,7 +87,7 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
       </div>
       <section class="min-w-0 rounded-xl border bg-slate-100 p-3" aria-label="Aperçu de la page">
         <div class="mb-4 flex flex-wrap items-center gap-3"><h2 class="font-semibold">Aperçu</h2><button class="btn-outline" :aria-pressed="!mobile" @click="mobile = false">Ordinateur</button><button class="btn-outline" :aria-pressed="mobile" @click="mobile = true">Mobile</button></div>
-        <div class="mx-auto max-w-full" :style="{ width: mobile ? '360px' : '100%', containerType: 'inline-size', containerName: 'site-page' }"><SiteSections :blocks="draft.document.blocks" :media="media" :links="links" /></div>
+        <div class="mx-auto max-w-full" :style="{ width: mobile ? '360px' : '100%', containerType: 'inline-size', containerName: 'site-page' }"><SiteSections :blocks="draft.document.blocks" editor :media="media" :links="links" /></div>
       </section>
     </template>
   </div>

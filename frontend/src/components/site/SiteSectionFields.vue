@@ -1,4 +1,5 @@
 <script setup>
+import SiteCatalogFields from './SiteCatalogFields.vue'
 import SiteRichTextEditor from './SiteRichTextEditor.vue'
 import SiteMediaPicker from './SiteMediaPicker.vue'
 import SiteLinkEditor from './SiteLinkEditor.vue'
@@ -9,20 +10,23 @@ function image(value) { emit('media', value); return { mediaId: value.id, alt: v
 function choose(value, index) {
   const ref = image(value)
   if (props.block.type === 'gallery') { if (index == null) props.block.props.images.push(ref); else props.block.props.images[index] = ref }
-  else if (props.block.type === 'imageText') props.block.props.image = ref
+  else if (['imageText', 'giftCard'].includes(props.block.type)) props.block.props.image = ref
   else Object.assign(props.block.props, ref)
 }
 </script>
 <template>
   <fieldset :disabled="disabled" class="min-w-0 space-y-4">
     <legend class="mb-3 font-semibold">Paramètres de la section</legend>
+    <SiteCatalogFields v-if="block.type === 'catalog'" :block="block" />
+    <label v-if="['catalog', 'giftCard'].includes(block.type)" class="block">Texte du bouton <input v-model="block.props.buttonLabel" class="input" maxlength="100" :required="block.type === 'giftCard'" /></label>
     <label class="block">Fond <select v-model="block.variant" class="input"><option value="light">Clair</option><option value="color">Couleur du thème</option></select></label>
     <label class="block">Alignement <select v-model="block.align" class="input"><option value="left">À gauche</option><option value="center">Centré</option></select></label>
     <label v-if="'title' in block.props" class="block">Titre <input v-model="block.props.title" class="input" maxlength="200" /></label>
-    <label v-if="block.type === 'banner'" class="block">Texte <textarea v-model="block.props.text" class="input" maxlength="2000" /></label>
-    <template v-if="['banner', 'image', 'imageText'].includes(block.type)">
+    <label v-if="['banner', 'giftCard'].includes(block.type)" class="block">Texte <textarea v-model="block.props.text" class="input" maxlength="2000" /></label>
+    <template v-if="['banner', 'image', 'imageText', 'giftCard'].includes(block.type)">
+      <button v-if="block.type === 'giftCard' && block.props.image" type="button" class="btn-ghost" @click="block.props.image = null">Retirer l’image</button>
       <p class="font-medium">Image</p><SiteMediaPicker :disabled="disabled" @select="choose($event)" />
-      <label v-if="block.type !== 'imageText'" class="block">Texte alternatif <input v-model="block.props.alt" class="input" maxlength="300" /></label>
+      <label v-if="!['imageText', 'giftCard'].includes(block.type)" class="block">Texte alternatif <input v-model="block.props.alt" class="input" maxlength="300" /></label>
       <label v-else-if="block.props.image" class="block">Texte alternatif <input v-model="block.props.image.alt" class="input" maxlength="300" /></label>
       <label v-if="block.type === 'imageText'" class="block">Position de l’image <select v-model="block.props.position" class="input"><option value="left">À gauche</option><option value="right">À droite</option></select></label>
     </template>

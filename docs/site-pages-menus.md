@@ -167,3 +167,51 @@ du cache utilisable et accès npm bloqué par le DNS. Installation Composer comp
 également impossible (archives manquantes) ; les dépendances disponibles suffisent
 aux tests ciblés. Ni contrôle du conteneur Symfony complet, ni migration MySQL
 hébergée, ni tests navigateur ne sont annoncés validés.
+
+Ticket #130 — sections connectées (étape 6)
+
+Les dépendances #129, #120 et #122 sont intégrées dans l’historique de `main`.
+L’éditeur propose désormais huit sections : les six sections éditoriales,
+Catalogue et Carte cadeau. Les anciens blocs restent compatibles.
+
+`catalog` contient `title`, `mode` (`selection` ou `category`), `category`
+(`prestations` ou `produits`, catégories de BOUTIQUE V2), `codes` (jusqu’à
+12 codes Sylius distincts), `limit` (entier de 1 à 12), `buttonLabel` (vide pour
+masquer le bouton). Les références sont vérifiées dans la connexion Doctrine du
+tenant lors des sauvegardes, duplications, restaurations et publications.
+Les prix et autres données commerciales ne font jamais partie de l’instantané.
+
+`giftCard` contient `title`, `text`, `image` (référence média ou `null`) et
+`buttonLabel`. L’image participe aux contrôles de tenant et au suivi d’utilisation
+des médias. Le bouton mène exclusivement au parcours `gift-card-purchase` ; les
+anciens bons et leur utilisation ne sont pas modifiés.
+
+`SiteSections` rend ces blocs via `SiteConnectedSection`, également dans l’aperçu
+BO (`editor`). Celui-ci expose chargement, erreurs avec réessai et états vides.
+Côté public, une section vide, désactivée ou dont le chargement échoue ne laisse
+aucun encart. Les cartes prestations existantes et les cartes produits extraites
+de `ShopPage` sont partagées avec la boutique. Une rupture conserve l’information
+et désactive le bouton d’achat. La vente cadeau dépend de l’offre serveur courante
+et l’achat exige un moyen de paiement disponible.
+
+Chaque montage de section relit les API boutique avec les en-têtes du tenant,
+sans reprendre le catalogue mémorisé dans Pinia. Les lectures HTTP catalogue,
+configuration, canal et offre cadeau utilisent `cache: no-store` ; les pages
+publiques conservent leur réponse `private, no-store`. Aucun cache commercial
+n’est attaché à une publication : prix, noms, images, suppressions et paramètres
+de vente sont donc pris en compte au prochain chargement sans republier.
+Les catégories respectent l’ordre configuré de la boutique, les sélections l’ordre
+des codes. Le routage/publication des pages reste celui prévu par la suite de la
+série ; ce ticket complète le composant de rendu partagé de l’étape 5.
+
+Vérifications #130 : 81 tests site / 159 assertions, 218 tests ciblés de
+permissions, cadeaux et gestion produits / 416 assertions, 21 suites unitaires
+frontend, build Vite et contrôle du bundle de production réussis. Aucun ajout de dépendance. Les scénarios
+Playwright sont fournis pour mobile et ordinateur mais non exécutés : archive
+`playwright-core@1.55.0` absente du cache et accès réseau indisponible.
+L’installation Composer complète est également empêchée par des archives
+manquantes ; les dépendances disponibles permettent les tests ciblés ci-dessus.
+L’essai élargi des tests d’intégration paiement/commande ne peut pas démarrer le
+kernel : `ApiPlatformBundle` manque dans l’installation partielle. Il n’est
+pas annoncé comme réussi. Aucune migration, modification Git ou opération de
+déploiement n’a été exécutée.

@@ -25,7 +25,9 @@ async function apiGet(path, params = {}) {
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null) url.searchParams.set(k, v)
   })
-  const res = await fetch(url.toString(), { headers: tenantHeaders({ Accept: 'application/ld+json' }) })
+  // Catalogue reads must not retain prices or availability between page visits.
+  const cache = /^\/shop\/(products|physical-products|channels|taxons|gift-cards\/offer)(\/|$)/.test(path) ? 'no-store' : 'default'
+  const res = await fetch(url.toString(), { cache, headers: tenantHeaders({ Accept: 'application/ld+json' }) })
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
   if (!res.ok) {

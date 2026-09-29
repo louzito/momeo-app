@@ -39,6 +39,7 @@ final class SiteManagementService
         $this->validator->page($data);
         $this->links->validatePage($data);
         $this->media->validate($data);
+        $this->validateCatalog($data);
         $this->uniqueSlug($data['slug'], $page);
         $page->revise($data);
         $this->media->sync($page);
@@ -50,6 +51,7 @@ final class SiteManagementService
         $draft = $this->validator->page(array_replace($page->getDraft(), $data));
         $this->links->validatePage($draft);
         $this->media->validate($draft);
+        $this->validateCatalog($draft);
         $this->uniqueSlug($draft['slug']);
         $copy = new SitePage($draft);
         $this->em->persist($copy);
@@ -70,11 +72,26 @@ final class SiteManagementService
         $this->em->wrapInTransaction(function () use ($page): void {
             $this->validator->page($page->getDraft());
             $this->media->validate($page->getDraft());
+            $this->validateCatalog($page->getDraft());
             $this->links->validatePage($page->getDraft(), true);
             $this->uniqueSlug($page->getSlug(), $page);
             $page->publish();
             $this->media->sync($page);
         });
+    }
+    /** The active Doctrine connection is the current establishment's database. */
+    private function validateCatalog(array $document): void
+    {
+        foreach ($document['document']['blocks'] as $block) {
+            if ($block['type'] === 'catalog') {
+                foreach ($block['props']['codes'] as $code) {
+                    $product = $this->em->getRepository(\App\Entity\Product\Product::class)->findOneBy(['code' => $code]);
+                    if (!$product instanceof \App\Entity\Product\Product || !in_array($product->getTodatempoType(), ['service', 'physical'], true)) {
+                        throw new \InvalidArgumentException('Une offre est introuvable dans cet établissement. Retirez-la de la sélection.');
+                    }
+                }
+            }
+        }
     }
     private function uniqueSlug(string $slug, ?SitePage $current = null): void
     {
@@ -131,6 +148,7 @@ final class SiteManagementService
             if (!$page || $page->isArchived()) throw new \InvalidArgumentException('Page introuvable ou archivée.');
             $this->validator->page($page->getDraft());
             $this->media->validate($page->getDraft());
+            $this->validateCatalog($page->getDraft());
             $this->uniqueSlug($page->getSlug(), $page);
             $this->links->validatePage($page->getDraft(), true, $pageIds);
             $pages[] = $page;

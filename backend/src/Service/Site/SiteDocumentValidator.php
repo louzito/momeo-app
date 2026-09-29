@@ -47,6 +47,22 @@ final class SiteDocumentValidator
             $ids[$block['id']] = true;
             $props = $block['props'];
             switch ($block['type']) {
+                case 'catalog':
+                    $this->keys($props, ['title', 'mode', 'category', 'codes', 'limit', 'buttonLabel']);
+                    $this->text($props['title'], 200, true);
+                    $this->text($props['buttonLabel'], 100, true);
+                    if (!in_array($props['mode'], ['selection', 'category'], true) || !in_array($props['category'], ['prestations', 'produits'], true)) $this->invalid();
+                    if (!is_int($props['limit']) || $props['limit'] < 1 || $props['limit'] > 12) $this->invalid();
+                    if (!is_array($props['codes']) || !array_is_list($props['codes']) || count($props['codes']) > 12 || count(array_unique($props['codes'], SORT_REGULAR)) !== count($props['codes'])) $this->invalid();
+                    foreach ($props['codes'] as $code) $this->text($code, 255);
+                    break;
+                case 'giftCard':
+                    $this->keys($props, ['title', 'text', 'image', 'buttonLabel']);
+                    $this->text($props['title'], 200, true);
+                    $this->text($props['text'], 2000, true);
+                    $this->text($props['buttonLabel'], 100);
+                    if ($props['image'] !== null) $this->image($props['image']);
+                    break;
                 case 'image':
                     $this->image($props);
                     break;

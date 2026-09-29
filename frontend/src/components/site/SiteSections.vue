@@ -1,14 +1,16 @@
 <script setup>
+import SiteConnectedSection from './SiteConnectedSection.vue'
 import SiteMediaImage from './SiteMediaImage.vue'
 import SiteRichText from './SiteRichText.vue'
 import SitePublicLink from './SitePublicLink.vue'
-const props = defineProps({ blocks: { type: Array, default: () => [] }, media: { type: Object, default: () => ({}) }, links: { type: Object, default: () => ({}) } })
+const props = defineProps({ editor: Boolean, blocks: { type: Array, default: () => [] }, media: { type: Object, default: () => ({}) }, links: { type: Object, default: () => ({}) } })
 function resolve(link) { return link ? props.links[JSON.stringify(link)] : null }
 </script>
 <template>
   <div class="space-y-6 break-words">
     <template v-for="block in blocks" :key="block.id">
-      <section v-if="!block.hidden" class="rounded-xl p-5" :class="[block.variant === 'color' ? 'bg-brand-50 text-brand-900' : 'bg-white text-slate-900', block.align === 'center' ? 'text-center' : 'text-left']">
+      <SiteConnectedSection v-if="!block.hidden && ['catalog', 'giftCard'].includes(block.type)" :block="block" :media="media" :editor="editor" />
+      <section v-else-if="!block.hidden" class="rounded-xl p-5" :class="[block.variant === 'color' ? 'bg-brand-50 text-brand-900' : 'bg-white text-slate-900', block.align === 'center' ? 'text-center' : 'text-left']">
         <template v-if="block.type === 'banner' || block.type === 'image'">
           <SiteMediaImage v-if="media[block.props.mediaId]" :media="media[block.props.mediaId]" :alt="block.props.alt" :eager="block.type === 'banner'" />
           <h2 v-if="block.props.title" class="mt-4 text-3xl font-bold">{{ block.props.title }}</h2>
