@@ -7,7 +7,9 @@ import { RouterLink } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { SOCIAL_NETWORKS } from '@/utils/socialIcons'
 
+const props = defineProps({ navigation: { type: Object, default: null } })
 const tenantStore = useTenantStore()
+const siteNavigation = computed(() => ({ ...tenantStore.siteNavigation, ...props.navigation }))
 const tenant = computed(() => tenantStore.current)
 
 // Reseaux sociaux configures (on n'affiche que ceux renseignes),
@@ -75,7 +77,7 @@ const legalLinks = computed(() => {
         </div>
 
         <div>
-          <nav v-if="tenantStore.siteNavigation?.footer" aria-label="Pied de page"><SitePublicMenu :items="tenantStore.siteNavigation.footer" /></nav>
+          <nav v-if="siteNavigation?.footer" aria-label="Pied de page"><SitePublicMenu :items="siteNavigation.footer" /></nav>
           <template v-else>
           <p class="mb-3 text-sm font-semibold uppercase tracking-wide">Réserver</p>
           <ul class="space-y-2 text-sm">

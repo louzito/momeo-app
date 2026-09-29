@@ -35,7 +35,7 @@ final class SiteMediaReferences
     /** Called in the same flush as the page, retaining both draft and published references. */
     public function sync(SitePage $page): void
     {
-        $ids = array_unique([...self::ids($page->getDraft()), ...self::ids($page->getPublished())]);
+        $ids = array_unique([...self::ids($page->getDraft()), ...self::ids($page->getPublished()), ...self::ids($page->getLegacyPublished())]);
         foreach ($this->em->getRepository(SiteMediaUsage::class)->findBy(['page' => $page]) as $usage) {
             $id = $usage->getMedia()->getId();
             if (!in_array($id, $ids, true)) $this->em->remove($usage);

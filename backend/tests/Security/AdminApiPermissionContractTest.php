@@ -21,6 +21,10 @@ final class AdminApiPermissionContractTest extends TestCase
     public static function accessDecisions(): iterable
     {
         $domains = [
+            'site/publish' => [TeamRole::Manager, false],
+            'site/import' => [TeamRole::Manager, false],
+            'site/pages/123/preview' => [TeamRole::Reception, false],
+            'site/menus/main/restore' => [TeamRole::Practitioner, false],
             'bookings' => [TeamRole::Practitioner, true],
             'clients' => [TeamRole::Practitioner, false],
             'payments' => [TeamRole::Reception, false],

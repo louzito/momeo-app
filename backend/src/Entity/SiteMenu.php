@@ -23,6 +23,10 @@ class SiteMenu
     #[ORM\Version]
     private int $revision = 1;
 
+    #[ORM\Column(type: 'integer')]
+    private int $draftVersion = 0;
+    public function touchDraft(): void { ++$this->draftVersion; }
+
     public function __construct(string $location)
     {
         if (!in_array($location, ['main', 'footer'], true)) throw new \InvalidArgumentException('Emplacement de menu invalide.');

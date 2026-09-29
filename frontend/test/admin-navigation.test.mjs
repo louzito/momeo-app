@@ -70,3 +70,16 @@ test('une seule sélection sur les détails, les rubriques et les URLs historiqu
   assert.equal(settingsSection({ section: ['home', 'terms'] }), 'general')
   assert.equal(settingsSection({ section: '__proto__' }), 'general')
 })
+
+
+test('les pages publiques ne remplacent aucune route métier ou protégée', () => {
+  for (const [path, name] of [
+    ['/notre-institut', 'site-page'], ['/', 'tenant-home'], ['/legal/terms', 'legal-page'],
+    ['/cart', 'cart'], ['/shop', 'shop'], ['/account', 'account-dashboard'],
+    ['/checkout/schedule', 'checkout-schedule'], ['/gift-card', 'gift-card-purchase'],
+    ['/services/soin', 'jump-detail'], ['/admin/site/preview/page-id', 'admin-site-preview'],
+  ]) assert.equal(router.resolve(path).name, name, path)
+  const preview = router.resolve('/admin/site/preview/page-id')
+  assert.equal(preview.meta.requiresAdmin, true)
+  assert.equal(preview.meta.permission, 'settings')
+})

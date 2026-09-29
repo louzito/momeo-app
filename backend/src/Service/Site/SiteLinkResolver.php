@@ -23,7 +23,7 @@ final class SiteLinkResolver
             throw new \InvalidArgumentException('La page liée est introuvable dans cet établissement.');
         }
         $document = $published && !in_array($page->getId(), $publishing, true) ? $page->getPublished() : $page->getDraft();
-        return $document === null ? null : $document['slug'];
+        return $document === null ? null : match ($page->getRole()) { 'home' => '', 'terms' => 'legal/terms', 'mentions' => 'legal/mentions', default => $document['slug'] };
     }
     public function validatePage(array $page, bool $published = false, array $publishing = []): void
     {
@@ -37,15 +37,16 @@ final class SiteLinkResolver
             if ($link !== null && $this->resolve($link, $published, $publishing) === null) throw new \InvalidArgumentException('Publiez d’abord la page liée.');
         }
     }
-    public function menu(array $items, bool $published = false, bool $hiddenParent = false): array
+    public function menu(array $items, bool $published = false, bool $hiddenParent = false, bool $preview = false): array
     {
         $result = [];
         foreach ($items as $item) {
-            if ($published && ($item['hidden'] ?? false)) continue;
+            if (($published || $preview) && ($item['hidden'] ?? false)) continue;
             $hidden = $hiddenParent || ($item['hidden'] ?? false);
             $url = $this->resolve($item['link'], $published, [], !$published && $hidden);
             if ($url === null) continue;
-            $result[] = ['label' => $item['label'], 'url' => $url, 'external' => $item['link']['type'] === 'external', 'children' => $this->menu($item['children'] ?? [], $published, $hidden)];
+            if ($preview && $item['link']['type'] === 'page') $url = 'admin/site/preview/'.$item['link']['target'];
+            $result[] = ['label' => $item['label'], 'url' => $url, 'external' => $item['link']['type'] === 'external', 'children' => $this->menu($item['children'] ?? [], $published, $hidden, $preview)];
         }
         return $result;
     }

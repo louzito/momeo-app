@@ -1,13 +1,15 @@
 <script setup>
 // MONO-CENTRE : plus de selecteur de centre — le site EST le centre.
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import SitePublicMenu from '@/components/site/SitePublicMenu.vue'
 import SitePublicLink from '@/components/site/SitePublicLink.vue'
 import { RouterLink } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { useSessionStore } from '@/stores/session'
 
+const props = defineProps({ navigation: { type: Object, default: null } })
 const tenantStore = useTenantStore()
+const siteNavigation = computed(() => ({ ...tenantStore.siteNavigation, ...props.navigation }))
 const session = useSessionStore()
 const mobileOpen = ref(false)
 </script>
@@ -34,7 +36,7 @@ const mobileOpen = ref(false)
 
       <!-- Nav desktop -->
       <nav aria-label="Menu principal" class="hidden items-center gap-1 md:flex">
-        <SitePublicMenu v-if="tenantStore.siteNavigation?.main" :items="tenantStore.siteNavigation.main" horizontal />
+        <SitePublicMenu v-if="siteNavigation?.main" :items="siteNavigation.main" horizontal />
         <template v-else>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="nav-link">Prestations</RouterLink>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="nav-link">Boutique</RouterLink>
@@ -45,7 +47,7 @@ const mobileOpen = ref(false)
       <!-- Actions -->
       <div class="flex flex-wrap items-center gap-2">
         <RouterLink :to="{ name: 'cart' }" class="nav-link">Panier</RouterLink>
-        <SitePublicLink v-if="tenantStore.siteNavigation?.primary" :link="tenantStore.siteNavigation.primary" class="rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">Prendre rendez-vous</SitePublicLink>
+        <SitePublicLink v-if="siteNavigation?.primary" :link="siteNavigation.primary" class="rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">Prendre rendez-vous</SitePublicLink>
         <RouterLink
           v-if="session.isLoggedIn"
           :to="{ name: 'account-dashboard' }"
@@ -67,7 +69,7 @@ const mobileOpen = ref(false)
     <!-- Nav mobile -->
     <div v-if="mobileOpen" class="border-t border-white/10 md:hidden" :style="{ backgroundColor: 'var(--sb-header-bg, #020617)' }">
       <nav id="mobile-navigation" aria-label="Menu principal mobile" class="section flex flex-col py-2">
-        <SitePublicMenu v-if="tenantStore.siteNavigation?.main" :items="tenantStore.siteNavigation.main" @navigate="mobileOpen = false" />
+        <SitePublicMenu v-if="siteNavigation?.main" :items="siteNavigation.main" @navigate="mobileOpen = false" />
         <template v-else>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'prestations' } }" class="nav-link justify-start" @click="mobileOpen = false">Prestations</RouterLink>
         <RouterLink :to="{ name: 'shop', query: { categorie: 'produits' } }" class="nav-link justify-start" @click="mobileOpen = false">Boutique</RouterLink>

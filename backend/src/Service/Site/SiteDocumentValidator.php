@@ -7,8 +7,8 @@ namespace App\Service\Site;
 /** Closed, versioned vocabulary. Extend explicitly when introducing new sections. */
 final class SiteDocumentValidator
 {
-    public const ROUTES = ['home' => '', 'shop' => 'shop', 'products' => 'products', 'services' => 'shop?categorie=prestations', 'store' => 'shop?categorie=produits', 'booking' => 'shop?categorie=prestations', 'account' => 'account', 'gift-card' => 'gift-card', 'terms' => 'legal/terms', 'mentions' => 'legal/mentions'];
-    public const RESERVED = ['accueil', 'services', 'products', 'jump', 'calendar', 'waitlist', 'gift-card', 'checkout', 't', 'beneficiary', 'account', 'boarding-pass', 'admin', 'status', 'shop', 'legal', 'api', 'media', 'assets', 'login', 'logout', 'payment', 'reservation', 'robots', 'sitemap'];
+    public const ROUTES = ['home' => '', 'shop' => 'shop', 'products' => 'products', 'services' => 'shop?categorie=prestations', 'store' => 'shop?categorie=produits', 'booking' => 'shop?categorie=prestations', 'account' => 'account', 'beneficiary' => 'beneficiary/login', 'gift-card' => 'gift-card', 'terms' => 'legal/terms', 'mentions' => 'legal/mentions'];
+    public const RESERVED = ['accueil', 'services', 'products', 'jump', 'calendar', 'waitlist', 'gift-card', 'checkout', 'cart', 't', 'beneficiary', 'account', 'boarding-pass', 'admin', 'status', 'shop', 'legal', 'api', 'media', 'assets', 'login', 'logout', 'payment', 'reservation', 'robots', 'sitemap'];
 
     public function keys(array $value, array $required, array $optional = []): void
     {

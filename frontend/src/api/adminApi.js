@@ -61,6 +61,7 @@ function headers(contentType = 'application/ld+json', withAuth = true) {
 async function request(method, path, body, contentType, { auth = true } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     method,
+    cache: 'no-store',
     headers: headers(contentType, auth),
     body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
   })
@@ -986,7 +987,7 @@ export const createSitePage = (data) => request('POST', '/admin/site/pages', dat
 export const updateSitePage = (id, data) => request('PUT', `/admin/site/pages/${encodeURIComponent(id)}`, data, 'application/json')
 export const duplicateSitePage = (id, data) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/duplicate`, data, 'application/json')
 export const archiveSitePage = (id) => request('DELETE', `/admin/site/pages/${encodeURIComponent(id)}`)
-export const restoreSitePage = (id) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/restore`, {}, 'application/json')
+export const restoreSitePage = (id, revision) => request('POST', `/admin/site/pages/${encodeURIComponent(id)}/restore`, { revision }, 'application/json')
 export const getSiteMenu = (location) => request('GET', `/admin/site/menus/${location}`)
 export const saveSiteMenu = (location, data) => request('PUT', `/admin/site/menus/${location}`, data, 'application/json')
 
@@ -1004,3 +1005,9 @@ export const getSitePage = (id) => request('GET', `/admin/site/pages/${encodeURI
 
 export const getSiteAppearance = () => request('GET', '/admin/site/appearance')
 export const saveSiteAppearance = (value) => request('PUT', '/admin/site/appearance', value, 'application/json')
+
+export const getSitePreview = (id, menus = '') => request('GET', `/admin/site/pages/${encodeURIComponent(id)}/preview?menus=${encodeURIComponent(menus)}`)
+export const publishSite = (data) => request('POST', '/admin/site/publish', data, 'application/json')
+export const importLegacySite = () => request('POST', '/admin/site/import', {}, 'application/json')
+
+export const restoreSiteMenu = (location, revision) => request('POST', `/admin/site/menus/${location}/restore`, { revision }, 'application/json')

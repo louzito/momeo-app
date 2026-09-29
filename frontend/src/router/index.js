@@ -15,7 +15,7 @@ const tenantRoutes = [
   {
     path: '/',
     name: 'tenant-home',
-    component: () => import('@/views/TenantHome.vue'),
+    component: () => import('@/views/SitePublicPage.vue'),
     meta: { title: 'Accueil' },
   },
   // Alias historique : certains liens pointent encore le nom 'home'.
@@ -235,6 +235,14 @@ const tenantRoutes = [
     ],
   },
 
+  {
+    path: '/admin/site/preview/:id', name: 'admin-site-preview', component: () => import('@/views/admin/AdminSitePreview.vue'),
+    meta: { title: 'Aperçu privé', layout: 'admin', requiresAdmin: true, permission: 'settings' },
+  },
+  {
+    path: '/:slug([a-z0-9-]+)', name: 'site-page', component: () => import('@/views/SitePublicPage.vue'), meta: { title: 'Page' },
+  },
+
   // Facture imprimable : HORS layout admin (pas de sidebar a l'impression),
   // mais protegee comme le reste de l'espace centre.
   {
@@ -277,7 +285,7 @@ const tenantRoutes = [
     // Pages legales configurables (CGV / mentions) — liens auto dans le footer.
     path: '/legal/:page(terms|mentions)',
     name: 'legal-page',
-    component: () => import('@/views/LegalPage.vue'),
+    component: () => import('@/views/SitePublicPage.vue'),
     meta: { title: 'Informations legales' },
   },
   {

@@ -31,6 +31,15 @@ class SitePage
     #[ORM\Version]
     private int $revision = 1;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $legacyPublished = null;
+    public function getLegacyPublished(): ?array { return $this->legacyPublished; }
+    public function preserveLegacyPublished(array $document): void
+    {
+        if ($this->legacyPublished !== null) throw new \LogicException('La reprise est déjà conservée.');
+        $this->legacyPublished = $document;
+    }
+
     public function __construct(array $draft, ?string $role = null)
     {
         if (!in_array($role, [null, 'home', 'terms', 'mentions'], true)) throw new \InvalidArgumentException('Rôle de page invalide.');

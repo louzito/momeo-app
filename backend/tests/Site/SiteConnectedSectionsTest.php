@@ -34,12 +34,15 @@ final class SiteConnectedSectionsTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $products = $this->createMock(EntityRepository::class);
         $products->expects(self::exactly(2))->method('findOneBy')->with(['code' => 'massage'])->willReturn(null);
-        $em->method('getRepository')->with(Product::class)->willReturn($products);
+        $pages = $this->createStub(EntityRepository::class);
+        $pages->method('findBy')->willReturn([]);
+        $em->method('getRepository')->willReturnCallback(static fn (string $class) => $class === Product::class ? $products : $pages);
         $em->method('wrapInTransaction')->willReturnCallback(static fn (callable $work) => $work());
         $em->expects(self::never())->method('flush');
         $validator = new SiteDocumentValidator();
         $service = new SiteManagementService($em, $validator, new SiteLinkResolver($em, $validator), new SiteMediaReferences($em));
         $page = new SitePage($this->document());
+        $em->method('find')->willReturn($page);
         foreach ([fn () => $service->update($page, $this->document()), fn () => $service->publish($page)] as $operation) {
             try { $operation(); self::fail('Foreign reference accepted'); }
             catch (\InvalidArgumentException) { self::assertNull($page->getPublished()); }

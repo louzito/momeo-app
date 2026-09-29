@@ -2,11 +2,15 @@
 import { useRouter } from 'vue-router'
 import SitePageImagesEditor from '@/components/site/SitePageImagesEditor.vue'
 import { nextTick, onMounted, ref } from 'vue'
-import { getSitePages, createSitePage, updateSitePage, duplicateSitePage, archiveSitePage, restoreSitePage } from '@/api/adminApi'
+import { getSitePages, createSitePage, updateSitePage, duplicateSitePage, archiveSitePage, restoreSitePage, getSiteMenu, publishSite, importLegacySite } from '@/api/adminApi'
 
+import { invalidateSite } from '@/api/sitePublication'
 const router = useRouter()
 const templates = { blank: 'Page vide', home: 'Accueil', presentation: 'Présentation de l’établissement', contact: 'Contact' }
 const pages = ref([])
+const selection = ref([])
+const menuSelection = ref([])
+const menus = ref([])
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
@@ -20,7 +24,11 @@ const roles = { home: 'Accueil', terms: 'Conditions générales', mentions: 'Men
 async function load() {
   loading.value = true
   error.value = ''
-  try { pages.value = (await getSitePages()).member }
+  try {
+    const [result, main, footer] = await Promise.all([getSitePages(), getSiteMenu('main'), getSiteMenu('footer')])
+    pages.value = result.member; menus.value = [main, footer].filter(menu => menu.revision)
+    selection.value = []; menuSelection.value = []
+  }
   catch (e) { error.value = message(e, 'Impossible de charger les pages.') }
   finally { loading.value = false }
 }
@@ -62,11 +70,27 @@ async function action(page, restore = false) {
   if (!window.confirm(question)) return
   saving.value = true; error.value = ''; notice.value = ''
   try {
-    if (restore) await restoreSitePage(page.id)
+    if (restore) await restoreSitePage(page.id, page.revision)
     else await archiveSitePage(page.id)
+    invalidateSite()
     await load()
     notice.value = restore ? 'Dernière version publiée restaurée dans le brouillon.' : 'Page archivée.'
   } catch (e) { error.value = message(e, 'Impossible de modifier la page.') }
+  finally { saving.value = false }
+}
+async function publish(page = null) {
+  saving.value = true; error.value = ''; notice.value = ''
+  try {
+    await publishSite({ pages: (page ? [page] : pages.value.filter(p => selection.value.includes(p.id))).map(p => ({ id: p.id, revision: p.revision })), menus: page ? [] : menus.value.filter(m => menuSelection.value.includes(m.location)).map(m => ({ id: m.location, revision: m.revision })) })
+    invalidateSite()
+    await load(); notice.value = 'Votre sélection est maintenant publiée.'
+  } catch (e) { error.value = message(e, 'Impossible de publier. Votre site reste inchangé.') }
+  finally { saving.value = false }
+}
+async function importSite() {
+  saving.value = true; error.value = ''; notice.value = ''
+  try { const result = await importLegacySite(); await load(); notice.value = result.created.length ? 'Site repris dans les brouillons. Vérifiez les aperçus avant de publier.' : 'Les pages existent déjà. Aucun contenu n’a été remplacé.' }
+  catch (e) { error.value = message(e, 'Impossible de reprendre le site. Le site actuel reste disponible.') }
   finally { saving.value = false }
 }
 </script>
@@ -92,17 +116,26 @@ async function action(page, restore = false) {
       <div class="flex flex-wrap gap-3"><button type="submit" form="site-page-edit" class="btn-primary" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button><button type="button" class="btn-ghost" :disabled="saving" @click="close">Annuler</button></div>
     </section>
     <div v-else class="mt-6 space-y-4">
+      <section class="card space-y-3 p-5" aria-label="Publication du site">
+        <p>Enregistrer prépare un brouillon. Pour rendre vos changements visibles, publiez une page ou sélectionnez ensemble les pages et menus concernés.</p>
+        <div class="flex flex-wrap gap-4"><label v-for="menu in menus" :key="menu.location" class="flex items-center gap-2"><input v-model="menuSelection" type="checkbox" :value="menu.location" :disabled="saving" />{{ menu.location === 'main' ? 'Menu principal' : 'Pied de page' }}</label></div>
+        <div class="flex flex-wrap gap-3"><button class="btn-primary" :disabled="saving || (!selection.length && !menuSelection.length)" @click="publish()">{{ saving ? 'Veuillez patienter…' : 'Publier la sélection' }}</button><button class="btn-outline" :disabled="saving" @click="importSite">Reprendre le site existant</button><RouterLink class="btn-ghost" :to="{ name: 'admin-site-menus' }">Modifier les menus</RouterLink></div>
+        <p class="text-sm text-slate-500">La reprise conserve vos pages existantes et prépare l’accueil et les pages légales. Votre site actuel reste affiché tant que ces pages ne sont pas publiées. Les menus personnalisés deviennent visibles avec la publication de la page Accueil.</p>
+      </section>
       <button v-if="error" class="btn-outline" @click="load">Réessayer</button>
       <p v-if="!error && !pages.length" class="text-slate-500">Aucune page pour le moment. Créez votre première page pour préparer votre site.</p>
       <article v-for="page in pages" :key="page.id" class="card p-5">
+        <label v-if="!page.archived" class="mb-2 flex items-center gap-2"><input v-model="selection" type="checkbox" :value="page.id" :disabled="saving" />Inclure dans la publication</label>
         <h2 class="break-words text-lg font-semibold">{{ page.draft.title }}</h2>
         <p class="break-all text-sm text-slate-500">/{{ page.draft.slug }} · {{ page.archived ? 'Archivée' : page.published ? 'Publiée' : 'Brouillon' }}<span v-if="page.role"> · {{ roles[page.role] }} protégée</span></p>
         <div class="mt-4 flex flex-wrap gap-2">
+          <RouterLink v-if="!page.archived" class="btn-outline" :to="{ name: 'admin-site-preview', params: { id: page.id }, query: { menus: menuSelection.join(',') } }">Aperçu privé</RouterLink>
+          <button v-if="!page.archived" class="btn-primary" :disabled="saving" @click="publish(page)">Publier cette page</button>
           <RouterLink v-if="!page.archived" class="btn-primary" :to="{ name: 'admin-site-page-editor', params: { id: page.id } }">Modifier les sections</RouterLink>
           <button v-if="!page.archived" class="btn-outline" :disabled="saving" @click="edit(page, false, true)">Images</button>
           <button v-if="!page.archived" class="btn-outline" :disabled="saving" :aria-label="`Renommer ${page.draft.title}`" @click="edit(page)">Renommer</button>
           <button class="btn-outline" :disabled="saving" :aria-label="`Dupliquer ${page.draft.title}`" @click="edit(page, true)">Dupliquer</button>
-          <button v-if="page.published && !page.archived" class="btn-ghost" :disabled="saving" @click="action(page, true)">Restaurer la version publiée</button>
+          <button v-if="(page.published || page.restorable) && !page.archived" class="btn-ghost" :disabled="saving" @click="action(page, true)">Restaurer la version publiée</button>
           <button v-if="!page.role && !page.archived" class="btn-ghost text-rose-700" :disabled="saving" :aria-label="`Archiver ${page.draft.title}`" @click="action(page)">Archiver</button>
         </div>
       </article>

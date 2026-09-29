@@ -1,7 +1,7 @@
 <script setup>
 const props = defineProps({ modelValue: { type: Object, required: true }, pages: { type: Array, default: () => [] } })
 const emit = defineEmits(['update:modelValue'])
-const routes = { services: 'Prestations', store: 'Boutique', 'gift-card': 'Carte cadeau', booking: 'Choisir une prestation pour réserver' }
+const routes = { home: 'Accueil', account: 'Mon compte', beneficiary: 'Utiliser un ancien chèque cadeau', shop: 'Toutes les offres', terms: 'Conditions générales', mentions: 'Mentions légales', services: 'Prestations', store: 'Boutique', 'gift-card': 'Carte cadeau', booking: 'Choisir une prestation pour réserver' }
 function typeChanged(type) {
   emit('update:modelValue', { type, target: type === 'route' ? 'services' : '' })
 }

@@ -16,19 +16,15 @@ final class ShopSiteApiController
     public function page(string $slug): JsonResponse
     {
         $page = $this->management->publishedPage($slug);
-        $published = $page?->getPublished();
-        if ($published !== null) {
-            $published['document']['blocks'] = array_values(array_filter($published['document']['blocks'], static fn (array $block): bool => !($block['hidden'] ?? false)));
-            $published['media'] = $this->management->publicMedia($published);
-            $published['links'] = [];
-            foreach ($published['document']['blocks'] as $block) {
-                $link = $block['props']['button']['link'] ?? $block['props']['link'] ?? null;
-                if ($link !== null && ($url = $this->links->resolve($link, true)) !== null) {
-                    $published['links'][json_encode($link, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)] = ['url' => $url, 'external' => $link['type'] === 'external'];
-                }
-            }
-        }
+        $published = $page ? $this->management->render($page) : null;
         return new JsonResponse($published ?? ['error' => 'Page introuvable.'], $published === null ? 404 : 200, ['Cache-Control' => 'private, no-store']);
+    }
+    #[Route('/roles/{role}', requirements: ['role' => 'home|terms|mentions'], methods: ['GET'])]
+    public function role(string $role): JsonResponse
+    {
+        $page = $this->management->rolePage($role);
+        $document = $page ? $this->management->render($page) : null;
+        return new JsonResponse($document ?? ['error' => 'Page introuvable.'], $document === null ? 404 : 200, ['Cache-Control' => 'private, no-store']);
     }
     #[Route('/navigation', methods: ['GET'])]
     public function navigation(): JsonResponse

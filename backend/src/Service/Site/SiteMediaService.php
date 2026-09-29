@@ -18,6 +18,7 @@ final class SiteMediaService
         private readonly ImageUploadValidator $uploads,
         private readonly SiteDocumentValidator $validator,
         private readonly ImageUploaderInterface $uploader,
+        #[\Symfony\Component\DependencyInjection\Attribute\Autowire('%kernel.project_dir%')] private readonly string $projectDir = '',
     ) {}
     public function all(): array { return $this->em->getRepository(SiteMedia::class)->findAll(); }
     public function find(string $id): ?SiteMedia { return $this->em->find(SiteMedia::class, $id); }
@@ -52,6 +53,15 @@ final class SiteMediaService
             foreach ($paths as $path) $this->uploader->remove($path);
             throw $error;
         } finally { unset($source); }
+    }
+    /** Caller only supplies paths of taxon images owned by the active tenant. Copy so
+     * deleting the new media can never delete an asset still used by the old site. */
+    public function importExisting(string $path, string $alt): SiteMedia
+    {
+        $root = realpath($this->projectDir.'/public/media/image');
+        $source = $root ? realpath($root.'/'.$path) : false;
+        if (!$source || !str_starts_with($source, $root.'/') || !is_file($source)) throw new \InvalidArgumentException('Une image du site existant est indisponible. Ajoutez-la à nouveau avant la reprise.');
+        return $this->upload(new UploadedFile($source, basename($path), null, null, true), $alt);
     }
     private function store(\GdImage $source, int $bound): array
     {
