@@ -522,6 +522,9 @@ export const httpApi = {
     const data = await apiGet('/shop/physical-products')
     return membersOf(data).map((p) => mapPhysicalProduct(p, tenantId))
   },
+  async getTaxCategories() { return sylius.getTaxCategories() },
+  async getProductTaxCategory(code) { return sylius.getProductTaxCategory(code) },
+  async uploadPhysicalProductImage(tenantId, code, file) { return sylius.replaceProductImage(code, file) },
   async createPhysicalProduct(tenantId, data) { return sylius.createPhysicalProduct(data) },
   async updatePhysicalProduct(tenantId, code, data) { return sylius.updatePhysicalProduct(code, data) },
   async deletePhysicalProduct(tenantId, code) { return sylius.deletePhysicalProduct(code) },

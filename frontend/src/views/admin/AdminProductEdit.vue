@@ -15,6 +15,7 @@ const loading = ref(!isNew.value)
 const saving = ref(false)
 const error = ref('')
 const resources = ref([])
+const taxCategories = ref([])
 
 // --- Image du produit (upload reel vers Sylius) -------------------------------
 const imageFile = ref(null) // fichier choisi, uploade a l'enregistrement
@@ -32,6 +33,7 @@ function onImagePicked(e) {
 }
 
 const form = ref({
+  taxCategory: null,
   name: '',
   summary: '',
   description: '',
@@ -48,6 +50,8 @@ const form = ref({
 })
 
 onMounted(async () => {
+  try {
+  taxCategories.value = await api.getTaxCategories()
   resources.value = await api.getBookableResources?.() || []
   if (!isNew.value) {
     const [jt, resourceConfig] = await Promise.all([
@@ -57,10 +61,15 @@ onMounted(async () => {
     form.value = {
       ...form.value,
       ...jt,
+      taxCategory: await api.getProductTaxCategory(route.params.id),
       requirementsText: (jt.requirements || []).map((item) => item.label).join('\n'),
       resourceCodes: resourceConfig.codes || [],
       resourceRequired: !!resourceConfig.required,
     }
+  }
+  } catch (e) {
+    error.value = e?.message || 'Impossible de charger la prestation ou les taux de TVA.'
+  } finally {
     loading.value = false
   }
 })
@@ -161,6 +170,14 @@ async function save() {
                 </p>
               </div>
             </div>
+          </div>
+          <div>
+            <label for="service-tax" class="label">Taux de TVA</label>
+            <select id="service-tax" v-model="form.taxCategory" class="input">
+              <option :value="null">Sans TVA</option>
+              <option v-for="category in taxCategories" :key="category.id" :value="category.id">{{ category.name }}</option>
+            </select>
+            <p v-if="!taxCategories.length" class="mt-1 text-xs text-slate-500">Aucune catégorie de TVA configurée.</p>
           </div>
           <div class="grid gap-4 sm:grid-cols-3">
             <div>

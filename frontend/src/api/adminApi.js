@@ -146,7 +146,7 @@ const assocTypeIri = (code) => `/api/v2/admin/product-association-types/${code}`
 const codeFromIri = (iri) => String(iri || '').split('/').pop()
 
 // Cree un produit simple Sylius (produit + variante + prix par channel).
-async function createSimpleProduct({ code, name, price, shortDescription = '', description = '', channelCode = DEFAULT_CHANNEL }) {
+async function createSimpleProduct({ code, name, price, shortDescription = '', description = '', channelCode = DEFAULT_CHANNEL, taxCategory = null }) {
   const priceCents = Math.round(Number(price || 0) * 100)
   await request('POST', '/admin/products', {
     code,
@@ -159,6 +159,7 @@ async function createSimpleProduct({ code, name, price, shortDescription = '', d
     product: productIri(code),
     translations: { en_US: { name } },
     channelPricings: { [channelCode]: { price: priceCents } },
+    taxCategory,
     shippingRequired: false,
     tracked: false,
   })
@@ -340,6 +341,31 @@ async function setOptionJumpLinks(ownerCode, jumpCodes = []) {
   })
 }
 
+// Les catégories fiscales Sylius portent les taux appliqués au checkout.
+export async function getTaxCategories() {
+  const [categories, rates] = await Promise.all([
+    request('GET', '/admin/tax-categories?pagination=false'),
+    request('GET', '/admin/tax-rates?pagination=false'),
+  ])
+  const members = (data) => data['hydra:member'] || data.member || []
+  return members(categories).map((category) => {
+    const amounts = [...new Set(members(rates)
+      .filter((rate) => (rate.category?.code || codeFromIri(rate.category?.['@id'] || rate.category)) === category.code)
+      .map((rate) => `${Number((Number(rate.amount) * 100).toFixed(4))} %`))]
+    return { id: category['@id'] || `/api/v2/admin/tax-categories/${category.code}`, name: `${category.name || category.code}${amounts.length ? ' — ' + amounts.join(' / ') : ''}` }
+  })
+}
+
+export async function getProductTaxCategory(code) {
+  const variant = await request('GET', `/admin/product-variants/${encodeURIComponent(code)}-variant`)
+  return variant.taxCategory?.['@id'] || variant.taxCategory || null
+}
+
+async function setProductTaxCategory(code, taxCategory) {
+  if (taxCategory === undefined) return
+  await request('PUT', `/admin/product-variants/${encodeURIComponent(code)}-variant`, { taxCategory })
+}
+
 // --- Produits (types de saut) ---------------------------------------------
 export async function createJump(data) {
   const code = data.code || codeFrom('service_', data.name)
@@ -347,6 +373,7 @@ export async function createJump(data) {
     code,
     name: data.name,
     price: data.basePrice,
+    taxCategory: data.taxCategory,
     shortDescription: data.summary || '',
     description: data.description || '',
     channelCode: data.channelCode,
@@ -355,6 +382,7 @@ export async function createJump(data) {
   return res
 }
 export async function updateJump(code, patch) {
+  await setProductTaxCategory(code, patch.taxCategory)
   await patchProduct(code, { name: patch.name, shortDescription: patch.summary, description: patch.description })
   if (patch.basePrice != null) await patchVariantPrice(code, patch.basePrice, patch.channelCode)
   if (code.startsWith('service_')) await setMomeoAttributes(code, patch)
@@ -368,7 +396,7 @@ export async function deleteJump(code) {
 
 export async function createPhysicalProduct(data) {
   const code = data.code || codeFrom('product_', data.name)
-  await createSimpleProduct({ code, name: data.name, price: data.price, shortDescription: data.summary || '', description: data.description || '' })
+  await createSimpleProduct({ code, name: data.name, price: data.price, taxCategory: data.taxCategory, shortDescription: data.summary || '', description: data.description || '' })
   await request('PUT', `/admin/products/${code}/commerce`, {
     type: 'physical', pickupEnabled: !!data.pickupEnabled, deliveryEnabled: !!data.deliveryEnabled,
     deliveryFee: Math.round(Number(data.deliveryFee || 0) * 100), stock: Math.max(0, Math.round(Number(data.stock) || 0)),
@@ -377,6 +405,7 @@ export async function createPhysicalProduct(data) {
 }
 
 export async function updatePhysicalProduct(code, data) {
+  await setProductTaxCategory(code, data.taxCategory)
   await patchProduct(code, { name: data.name, shortDescription: data.summary, description: data.description })
   if (data.price != null) await patchVariantPrice(code, data.price)
   await request('PUT', `/admin/products/${code}/commerce`, {
