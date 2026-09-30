@@ -5,7 +5,7 @@
 // + creneaux). Modele v2 : jours dates explicites
 //   days = { "YYYY-MM-DD": ["09:00", "11:30"], ... }
 // (l'ancien format hebdo openDays/times reste lu pour les plannings existants).
-// Persistes en taxons Sylius (voir adminApi). Capacite max par creneau,
+// Persistes via l'API de plannings (voir adminApi). Capacite max par creneau,
 // 1 saut = 1 place. Rattachement a des sauts precis (aucun = tous).
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAdminStore } from '@/stores/admin'
@@ -208,6 +208,9 @@ function startCreate() {
 }
 function startEdit(p) {
   editing.value = JSON.parse(JSON.stringify(p))
+  // L'API peut renvoyer [] pour un calendrier vide. Les cles dates ajoutees
+  // a un tableau seraient perdues lors de JSON.stringify a l'enregistrement.
+  editing.value.days = { ...(editing.value.days || {}) }
   // Ancien format hebdo -> pre-remplit la palette et l'assignation en masse
   // pour migrer facilement vers des jours dates.
   if (!Object.keys(editing.value.days).length && editing.value.times?.length) {
@@ -236,6 +239,7 @@ function toggleJump(code) {
 }
 
 async function save() {
+  if (saving.value) return
   if (!editing.value.name.trim()) { error.value = 'Donnez un nom au planning.'; return }
   if (!Object.keys(editing.value.days).length && !editing.value.openDays?.length) {
     error.value = 'Renseignez au moins un jour (clic sur le calendrier ou assignation en masse).'
