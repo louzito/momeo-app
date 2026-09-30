@@ -334,11 +334,12 @@ const JUMP_ATTRIBUTE_FIELDS = {
   todatempo_requirements: 'requirements',
   todatempo_payment_mode: 'paymentMode',
   todatempo_payment_value: 'paymentValue',
+  todatempo_popular: 'popular',
   momeo_duration: 'durationMin', // read-only compatibility
   momeo_capacity: 'capacityPerSlot',
   momeo_requirements: 'requirements',
 }
-const BOOL_ATTRIBUTES = new Set(['jump_medical_cert', 'jump_waiver'])
+const BOOL_ATTRIBUTES = new Set(['jump_medical_cert', 'jump_waiver', 'todatempo_popular'])
 
 async function fetchJumpAttributes(code) {
   try {
@@ -405,7 +406,7 @@ function mapProductToJumpType(p, tenantId, attrs = {}) {
     configuredDetails: { ...attrs },
     capacityPerSlot: attrs.capacityPerSlot ?? 6,
     image: imageUrl(p.images),
-    popular: false,
+    popular: attrs.popular ?? false,
     legacyEligibility: String(p.code || '').startsWith('jump_'),
     requirements: attrs.requirements || [],
     paymentMode: attrs.paymentMode || 'full',

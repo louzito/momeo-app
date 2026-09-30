@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 import api from '@/api'
@@ -16,10 +16,14 @@ const saving = ref(false)
 const error = ref('')
 const resources = ref([])
 const taxCategories = ref([])
+const createdCode = ref(null)
 
 // --- Image du produit (upload reel vers Sylius) -------------------------------
 const imageFile = ref(null) // fichier choisi, uploade a l'enregistrement
 const imagePreview = ref('') // apercu local (URL.createObjectURL)
+onUnmounted(() => {
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+})
 
 function onImagePicked(e) {
   const f = e.target.files?.[0]
@@ -75,8 +79,10 @@ onMounted(async () => {
 })
 
 async function save() {
+  if (saving.value) return
   saving.value = true
   error.value = ''
+  let step = 'la prestation'
   try {
     const requirements = form.value.requirementsText
       .split(/\r?\n/)
@@ -84,23 +90,29 @@ async function save() {
       .filter(Boolean)
       .map((label, index) => ({ key: `requirement_${index + 1}`, label }))
     const payload = { ...form.value, requirements }
-    let code = route.params.id
-    if (isNew.value) {
+    let code = createdCode.value || route.params.id
+    if (isNew.value && !createdCode.value) {
       const created = await api.createJumpType(admin.tenantId, payload)
       code = created.id
+      createdCode.value = code
     } else {
       await api.updateJumpType(admin.tenantId, code, payload)
     }
     // Upload de l'image apres le produit (remplace l'ancienne image "main").
     if (imageFile.value && api.uploadJumpImage) {
+      step = 'la photo'
       await api.uploadJumpImage(admin.tenantId, code, imageFile.value)
+      imageFile.value = null
     }
     if (api.setServiceBookableResources) {
+      step = 'les ressources'
       await api.setServiceBookableResources(code, { codes: form.value.resourceCodes, required: form.value.resourceRequired })
     }
     router.push({ name: 'admin-products' })
   } catch (e) {
-    error.value = e?.message || 'Echec de l\'enregistrement.'
+    error.value = /failed to fetch|networkerror|load failed/i.test(e?.message || '')
+      ? `Connexion au serveur interrompue pendant l’enregistrement de ${step}. Vérifiez votre connexion puis réessayez.`
+      : e?.message || 'Echec de l\'enregistrement.'
   } finally {
     saving.value = false
   }

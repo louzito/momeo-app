@@ -216,6 +216,7 @@ const TODATEMPO_ATTRIBUTE_DEFS = [
   { field: 'requirements', code: 'todatempo_requirements', kind: 'textarea', name: 'Conditions de reservation' },
   { field: 'paymentMode', code: 'todatempo_payment_mode', kind: 'text', name: 'Mode de paiement de la prestation' },
   { field: 'paymentValue', code: 'todatempo_payment_value', kind: 'integer', name: 'Valeur de l’acompte (centimes ou pourcentage)' },
+  { field: 'popular', code: 'todatempo_popular', kind: 'checkbox', name: 'Prestation populaire' },
 ]
 const attributeIri = (code) => `/api/v2/admin/product-attributes/${code}`
 
@@ -248,6 +249,7 @@ async function setMomeoAttributes(code, values = {}) {
     { attribute: attributeIri('todatempo_duration'), value: Math.max(5, Math.round(Number(values.durationMin) || 60)) },
     { attribute: attributeIri('todatempo_capacity'), value: Math.max(1, Math.round(Number(values.capacityPerSlot) || 1)) },
     { attribute: attributeIri('todatempo_requirements'), value: JSON.stringify(requirements) },
+    { attribute: attributeIri('todatempo_popular'), value: !!values.popular },
     { attribute: attributeIri('todatempo_payment_mode'), value: ['none', 'fixed', 'percentage', 'full'].includes(values.paymentMode) ? values.paymentMode : 'full' },
     { attribute: attributeIri('todatempo_payment_value'), value: values.paymentMode === 'fixed'
       ? Math.max(1, Math.round(Number(values.paymentValue) * 100))
@@ -746,15 +748,19 @@ async function uploadProductImage(code, file) {
 
 export async function replaceProductImage(code, file) {
   const p = await request('GET', `/admin/products/${encodeURIComponent(code)}`)
+  // Conserver l'image existante si l'envoi de la nouvelle échoue.
+  const uploaded = await uploadProductImage(code, file)
   for (const img of p.images || []) {
+    if (img.type !== 'main') continue
     const iri = img['@id'] || img
+    const path = new URL(String(iri), 'http://localhost').pathname
     try {
-      await request('DELETE', String(iri).replace('/api/v2', ''))
+      await request('DELETE', path.replace(/^.*?\/api\/v2(?=\/)/, ''))
     } catch {
       /* image deja supprimee */
     }
   }
-  return uploadProductImage(code, file)
+  return uploaded
 }
 
 // --- Commandes & encaissement des virements ----------------------------------
