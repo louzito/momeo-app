@@ -23,7 +23,7 @@ class SitePage
     private ?array $published = null;
     #[ORM\Column(name: 'published_slug', length: 120, unique: true, nullable: true)]
     private ?string $publishedSlug = null;
-    #[ORM\Column(type: 'json', nullable: true)]
+    #[ORM\Column(name: 'previous_slugs', type: 'json', nullable: true)]
     private ?array $previousSlugs = null;
     #[ORM\Column(type: 'boolean')]
     private bool $archived = false;
@@ -31,7 +31,7 @@ class SitePage
     #[ORM\Version]
     private int $revision = 1;
 
-    #[ORM\Column(type: 'json', nullable: true)]
+    #[ORM\Column(name: 'legacy_published', type: 'json', nullable: true)]
     private ?array $legacyPublished = null;
     public function getLegacyPublished(): ?array { return $this->legacyPublished; }
     public function preserveLegacyPublished(array $document): void

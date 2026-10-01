@@ -15,15 +15,15 @@ class SiteMenu
     private string $location;
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $published = null;
-    #[ORM\Column(type: 'json', nullable: true)]
+    #[ORM\Column(name: 'primary_link', type: 'json', nullable: true)]
     private ?array $primaryLink = null;
-    #[ORM\Column(type: 'json', nullable: true)]
+    #[ORM\Column(name: 'published_primary_link', type: 'json', nullable: true)]
     private ?array $publishedPrimaryLink = null;
     #[ORM\Column(type: 'integer')]
     #[ORM\Version]
     private int $revision = 1;
 
-    #[ORM\Column(type: 'integer')]
+    #[ORM\Column(name: 'draft_version', type: 'integer')]
     private int $draftVersion = 0;
     public function touchDraft(): void { ++$this->draftVersion; }
 
