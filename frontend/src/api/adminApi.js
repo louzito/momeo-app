@@ -145,19 +145,30 @@ const productIri = (code) => `/api/v2/admin/products/${code}`
 const assocTypeIri = (code) => `/api/v2/admin/product-association-types/${code}`
 const codeFromIri = (iri) => String(iri || '').split('/').pop()
 
+// La langue du canal doit aussi exister sur le produit pour le catalogue shop.
+async function productLocale(channelCode = DEFAULT_CHANNEL) {
+  const data = await request('GET', '/shop/channels', null, undefined, { auth: false })
+  const channel = (data['hydra:member'] || data.member || []).find((item) => item.code === channelCode)
+  if (!channel) throw new Error('Le canal de vente est absent.')
+  const locale = channel.defaultLocale?.code || codeFromIri(channel.defaultLocale?.['@id'] || channel.defaultLocale)
+  if (!locale) throw new Error('La langue du canal de vente est absente.')
+  return locale
+}
+
 // Cree un produit simple Sylius (produit + variante + prix par channel).
 async function createSimpleProduct({ code, name, price, shortDescription = '', description = '', channelCode = DEFAULT_CHANNEL, taxCategory = null }) {
+  const locale = await productLocale(channelCode)
   const priceCents = Math.round(Number(price || 0) * 100)
   await request('POST', '/admin/products', {
     code,
     enabled: true,
     channels: [channelIri(channelCode)],
-    translations: { en_US: { name, slug: slugify(name), shortDescription, description } },
+    translations: { [locale]: { name, slug: slugify(name), shortDescription, description } },
   })
   await request('POST', '/admin/product-variants', {
     code: `${code}-variant`,
     product: productIri(code),
-    translations: { en_US: { name } },
+    translations: { [locale]: { name } },
     channelPricings: { [channelCode]: { price: priceCents } },
     taxCategory,
     shippingRequired: false,
@@ -170,15 +181,20 @@ async function createSimpleProduct({ code, name, price, shortDescription = '', d
 // (Allow: PUT, DELETE, GET). On met donc a jour via PUT. Pour que PUT modifie la
 // sous-ressource EXISTANTE (au lieu d'en creer une 2e -> violation d'unicite), on
 // reference son @id, qui est deterministe (derivable du code / de la locale).
-async function patchProduct(code, { name, shortDescription, description }, locale = 'en_US') {
-  const tr = { '@id': `/api/v2/admin/products/${code}/translations/${locale}` }
+async function patchProduct(code, { name, shortDescription, description }, channelCode = DEFAULT_CHANNEL) {
+  const locale = await productLocale(channelCode)
+  const product = await request('GET', `/admin/products/${encodeURIComponent(code)}`)
+  // Un ancien produit peut ne posseder que la traduction en_US : creer alors
+  // la traduction du canal, au lieu de referencer une sous-ressource absente.
+  const existing = product.translations?.[locale]
+  const tr = existing ? { '@id': existing['@id'] || `/api/v2/admin/products/${code}/translations/${locale}` } : {}
   if (name) {
     tr.name = name
     tr.slug = slugify(name)
   }
   if (shortDescription != null) tr.shortDescription = shortDescription
   if (description != null) tr.description = description
-  if (Object.keys(tr).length <= 1) return // rien a changer hormis l'@id
+  if (!name && shortDescription == null && description == null) return // rien a changer hormis l'@id
   await request('PUT', `/admin/products/${code}`, { translations: { [locale]: tr } })
 }
 async function patchVariantPrice(code, price, channelCode = DEFAULT_CHANNEL) {
@@ -385,7 +401,7 @@ export async function createJump(data) {
 }
 export async function updateJump(code, patch) {
   await setProductTaxCategory(code, patch.taxCategory)
-  await patchProduct(code, { name: patch.name, shortDescription: patch.summary, description: patch.description })
+  await patchProduct(code, { name: patch.name, shortDescription: patch.summary, description: patch.description }, patch.channelCode)
   if (patch.basePrice != null) await patchVariantPrice(code, patch.basePrice, patch.channelCode)
   if (code.startsWith('service_')) await setMomeoAttributes(code, patch)
   else if (patch.eligibility) await setJumpAttributes(code, patch)
