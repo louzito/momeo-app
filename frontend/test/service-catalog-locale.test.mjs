@@ -17,6 +17,12 @@ for (const locale of ['fr_FR', 'en_US']) {
     globalThis.fetch = async (url, options) => {
       const body = options.body ? JSON.parse(options.body) : null
       calls.push({ url, method: options.method, body })
+      if (options.method === 'POST' && url.endsWith('/admin/products')) {
+        // La validation Sylius accede aussi a la traduction de repli en_US.
+        if (!body.translations.en_US?.name || !body.translations.en_US?.slug) {
+          return { ok: false, status: 422, text: async () => JSON.stringify({ detail: 'translations[en_US].name: Veuillez saisir le nom du produit. translations[en_US].slug: Veuillez entrer le slug du produit.' }) }
+        }
+      }
       const result = url.endsWith('/shop/channels')
         ? { member: [{ code: 'FASHION_WEB', defaultLocale: locale === 'fr_FR' ? { code: locale } : `/api/v2/shop/locales/${locale}` }] }
         : url.endsWith('/products/service_soin') && options.method === 'GET'
@@ -28,9 +34,13 @@ for (const locale of ['fr_FR', 'en_US']) {
       await api.createJump({ name: 'Soin', basePrice: 65 })
       const product = calls.find(c => c.url.endsWith('/products') && c.method === 'POST').body
       const variant = calls.find(c => c.url.endsWith('/product-variants') && c.method === 'POST').body
-      assert.deepEqual(Object.keys(product.translations), [locale])
-      assert.deepEqual(Object.keys(variant.translations), [locale])
+      const locales = [...new Set([locale, 'en_US'])]
+      assert.deepEqual(Object.keys(product.translations), locales)
+      assert.deepEqual(Object.keys(variant.translations), locales)
       assert.equal(product.translations[locale].name, 'Soin')
+      assert.deepEqual(product.translations.en_US, product.translations[locale])
+      assert.equal(product.translations.en_US.slug, 'soin')
+      assert.equal(variant.translations.en_US.name, 'Soin')
       assert.equal(variant.channelPricings.FASHION_WEB.price, 6500)
       calls.length = 0
       await api.updateJump('service_soin', { name: 'Soin douceur' })

@@ -20,10 +20,13 @@ for (const locale of ['fr_FR', 'en_US']) {
       else if (path.endsWith('/admin/products') && method === 'POST') {
         product = request.postDataJSON()
         expect(product.translations[locale].name).toBe('Soin visage')
+        expect(product.translations.en_US.name).toBe('Soin visage')
+        expect(product.translations.en_US.slug).toBe('soin-visage')
         status = 201; body = product
       } else if (path.endsWith('/admin/product-variants') && method === 'POST') {
         variant = request.postDataJSON()
         expect(variant.translations[locale].name).toBe('Soin visage')
+        expect(variant.translations.en_US.name).toBe('Soin visage')
         status = 201; body = variant
       } else if (path.endsWith('/admin/products/service_soin_visage') && method === 'GET') {
         body = { ...product, translations: { [locale]: { ...product.translations[locale], '@id': `/api/v2/admin/products/service_soin_visage/translations/${locale}` } } }

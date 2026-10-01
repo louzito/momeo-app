@@ -20,6 +20,7 @@ import { normalizeSiteConfig, publishSiteConfigDocument, readSiteConfigDocument 
 
 const TOKEN_KEY = `todatempo.sylius.jwt.${TENANT_SLUG}`
 const DEFAULT_CHANNEL = 'FASHION_WEB' // channel du Sylius de demo (a rendre configurable plus tard)
+const PRODUCT_FALLBACK_LOCALE = 'en_US' // locale de repli Sylius (backend/config/parameters.yaml)
 // Type d'association Sylius servant a lier une option PER_JUMP a des sauts precis.
 const JUMP_ASSOC_TYPE = 'todatempo_services'
 const LEGACY_JUMP_ASSOC_TYPES = new Set(['skybook_jumps'])
@@ -159,16 +160,19 @@ async function productLocale(channelCode = DEFAULT_CHANNEL) {
 async function createSimpleProduct({ code, name, price, shortDescription = '', description = '', channelCode = DEFAULT_CHANNEL, taxCategory = null }) {
   const locale = await productLocale(channelCode)
   const priceCents = Math.round(Number(price || 0) * 100)
+  // Sylius peut materialiser la traduction de repli pendant la validation.
+  // Elle doit etre renseignee meme si le canal utilise une autre langue.
+  const locales = [...new Set([locale, PRODUCT_FALLBACK_LOCALE])]
   await request('POST', '/admin/products', {
     code,
     enabled: true,
     channels: [channelIri(channelCode)],
-    translations: { [locale]: { name, slug: slugify(name), shortDescription, description } },
+    translations: Object.fromEntries(locales.map((code) => [code, { name, slug: slugify(name), shortDescription, description }])),
   })
   await request('POST', '/admin/product-variants', {
     code: `${code}-variant`,
     product: productIri(code),
-    translations: { [locale]: { name } },
+    translations: Object.fromEntries(locales.map((code) => [code, { name }])),
     channelPricings: { [channelCode]: { price: priceCents } },
     taxCategory,
     shippingRequired: false,
