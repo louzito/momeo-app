@@ -120,7 +120,7 @@ async function importSite() {
         <p>Enregistrer prépare un brouillon. Pour rendre vos changements visibles, publiez une page ou sélectionnez ensemble les pages et menus concernés.</p>
         <div class="flex flex-wrap gap-4"><label v-for="menu in menus" :key="menu.location" class="flex items-center gap-2"><input v-model="menuSelection" type="checkbox" :value="menu.location" :disabled="saving" />{{ menu.location === 'main' ? 'Menu principal' : 'Pied de page' }}</label></div>
         <div class="flex flex-wrap gap-3"><button class="btn-primary" :disabled="saving || (!selection.length && !menuSelection.length)" @click="publish()">{{ saving ? 'Veuillez patienter…' : 'Publier la sélection' }}</button><button class="btn-outline" :disabled="saving" @click="importSite">Reprendre le site existant</button><RouterLink class="btn-ghost" :to="{ name: 'admin-site-menus' }">Modifier les menus</RouterLink></div>
-        <p class="text-sm text-slate-500">La reprise conserve vos pages existantes et prépare l’accueil et les pages légales. Votre site actuel reste affiché tant que ces pages ne sont pas publiées. Les menus personnalisés deviennent visibles avec la publication de la page Accueil.</p>
+        <p class="text-sm text-slate-500">La reprise conserve vos pages existantes et prépare l’accueil et les pages légales. Votre site actuel reste affiché tant que ces pages ne sont pas publiées. Les menus personnalisés deviennent visibles dès leur publication, même si l’accueil actuel est conservé.</p>
       </section>
       <button v-if="error" class="btn-outline" @click="load">Réessayer</button>
       <p v-if="!error && !pages.length" class="text-slate-500">Aucune page pour le moment. Créez votre première page pour préparer votre site.</p>

@@ -120,7 +120,7 @@ final class SiteManagementTest extends TestCase
         $footer = $service->saveMenu('footer', ['items' => [['label' => 'Boutique', 'link' => ['type' => 'route', 'target' => 'store']]]]);
         $public = new ShopSiteApiController($service, $links);
         $service->publishMenu($footer);
-        self::assertNull(json_decode($public->navigation()->getContent(), true)['footer']);
+        self::assertSame('shop?categorie=produits', json_decode($public->navigation()->getContent(), true)['footer'][0]['url']);
         $service->publishBatch([$home->getId(), $page->getId()], ['main', 'footer']);
         $navigation = json_decode($public->navigation()->getContent(), true);
         self::assertCount(1, $navigation['main']);
@@ -133,6 +133,42 @@ final class SiteManagementTest extends TestCase
         self::assertSame($navigation['footer'], json_decode($public->navigation()->getContent(), true)['footer']);
         $em->clear();
         self::assertNull($service->menu('main')->getPublishedPrimaryLink());
+    }
+    public function testNavigationPublishesWithoutHomeAndKeepsDraftsPrivate(): void
+    {
+        [$service, $links, $em] = $this->tenant();
+        $public = new ShopSiteApiController($service, $links);
+        $fallback = ['main' => null, 'footer' => null, 'primary' => null];
+        self::assertSame($fallback, json_decode($public->navigation()->getContent(), true));
+        $items = [
+            ['label' => 'Prestations', 'link' => ['type' => 'route', 'target' => 'services'], 'children' => [
+                ['label' => 'Boutique', 'link' => ['type' => 'route', 'target' => 'store']],
+                ['label' => 'Carte cadeau', 'link' => ['type' => 'route', 'target' => 'gift-card']],
+                ['label' => 'Enfant masqué', 'hidden' => true, 'link' => ['type' => 'route', 'target' => 'shop']],
+            ]],
+            ['label' => 'Parent masqué', 'hidden' => true, 'link' => ['type' => 'route', 'target' => 'shop'], 'children' => [
+                ['label' => 'Invisible', 'link' => ['type' => 'route', 'target' => 'gift-card']],
+            ]],
+        ];
+        $main = $service->saveMenu('main', ['items' => $items, 'primaryLink' => ['type' => 'route', 'target' => 'booking']]);
+        self::assertSame($fallback, json_decode($public->navigation()->getContent(), true));
+        $service->publishMenu($main);
+        $em->clear();
+        $navigation = json_decode($public->navigation()->getContent(), true);
+        self::assertSame(['Prestations'], array_column($navigation['main'], 'label'));
+        self::assertSame('shop?categorie=prestations', $navigation['main'][0]['url']);
+        self::assertSame(['Boutique', 'Carte cadeau'], array_column($navigation['main'][0]['children'], 'label'));
+        self::assertSame(['shop?categorie=produits', 'gift-card'], array_column($navigation['main'][0]['children'], 'url'));
+        self::assertSame('shop?categorie=prestations', $navigation['primary']['url']);
+        self::assertNull($navigation['footer']);
+        $service->create(['title' => 'Accueil brouillon', 'slug' => 'maison', 'role' => 'home']);
+        $service->saveMenu('main', ['items' => []]);
+        self::assertSame($navigation, json_decode($public->navigation()->getContent(), true));
+        $footer = $service->saveMenu('footer', ['items' => []]);
+        $service->publishMenu($footer);
+        self::assertSame([], json_decode($public->navigation()->getContent(), true)['footer']);
+        self::assertSame($navigation['main'], json_decode($public->navigation()->getContent(), true)['main']);
+        self::assertSame(404, $public->role('home')->getStatusCode());
     }
     public function testFailedBatchDoesNotPublishAnyPageOrMenu(): void
     {

@@ -30,16 +30,14 @@ final class ShopSiteApiController
     public function navigation(): JsonResponse
     {
         $result = ['main' => null, 'footer' => null, 'primary' => null];
-        if ($this->management->isSitePublished()) {
-            foreach (['main', 'footer'] as $location) {
-                $menu = $this->management->menu($location);
-                if ($menu?->getPublished() === null) continue;
-                $result[$location] = $this->links->menu($menu->getPublished(), true);
-                if ($location === 'main' && $menu->getPublishedPrimaryLink() !== null) {
-                    $link = $menu->getPublishedPrimaryLink();
-                    $url = $this->links->resolve($link, true);
-                    if ($url !== null) $result['primary'] = ['url' => $url, 'external' => $link['type'] === 'external'];
-                }
+        foreach (['main', 'footer'] as $location) {
+            $menu = $this->management->menu($location);
+            if ($menu?->getPublished() === null) continue;
+            $result[$location] = $this->links->menu($menu->getPublished(), true);
+            if ($location === 'main' && $menu->getPublishedPrimaryLink() !== null) {
+                $link = $menu->getPublishedPrimaryLink();
+                $url = $this->links->resolve($link, true);
+                if ($url !== null) $result['primary'] = ['url' => $url, 'external' => $link['type'] === 'external'];
             }
         }
         return new JsonResponse($result, 200, ['Cache-Control' => 'private, no-store']);

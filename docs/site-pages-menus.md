@@ -145,10 +145,9 @@ publication tant qu’elles ne sont pas retirées, remplacées ou masquées (bou
 retiré ou remplacé). L’éditeur avertit des pages indisponibles ou à publier.
 `DELETE /menus/{location}` vide désormais uniquement le brouillon.
 
-`GET /api/v2/shop/site/navigation` fournit `main`, `footer`, `primary`. Tant que
-la page portant le rôle `home` n’a pas d’instantané publié, les trois valeurs
-sont `null`. Cela constitue le signal de bascule à réutiliser à l’étape de
-publication du site. Un menu jamais publié vaut également `null` (fallback) ;
+`GET /api/v2/shop/site/navigation` fournit `main`, `footer`, `primary`. Chaque
+menu devient visible dès sa publication, indépendamment de celle de la page
+portant le rôle `home` (correction #139). Un menu jamais publié vaut `null` (fallback) ;
 un menu publié vide vaut `[]` (intentionnellement vide). AppNavbar et AppFooter
 consomment cette réponse, sans cache partagé. Desktop et mobile utilisent le
 même composant hiérarchique. Vue Router préfixe les liens internes par la base
@@ -215,3 +214,21 @@ L’essai élargi des tests d’intégration paiement/commande ne peut pas déma
 kernel : `ApiPlatformBundle` manque dans l’installation partielle. Il n’est
 pas annoncé comme réussi. Aucune migration, modification Git ou opération de
 déploiement n’a été exécutée.
+
+## Correction des menus — #139
+
+L’API de navigation utilise désormais les instantanés publiés des menus même
+si l’accueil éditable est absent ou encore en brouillon. L’accueil historique
+peut ainsi être conservé tout en publiant le menu principal et le pied de page.
+Le texte de publication du backoffice reflète cette indépendance. Les brouillons,
+les liens masqués et leurs enfants restent exclus du rendu public ; un menu
+jamais publié conserve le fallback, un menu publié vide reste volontairement vide.
+
+Vérifications : 109 tests backend Site / 348 assertions, 24 suites unitaires
+frontend, builds Vite client et SSR, contrôle du bundle de production et syntaxe
+PHP réussis. Les dépendances ont été restaurées depuis les caches locaux après
+échec des installations complètes. Les scénarios Playwright couvrent les menus
+et sous-menus sur mobile et ordinateur, mais leur exécution n’a pas pu démarrer :
+l’environnement interdit l’écoute du serveur Vite sur le port local (`EPERM`).
+Aucun contrôle navigateur n’est donc annoncé comme réussi. Aucun déploiement
+ni changement de branche, commit ou push n’a été effectué.

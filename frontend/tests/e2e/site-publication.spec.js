@@ -79,3 +79,36 @@ test('aperçu authentifié, conflit conservé puis publication des pages et menu
   await page.goto('/centre-e2e/')
   await expect(page.getByRole('heading', { name: 'Bienvenue chez nous' })).toBeVisible()
 })
+
+for (const width of [390, 1280]) {
+  test(`menus publiés avec accueil historique et sous-menus à ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await setup(page)
+    await page.route('**/shop/site/roles/*', route => route.fulfill({ status: 404, json: {} }))
+    await page.route('**/shop/site/navigation', route => route.fulfill({ json: {
+      main: [{ label: 'Nos prestations', url: 'shop?categorie=prestations', external: false, children: [
+        { label: 'Notre boutique', url: 'shop?categorie=produits', external: false, children: [] },
+        { label: 'Offrir une carte', url: 'gift-card', external: false, children: [] },
+      ] }],
+      footer: [{ label: 'Lien du pied de page', url: 'shop', external: false, children: [] }],
+      primary: { url: 'shop?categorie=prestations', external: false },
+    } }))
+    await page.goto('/centre-e2e/shop')
+    if (width < 768) await page.getByRole('button', { name: 'Menu', exact: true }).click()
+    const nav = page.getByRole('navigation', { name: width < 768 ? 'Menu principal mobile' : 'Menu principal', exact: true })
+    await expect(nav.getByRole('link', { name: 'Nos prestations', exact: true })).toHaveAttribute('href', '/centre-e2e/shop?categorie=prestations')
+    await expect(nav.getByRole('link', { name: 'Notre boutique', exact: true })).toHaveAttribute('href', '/centre-e2e/shop?categorie=produits')
+    await expect(nav.getByRole('link', { name: 'Offrir une carte', exact: true })).toHaveAttribute('href', '/centre-e2e/gift-card')
+    await expect(page.getByRole('navigation', { name: 'Pied de page', exact: true }).getByRole('link', { name: 'Lien du pied de page' })).toHaveAttribute('href', '/centre-e2e/shop')
+    await nav.getByRole('link', { name: 'Notre boutique', exact: true }).click()
+    await expect(page).toHaveURL(/\/centre-e2e\/shop\?categorie=produits$/)
+    if (width < 768) {
+      await expect(nav).toBeHidden()
+      await page.getByRole('button', { name: 'Menu', exact: true }).click()
+    }
+    await nav.getByRole('link', { name: 'Offrir une carte', exact: true }).click()
+    await expect(page).toHaveURL(/\/centre-e2e\/gift-card$/)
+    if (width < 768) await expect(nav).toBeHidden()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+}
