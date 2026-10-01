@@ -421,6 +421,7 @@ function mapPhysicalProduct(p, tenantId) {
     id: p.code, tenantId, type: 'physical', name: p.name || p.code,
     summary: p.shortDescription || '', description: p.description || '', image: imageUrl(p.images),
     price: (variant.price || 0) / 100,
+    onHand: Number(variant.onHand ?? p.onHand ?? 0),
     stock: Math.max(0, Number(variant.onHand ?? p.onHand ?? 0) - Number(variant.onHold ?? 0)),
     pickupEnabled: !!p.pickupEnabled,
     deliveryEnabled: !!p.deliveryEnabled,
