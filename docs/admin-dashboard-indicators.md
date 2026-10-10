@@ -9,4 +9,6 @@ La route tenant-aware `GET /api/v2/admin/dashboard/overview` accepte `from` (inc
 - **Nouveaux clients** : adresses email dont la toute première réservation a été créée pendant la plage (comparaison insensible à la casse).
 - **Cartes cadeaux** : `sold` compte les cartes créées pendant la plage ; `paidAmount` additionne celles activées pendant la plage. La ventilation d'état est l'état courant de toutes les cartes du tenant.
 
-Les bornes sont converties en UTC avant les comparaisons. Les ouvertures restent interprétées dans le fuseau demandé, y compris lors des changements d'heure.
+Les bornes sont converties en UTC avant les comparaisons. Les ouvertures restent interprétées dans le fuseau propre à chaque planning, y compris lors des changements d'heure.
+
+Les plannings datés contribuent uniquement aux dates explicitement renseignées ; les plannings hebdomadaires contribuent selon leurs jours récurrents. Pour les créneaux datés, la durée conventionnelle est d’une heure, comme lors de leur normalisation. Seuls les créneaux de la plage sélectionnée sont comptés : les 88 créneaux d’octobre ne donnent aucune capacité un jour sans ouverture ou sur une plage hors octobre. Sans rendez-vous, le taux reste à 0 % même si la capacité est positive.

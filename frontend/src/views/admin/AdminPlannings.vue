@@ -43,8 +43,8 @@ function openMonth(m) {
   month.value = m
   viewMode.value = 'month'
 }
-const MONTHS = ['Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre']
+const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const WEEKDAYS_SHORT = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const DAYS = [
   { d: 1, l: 'Lun' }, { d: 2, l: 'Mar' }, { d: 3, l: 'Mer' }, { d: 4, l: 'Jeu' },
@@ -89,21 +89,21 @@ function eachBulkDate(cb) {
 
 function bulkApply() {
   error.value = ''
-  if (!timesPalette.value.length) { error.value = 'Ajoutez au moins un creneau a appliquer.'; return }
+  if (!timesPalette.value.length) { error.value = 'Ajoutez au moins un créneau à appliquer.'; return }
   if (!bulk.value.weekdays.length) { error.value = 'Choisissez au moins un jour de semaine.'; return }
   const n = eachBulkDate((key) => { editing.value.days[key] = [...timesPalette.value] })
-  if (n === -1) { error.value = 'Plage de dates invalide (debut > fin ?).'; return }
-  if (n === 0) { error.value = 'Renseignez les dates de debut et de fin.'; return }
-  notice.value = `${n} jour(s) renseigne(s) avec ${timesPalette.value.length} creneau(x) chacun.`
+  if (n === -1) { error.value = 'Plage de dates invalide (début > fin ?).'; return }
+  if (n === 0) { error.value = 'Renseignez les dates de début et de fin.'; return }
+  notice.value = `${n} jour(s) renseigné(s) avec ${timesPalette.value.length} créneau(x) chacun.`
   setTimeout(() => (notice.value = ''), 4000)
 }
 
 function bulkRemove() {
   error.value = ''
   const n = eachBulkDate((key) => { delete editing.value.days[key] })
-  if (n === -1) { error.value = 'Plage de dates invalide (debut > fin ?).'; return }
-  if (n === 0) { error.value = 'Renseignez les dates de debut et de fin.'; return }
-  notice.value = `${n} jour(s) retire(s) du planning.`
+  if (n === -1) { error.value = 'Plage de dates invalide (début > fin ?).'; return }
+  if (n === 0) { error.value = 'Renseignez les dates de début et de fin.'; return }
+  notice.value = `${n} jour(s) retiré(s) du planning.`
   setTimeout(() => (notice.value = ''), 4000)
 }
 
@@ -144,7 +144,7 @@ function toggleDay(cell) {
   if (editing.value.days[cell.key]) {
     delete editing.value.days[cell.key]
   } else {
-    if (!timesPalette.value.length) { error.value = 'Ajoutez au moins un creneau a appliquer.'; return }
+    if (!timesPalette.value.length) { error.value = 'Ajoutez au moins un créneau à appliquer.'; return }
     editing.value.days[cell.key] = [...timesPalette.value]
   }
 }
@@ -166,16 +166,18 @@ function removeTime(t) {
 const dayCount = computed(() => Object.keys(editing.value?.days || {}).length)
 const slotCount = computed(() => Object.values(editing.value?.days || {}).reduce((s, t) => s + t.length, 0))
 
+const formatPlanningDate = (date) => date.split('-').reverse().join('/')
+
 function planningSummary(p) {
   const keys = Object.keys(p.days || {}).sort()
   if (keys.length) {
     const nb = Object.values(p.days).reduce((s, t) => s + t.length, 0)
-    return `${keys.length} jour(s) planifie(s) · ${nb} creneau(x) · du ${keys[0]} au ${keys[keys.length - 1]}`
+    return `${keys.length} jour(s) planifié(s) · ${nb} créneau(x) · du ${formatPlanningDate(keys[0])} au ${formatPlanningDate(keys[keys.length - 1])}`
   }
   if (p.openDays?.length) {
     return `Ancien format hebdo : ${p.openDays.map((d) => DAYS.find((x) => x.d === d)?.l).join(' ')} · ${(p.times || []).join(' ')}`
   }
-  return 'Aucun jour planifie'
+  return 'Aucun jour planifié'
 }
 
 const isLegacy = computed(() => editing.value && !Object.keys(editing.value.days).length && editing.value.openDays?.length)
@@ -253,7 +255,7 @@ async function save() {
     editing.value = null
     await load()
   } catch (e) {
-    error.value = e?.message || 'Echec de l\'enregistrement.'
+    error.value = e?.message || 'Échec de l\'enregistrement.'
   } finally {
     saving.value = false
   }
@@ -264,7 +266,7 @@ async function toggleActive(p) {
     await api.updatePlanning(admin.tenantId, p.code, { ...p, active: !p.active })
     p.active = !p.active
   } catch (e) {
-    error.value = e?.message || 'Echec de la mise a jour.'
+    error.value = e?.message || 'Échec de la mise à jour.'
   }
 }
 
@@ -279,7 +281,7 @@ async function remove(p) {
     await api.deletePlanning(admin.tenantId, p.code)
     plannings.value = plannings.value.filter((x) => x.code !== p.code)
   } catch (e) {
-    error.value = e?.message || 'Echec de la suppression.'
+    error.value = e?.message || 'Échec de la suppression.'
   }
 }
 </script>
@@ -288,9 +290,9 @@ async function remove(p) {
   <div class="mx-auto max-w-5xl">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="font-display text-2xl font-bold text-slate-900">Agenda</h1>
+        <h1 class="font-display text-2xl font-bold text-slate-900">Plannings</h1>
         <p class="mt-1 text-slate-500">
-          Cochez vos jours d'ouverture sur le calendrier annuel, ou assignez vos creneaux en masse.
+          Cochez vos jours d'ouverture sur le calendrier annuel, ou assignez vos créneaux en masse.
           Définissez les jours, horaires et capacités proposés à la réservation.
         </p>
       </div>
@@ -304,13 +306,13 @@ async function remove(p) {
     <div v-if="editing" class="card mt-5 space-y-6 p-6">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <h2 class="font-semibold text-slate-800">{{ isNew ? 'Nouveau planning' : `Modifier « ${editing.name} »` }}</h2>
-        <p class="text-sm text-slate-500">{{ dayCount }} jour(s) · {{ slotCount }} creneau(x)</p>
+        <p class="text-sm text-slate-500">{{ dayCount }} jour(s) · {{ slotCount }} créneau(x)</p>
       </div>
 
       <div v-if="isLegacy" class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-        Ce planning utilise l'ancien format hebdomadaire. Ses jours/heures ont ete recopies dans
+        Ce planning utilise l'ancien format hebdomadaire. Ses jours/heures ont été recopiés dans
         l'assignation en masse ci-dessous : choisissez une plage de dates puis « Appliquer » pour le
-        convertir en jours dates. Tant qu'aucun jour n'est coche, l'ancien pattern reste utilise.
+        convertir en jours datés. Tant qu'aucun jour n'est coché, l'ancien modèle reste utilisé.
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2">
@@ -319,14 +321,14 @@ async function remove(p) {
           <input v-model="editing.name" class="input" placeholder="Horaires habituels, saison d’été…" />
         </div>
         <div>
-          <label class="label">Capacite max / creneau (places)</label>
+          <label class="label">Capacité max / créneau (places)</label>
           <input v-model.number="editing.capacity" type="number" min="1" class="input" />
         </div>
       </div>
 
       <!-- Creneaux a appliquer -->
       <div class="rounded-2xl bg-slate-50 p-4">
-        <label class="label">Creneaux a appliquer (au clic sur un jour et en masse)</label>
+        <label class="label">Créneaux à appliquer (au clic sur un jour et en masse)</label>
         <div class="mt-1 flex flex-wrap items-center gap-2">
           <span v-for="t in timesPalette" :key="t" class="chip bg-white font-mono text-slate-700 ring-1 ring-slate-200">
             {{ t }}
@@ -341,7 +343,7 @@ async function remove(p) {
       <div class="rounded-2xl border border-brand-100 bg-brand-50/40 p-4">
         <p class="font-semibold text-slate-800">⚡ Assignation en masse</p>
         <p class="mt-0.5 text-xs text-slate-500">
-          Renseigne les creneaux ci-dessus sur tous les jours de semaine choisis, entre deux dates.
+          Renseigne les créneaux ci-dessus sur tous les jours de semaine choisis, entre deux dates.
         </p>
         <div class="mt-3 flex flex-wrap items-end gap-4">
           <div>
@@ -398,7 +400,7 @@ async function remove(p) {
               :class="viewMode === 'year' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'"
               @click="viewMode = 'year'"
             >
-              Annee
+              Année
             </button>
             <button
               type="button"
@@ -411,9 +413,9 @@ async function remove(p) {
           </div>
         </div>
         <p class="mb-3 text-center text-xs text-slate-400">
-          Clic sur un jour : ajoute les creneaux ci-dessus · re-clic : retire le jour.
-          <span class="ml-2 inline-block h-3 w-3 rounded bg-brand-600 align-middle" /> jour planifie
-          <template v-if="viewMode === 'year'"> · survol : detail des creneaux · clic sur un nom de mois : zoom</template>
+          Clic sur un jour : ajoute les créneaux ci-dessus · re-clic : retire le jour.
+          <span class="ml-2 inline-block h-3 w-3 rounded bg-brand-600 align-middle" /> jour planifié
+          <template v-if="viewMode === 'year'"> · survol : détail des créneaux · clic sur un nom de mois : zoom</template>
         </p>
 
         <!-- ===== Vue ANNEE : 12 mois compacts + tooltip au survol ===== -->
@@ -512,7 +514,7 @@ async function remove(p) {
       <!-- Prestations concernees -->
       <div>
         <label class="label">Prestations concernées</label>
-        <p class="mb-2 text-xs text-slate-400">Sans sélection, cet agenda s’applique à toutes les prestations.</p>
+        <p class="mb-2 text-xs text-slate-400">Sans sélection, ce planning s’applique à toutes les prestations.</p>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="j in jumpTypes"
@@ -529,7 +531,7 @@ async function remove(p) {
 
       <label class="flex items-center gap-2">
         <input v-model="editing.active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-brand-600" />
-        <span class="text-sm text-slate-700">Planning actif (creneaux proposes aux clients)</span>
+        <span class="text-sm text-slate-700">Planning actif (créneaux proposés aux clients)</span>
       </label>
 
       <div class="flex justify-end gap-3">
@@ -545,7 +547,7 @@ async function remove(p) {
     <div v-else-if="!plannings.length && !editing" class="card mt-6 p-8 text-center text-slate-400">
       <p class="text-3xl">🗓️</p>
       <p class="mt-2">Aucun planning pour l'instant.</p>
-      <button class="btn-primary mt-4" @click="startCreate">Creer le premier planning</button>
+      <button class="btn-primary mt-4" @click="startCreate">Créer le premier planning</button>
     </div>
 
     <!-- ======================= LISTE ======================= -->
@@ -562,7 +564,7 @@ async function remove(p) {
             <p class="mt-1 text-sm text-slate-500">
               {{ planningSummary(p) }}
               <span class="mx-1 text-slate-300">|</span>
-              {{ p.capacity }} places / creneau
+              {{ p.capacity }} places / créneau
             </p>
             <p class="mt-1 text-xs text-slate-400">
               <template v-if="p.jumpCodes.length">Prestations : {{ p.jumpCodes.map(jumpName).join(', ') }}</template>
@@ -571,7 +573,7 @@ async function remove(p) {
           </div>
           <div class="flex items-center gap-2">
             <button class="btn-ghost px-3 py-1 text-sm" @click="startEdit(p)">Modifier</button>
-            <button class="btn-ghost px-3 py-1 text-sm" @click="toggleActive(p)">{{ p.active ? 'Desactiver' : 'Activer' }}</button>
+            <button class="btn-ghost px-3 py-1 text-sm" @click="toggleActive(p)">{{ p.active ? 'Désactiver' : 'Activer' }}</button>
             <button
               class="btn-ghost px-3 py-1 text-sm"
               :class="deleteArm === p.code ? 'bg-rose-500 text-white hover:bg-rose-600' : 'text-rose-500 hover:bg-rose-50'"

@@ -54,6 +54,57 @@ final class DashboardMetricsCalculatorTest extends TestCase
         self::assertSame(0, $result['capacityMinutes']);
     }
 
+    public function testDatedOctoberPlanningCountsOnlyIts88Slots(): void
+    {
+        $days = [];
+        for ($day = new \DateTimeImmutable('2026-10-01'); $day < new \DateTimeImmutable('2026-11-01'); $day = $day->modify('+1 day')) {
+            if ((int) $day->format('N') <= 5) {
+                $days[$day->format('Y-m-d')] = ['09:00', '11:30', '14:00', '16:30'];
+            }
+        }
+        $normalized = (new \App\Service\Planning\PlanningInput())->normalizeDays(['days' => $days]);
+        $planning = new Planning();
+        $planning->setCapacity(8);
+        $planning->setDays($normalized['days']);
+        $planning->setLegacyConfig($normalized['legacyConfig']);
+        $calculator = new DashboardMetricsCalculator();
+        $timezone = new \DateTimeZone('Europe/Paris');
+        $from = new \DateTimeImmutable('2026-10-01', $timezone);
+        $result = $calculator->calculate([], [$planning], [], $from, $from->modify('+1 month'), $timezone);
+        self::assertSame(88 * 60 * 8, $result['capacityMinutes']);
+
+        foreach (['2026-10-10', '2026-11-02'] as $date) {
+            $from = new \DateTimeImmutable($date, $timezone);
+            $result = $calculator->calculate([], [$planning], [], $from, $from->modify('+1 day'), $timezone);
+            self::assertSame(0, $result['capacityMinutes']);
+        }
+        $planning->setActive(false);
+        $from = new \DateTimeImmutable('2026-10-01', $timezone);
+        $result = $calculator->calculate([], [$planning], [], $from, $from->modify('+1 month'), $timezone);
+        self::assertSame(0, $result['capacityMinutes']);
+    }
+
+    public function testDatedSlotsRespectDaySpecificTimesAndPartialRange(): void
+    {
+        $planning = new Planning();
+        $planning->setCapacity(2);
+        $planning->setDays(['thursday' => [['start' => '09:00', 'end' => '10:00'], ['start' => '14:00', 'end' => '15:00']]]);
+        $planning->setLegacyConfig(['days' => ['2026-10-01' => ['09:00'], '2026-10-08' => ['14:00']]]);
+        $from = new \DateTimeImmutable('2026-10-01T09:30:00+02:00');
+        $result = (new DashboardMetricsCalculator())->calculate([], [$planning], [], $from, new \DateTimeImmutable('2026-10-08T14:15:00+02:00'), new \DateTimeZone('Europe/Paris'));
+        self::assertSame(90, $result['capacityMinutes']);
+    }
+
+    public function testCapacityUsesPlanningTimezoneAndElapsedMinutesAcrossDst(): void
+    {
+        $planning = new Planning();
+        $planning->setDays(['sunday' => [['start' => '01:00', 'end' => '04:00']]]);
+        $from = new \DateTimeImmutable('2026-03-29T00:00:00+01:00');
+        $to = new \DateTimeImmutable('2026-03-30T00:00:00+02:00');
+        $result = (new DashboardMetricsCalculator())->calculate([], [$planning], [], $from, $to, new \DateTimeZone('UTC'));
+        self::assertSame(120, $result['capacityMinutes']);
+    }
+
     private function booking(string $email, string $createdAt, string $start, string $end, string $status = Booking::STATUS_CONFIRMED, ?string $paymentState = null, ?int $amount = null): Booking
     {
         $booking = new Booking();

@@ -49,7 +49,7 @@ final class DashboardMetricsCalculator
         }
 
         $newClients = count(array_filter($firstBookingByEmail, fn (\DateTimeImmutable $date): bool => $this->contains($date, $from, $to)));
-        $capacityMinutes = $this->capacityMinutes($plannings, $from, $to, $timezone);
+        $capacityMinutes = $this->capacityMinutes($plannings, $from, $to);
         $giftCards = ['sold' => 0, 'paidAmount' => 0, 'awaitingPayment' => 0, 'active' => 0, 'used' => 0, 'expired' => 0];
         foreach ($vouchers as $voucher) {
             $status = $voucher->getEffectiveStatus();
@@ -84,21 +84,33 @@ final class DashboardMetricsCalculator
     }
 
     /** @param list<Planning> $plannings */
-    private function capacityMinutes(array $plannings, \DateTimeImmutable $from, \DateTimeImmutable $to, \DateTimeZone $timezone): int
+    private function capacityMinutes(array $plannings, \DateTimeImmutable $from, \DateTimeImmutable $to): int
     {
         $minutes = 0;
-        $firstDay = $from->setTimezone($timezone)->setTime(0, 0);
-        $lastDay = $to->setTimezone($timezone)->setTime(0, 0);
         foreach ($plannings as $planning) {
             if (!$planning->isActive()) continue;
+            $planningTimezone = new \DateTimeZone($planning->getTimezone());
+            $localFrom = $from->setTimezone($planningTimezone);
+            $localTo = $to->setTimezone($planningTimezone);
+            $firstDay = $localFrom->setTime(0, 0);
+            $lastDay = $localTo->setTime(0, 0);
+            $datedDays = $planning->getLegacyConfig()['days'] ?? [];
             for ($day = $firstDay; $day <= $lastDay; $day = $day->modify('+1 day')) {
-                foreach ($planning->getDays()[strtolower($day->format('l'))] ?? [] as $range) {
+                // Explicit calendar dates take precedence over the inferred weekly rules.
+                $ranges = $planning->getDays()[strtolower($day->format('l'))] ?? [];
+                if ($datedDays !== []) {
+                    $ranges = array_map(static function (string $time): array {
+                        $end = (new \DateTimeImmutable('2000-01-01 '.$time))->modify('+1 hour')->format('H:i');
+                        return ['start' => $time, 'end' => $end === '00:00' ? '23:59' : $end];
+                    }, $datedDays[$day->format('Y-m-d')] ?? []);
+                }
+                foreach ($ranges as $range) {
                     try {
-                        $start = new \DateTimeImmutable($day->format('Y-m-d').' '.$range['start'], $timezone);
-                        $end = new \DateTimeImmutable($day->format('Y-m-d').' '.$range['end'], $timezone);
+                        $start = new \DateTimeImmutable($day->format('Y-m-d').' '.$range['start'], $planningTimezone);
+                        $end = new \DateTimeImmutable($day->format('Y-m-d').' '.$range['end'], $planningTimezone);
                     } catch (\Throwable) { continue; }
-                    $start = max($start, $from->setTimezone($timezone));
-                    $end = min($end, $to->setTimezone($timezone));
+                    $start = max($start, $localFrom);
+                    $end = min($end, $localTo);
                     $minutes += max(0, (int) (($end->getTimestamp() - $start->getTimestamp()) / 60)) * max(1, $planning->getCapacity());
                 }
             }
