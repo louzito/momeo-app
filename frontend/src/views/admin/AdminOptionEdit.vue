@@ -12,6 +12,7 @@ const admin = useAdminStore()
 const isNew = computed(() => !route.params.id)
 const loading = ref(true)
 const saving = ref(false)
+const error = ref('')
 const jumps = ref([])
 
 const form = ref({
@@ -41,11 +42,15 @@ function toggleLink(id) {
 }
 
 async function save() {
+  if (saving.value) return
   saving.value = true
+  error.value = ''
   try {
     if (isNew.value) await api.createOption(admin.tenantId, form.value)
     else await api.updateOption(admin.tenantId, route.params.id, form.value)
     router.push({ name: 'admin-options' })
+  } catch (e) {
+    error.value = e?.message || 'Impossible d’enregistrer l’option.'
   } finally {
     saving.value = false
   }
@@ -109,6 +114,8 @@ async function save() {
           </label>
         </div>
       </section>
+
+      <div v-if="error" role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">⚠️ {{ error }}</div>
 
       <div class="flex items-center justify-end gap-3">
         <RouterLink :to="{ name: 'admin-options' }" class="btn-ghost">Annuler</RouterLink>

@@ -19,7 +19,6 @@ import { migrateLocalStorageKey } from '@/utils/persistedIdentifier'
 import { normalizeSiteConfig, publishSiteConfigDocument, readSiteConfigDocument } from '@/utils/siteConfig'
 
 const TOKEN_KEY = `todatempo.sylius.jwt.${TENANT_SLUG}`
-const DEFAULT_CHANNEL = 'FASHION_WEB' // channel du Sylius de demo (a rendre configurable plus tard)
 const PRODUCT_FALLBACK_LOCALE = 'en_US' // locale de repli Sylius (backend/config/parameters.yaml)
 // Type d'association Sylius servant a lier une option PER_JUMP a des sauts precis.
 const JUMP_ASSOC_TYPE = 'todatempo_services'
@@ -146,19 +145,36 @@ const productIri = (code) => `/api/v2/admin/products/${code}`
 const assocTypeIri = (code) => `/api/v2/admin/product-association-types/${code}`
 const codeFromIri = (iri) => String(iri || '').split('/').pop()
 
-// La langue du canal doit aussi exister sur le produit pour le catalogue shop.
-async function productLocale(channelCode = DEFAULT_CHANNEL) {
+// Le tenant est transmis par request : utiliser son canal, sans code de demo.
+async function productChannel(channelCode) {
   const data = await request('GET', '/shop/channels', null, undefined, { auth: false })
-  const channel = (data['hydra:member'] || data.member || []).find((item) => item.code === channelCode)
-  if (!channel) throw new Error('Le canal de vente est absent.')
+  const channels = data['hydra:member'] || data.member || []
+  const channel = channelCode
+    ? channels.find((item) => item.code === channelCode)
+    : channels.length === 1 ? channels[0] : null
+  if (!channel?.code) throw new Error(channels.length > 1 && !channelCode
+    ? 'Plusieurs canaux de vente sont disponibles. Sélectionnez le canal de vente.'
+    : 'Le canal de vente est absent.')
+  return channel
+}
+
+// La langue du canal doit aussi exister sur le produit pour le catalogue shop.
+async function productLocale(channelCode) {
+  const channel = await productChannel(channelCode)
+  return channelLocale(channel)
+}
+
+function channelLocale(channel) {
   const locale = channel.defaultLocale?.code || codeFromIri(channel.defaultLocale?.['@id'] || channel.defaultLocale)
   if (!locale) throw new Error('La langue du canal de vente est absente.')
   return locale
 }
 
 // Cree un produit simple Sylius (produit + variante + prix par channel).
-async function createSimpleProduct({ code, name, price, shortDescription = '', description = '', channelCode = DEFAULT_CHANNEL, taxCategory = null }) {
-  const locale = await productLocale(channelCode)
+async function createSimpleProduct({ code, name, price, shortDescription = '', description = '', channelCode, taxCategory = null }) {
+  const channel = await productChannel(channelCode)
+  channelCode = channel.code
+  const locale = channelLocale(channel)
   const priceCents = Math.round(Number(price || 0) * 100)
   // Sylius peut materialiser la traduction de repli pendant la validation.
   // Elle doit etre renseignee meme si le canal utilise une autre langue.
@@ -185,7 +201,7 @@ async function createSimpleProduct({ code, name, price, shortDescription = '', d
 // (Allow: PUT, DELETE, GET). On met donc a jour via PUT. Pour que PUT modifie la
 // sous-ressource EXISTANTE (au lieu d'en creer une 2e -> violation d'unicite), on
 // reference son @id, qui est deterministe (derivable du code / de la locale).
-async function patchProduct(code, { name, shortDescription, description }, channelCode = DEFAULT_CHANNEL) {
+async function patchProduct(code, { name, shortDescription, description }, channelCode) {
   const locale = await productLocale(channelCode)
   const product = await request('GET', `/admin/products/${encodeURIComponent(code)}`)
   // Un ancien produit peut ne posseder que la traduction en_US : creer alors
@@ -201,7 +217,8 @@ async function patchProduct(code, { name, shortDescription, description }, chann
   if (!name && shortDescription == null && description == null) return // rien a changer hormis l'@id
   await request('PUT', `/admin/products/${code}`, { translations: { [locale]: tr } })
 }
-async function patchVariantPrice(code, price, channelCode = DEFAULT_CHANNEL) {
+async function patchVariantPrice(code, price, channelCode) {
+  channelCode = (await productChannel(channelCode)).code
   const priceCents = Math.round(Number(price) * 100)
   const cpIri = `/api/v2/admin/product-variants/${code}-variant/channel-pricings/${channelCode}`
   await request('PUT', `/admin/product-variants/${code}-variant`, {
@@ -418,7 +435,7 @@ export async function deleteJump(code) {
 
 export async function createPhysicalProduct(data) {
   const code = data.code || codeFrom('product_', data.name)
-  await createSimpleProduct({ code, name: data.name, price: data.price, taxCategory: data.taxCategory, shortDescription: data.summary || '', description: data.description || '' })
+  await createSimpleProduct({ code, name: data.name, price: data.price, taxCategory: data.taxCategory, shortDescription: data.summary || '', description: data.description || '', channelCode: data.channelCode })
   await request('PUT', `/admin/products/${code}/commerce`, {
     type: 'physical', pickupEnabled: !!data.pickupEnabled, deliveryEnabled: !!data.deliveryEnabled,
     deliveryFee: Math.round(Number(data.deliveryFee || 0) * 100), stock: Math.max(0, Math.round(Number(data.stock) || 0)),
@@ -428,8 +445,8 @@ export async function createPhysicalProduct(data) {
 
 export async function updatePhysicalProduct(code, data) {
   await setProductTaxCategory(code, data.taxCategory)
-  await patchProduct(code, { name: data.name, shortDescription: data.summary, description: data.description })
-  if (data.price != null) await patchVariantPrice(code, data.price)
+  await patchProduct(code, { name: data.name, shortDescription: data.summary, description: data.description }, data.channelCode)
+  if (data.price != null) await patchVariantPrice(code, data.price, data.channelCode)
   await request('PUT', `/admin/products/${code}/commerce`, {
     type: 'physical', pickupEnabled: !!data.pickupEnabled, deliveryEnabled: !!data.deliveryEnabled,
     deliveryFee: Math.round(Number(data.deliveryFee || 0) * 100), stock: Math.max(0, Math.round(Number(data.stock) || 0)),
@@ -575,7 +592,7 @@ export async function getShopConfig() {
   await ensureConfigTaxon()
   const [t, ch] = await Promise.all([
     request('GET', `/admin/taxons/${CONFIG_TAXON}`),
-    request('GET', `/admin/channels/${DEFAULT_CHANNEL}`),
+    request('GET', `/admin/channels/${(await productChannel()).code}`),
   ])
   let cfg = {}
   try {
@@ -684,7 +701,7 @@ export async function publishShopConfig(cfg) {
   const document = publishSiteConfigDocument(readSiteConfigDocument(raw), draft)
   // Synchronise d'abord les champs administratifs. Le rendu public ne les lit
   // pas et ne bascule qu'avec l'unique PUT final de l'instantané complet.
-  await request('PUT', `/admin/channels/${DEFAULT_CHANNEL}`, {
+  await request('PUT', `/admin/channels/${(await productChannel()).code}`, {
     name: draft.name || 'TodaTempo', contactEmail: draft.contactEmail || null,
     contactPhoneNumber: draft.contactPhone || null,
   })
@@ -1016,7 +1033,7 @@ export async function createOption(data) {
   return { ...res, scope, linkedJumpTypeIds }
 }
 export async function updateOption(code, patch) {
-  await patchProduct(code, { name: patch.name, shortDescription: patch.description })
+  await patchProduct(code, { name: patch.name, shortDescription: patch.description }, patch.channelCode)
   if (patch.price != null) await patchVariantPrice(code, patch.price, patch.channelCode)
   // La portee est portee par le prefixe du code (opt_pj_ = PER_JUMP).
   if (code.startsWith('opt_pj_') && patch.linkedJumpTypeIds !== undefined) {

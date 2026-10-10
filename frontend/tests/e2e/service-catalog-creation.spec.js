@@ -14,8 +14,8 @@ for (const locale of ['fr_FR', 'en_US']) {
       let body = { member: [] }
       let status = 200
       if (path.endsWith('/admin/team/session')) body = { permissions: ['catalog'] }
-      else if (path.endsWith('/admin/channels/FASHION_WEB')) body = { code: 'FASHION_WEB', defaultLocale: `/api/v2/admin/locales/${locale}` }
-      else if (path.endsWith('/shop/channels')) body = { member: [{ code: 'FASHION_WEB', name: 'Institut', baseCurrency: { code: 'EUR' }, defaultLocale: `/api/v2/shop/locales/${locale}` }] }
+      else if (path.endsWith('/admin/channels/INSTITUT_WEB')) body = { code: 'INSTITUT_WEB', defaultLocale: `/api/v2/admin/locales/${locale}` }
+      else if (path.endsWith('/shop/channels')) body = { member: [{ code: 'INSTITUT_WEB', name: 'Institut', baseCurrency: { code: 'EUR' }, defaultLocale: `/api/v2/shop/locales/${locale}` }] }
       else if (path.includes('/shop/taxons/')) body = { description: '{}' }
       else if (path.endsWith('/admin/products') && method === 'POST') {
         product = request.postDataJSON()
@@ -58,3 +58,30 @@ for (const locale of ['fr_FR', 'en_US']) {
     await expect(page.getByRole('heading', { name: 'Soin visage douceur', exact: true })).toBeVisible()
   })
 }
+
+
+test('le formulaire option affiche une erreur 422 et permet de réessayer', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('todatempo.admin.centre-e2e', JSON.stringify({ admin: { permissions: ['catalog'] }, tenant: { id: 'centre-e2e', currency: 'EUR' } }))
+    localStorage.setItem('todatempo.sylius.jwt.centre-e2e', 'test-token')
+  })
+  await page.route('**/api/v2/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    let body = { member: [] }
+    let status = 200
+    if (path.endsWith('/admin/team/session')) body = { permissions: ['catalog'] }
+    else if (path.endsWith('/shop/channels')) body = { member: [{ code: 'INSTITUT_WEB', baseCurrency: { code: 'EUR' }, defaultLocale: { code: 'fr_FR' } }] }
+    else if (path.includes('/shop/taxons/')) body = { description: '{}' }
+    else if (path.endsWith('/admin/products') && route.request().method() === 'POST') {
+      status = 422
+      body = { detail: 'translations[en_US].name : Veuillez saisir le nom du produit.' }
+    }
+    await route.fulfill({ status, json: body })
+  })
+  await page.goto('/centre-e2e/admin/options/new')
+  await page.getByPlaceholder('Massage du cuir chevelu').fill('Massage')
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Veuillez saisir le nom du produit.')
+  await expect(page.getByRole('button', { name: 'Enregistrer', exact: true })).toBeEnabled()
+  await expect(page).toHaveURL(/\/admin\/options\/new$/)
+})

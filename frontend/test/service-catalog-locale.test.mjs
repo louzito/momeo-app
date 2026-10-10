@@ -24,7 +24,7 @@ for (const locale of ['fr_FR', 'en_US']) {
         }
       }
       const result = url.endsWith('/shop/channels')
-        ? { member: [{ code: 'FASHION_WEB', defaultLocale: locale === 'fr_FR' ? { code: locale } : `/api/v2/shop/locales/${locale}` }] }
+        ? { member: [{ code: 'INSTITUT_WEB', defaultLocale: locale === 'fr_FR' ? { code: locale } : `/api/v2/shop/locales/${locale}` }] }
         : url.endsWith('/products/service_soin') && options.method === 'GET'
           ? { translations: { en_US: { name: 'Soin' } } }
           : {}
@@ -41,7 +41,23 @@ for (const locale of ['fr_FR', 'en_US']) {
       assert.deepEqual(product.translations.en_US, product.translations[locale])
       assert.equal(product.translations.en_US.slug, 'soin')
       assert.equal(variant.translations.en_US.name, 'Soin')
-      assert.equal(variant.channelPricings.FASHION_WEB.price, 6500)
+      assert.equal(variant.channelPricings.INSTITUT_WEB.price, 6500)
+      for (const create of [
+        () => api.createPhysicalProduct({ name: 'Crème', price: 20 }),
+        () => api.createOption({ name: 'Massage', price: 10, scope: 'PER_JUMP' }),
+        () => api.createOption({ name: 'Cadeau', price: 5, scope: 'PER_ORDER' }),
+      ]) {
+        calls.length = 0
+        await create()
+        const created = calls.find(c => c.url.endsWith('/products') && c.method === 'POST').body
+        const createdVariant = calls.find(c => c.url.endsWith('/product-variants') && c.method === 'POST').body
+        assert.deepEqual(Object.keys(created.translations), locales)
+        assert.ok(created.translations.en_US.name)
+        assert.ok(created.translations.en_US.slug)
+        assert.deepEqual(created.channels, ['/api/v2/admin/channels/INSTITUT_WEB'])
+        assert.deepEqual(Object.keys(createdVariant.channelPricings), ['INSTITUT_WEB'])
+        assert.deepEqual(Object.keys(createdVariant.translations), locales)
+      }
       calls.length = 0
       await api.updateJump('service_soin', { name: 'Soin douceur' })
       const patch = calls.find(c => c.body?.translations).body.translations[locale]
