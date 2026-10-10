@@ -28,7 +28,12 @@ final class DashboardReadServiceTest extends AvailabilityTestCase
         $data = json_decode($response->getContent(), true);
         self::assertSame(['from' => '2026-03-29T00:00:00+01:00', 'to' => '2026-03-30T00:00:00+02:00', 'timezone' => 'Europe/Paris'], $data['range']);
         unset($data['range']);
-        self::assertEquals($calculator->calculate(self::getContainer()->get(BookingRepository::class)->findForAdministration(), self::getContainer()->get(PlanningRepository::class)->findForAdministration(), self::getContainer()->get(GiftVoucherRepository::class)->findAll(), new \DateTimeImmutable('2026-03-28T23:00:00Z'), new \DateTimeImmutable('2026-03-29T22:00:00Z'), new \DateTimeZone('Europe/Paris'), $this->entityManager->getRepository(Customer::class)->findAll()), $data);
+        $expected = $calculator->calculate(self::getContainer()->get(BookingRepository::class)->findForAdministration(), self::getContainer()->get(PlanningRepository::class)->findForAdministration(), self::getContainer()->get(GiftVoucherRepository::class)->findAll(), new \DateTimeImmutable('2026-03-28T23:00:00Z'), new \DateTimeImmutable('2026-03-29T22:00:00Z'), new \DateTimeZone('Europe/Paris'), $this->entityManager->getRepository(Customer::class)->findAll());
+        $receipts = (new \App\Service\Dashboard\CollectedRevenueCalculator())->calculate(
+            $this->entityManager->getRepository(\App\Entity\Payment\Payment::class)->findAll(),
+            new \DateTimeImmutable('2026-03-28T23:00:00Z'), new \DateTimeImmutable('2026-03-29T22:00:00Z'),
+        );
+        self::assertEquals(array_replace($expected, $receipts), $data);
     }
 
     public function testInvalidRangesAre422(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Availability;
 
 use App\Entity\Taxonomy\Taxon;
+use App\Entity\Planning;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class PlanningProvider
@@ -13,7 +14,7 @@ final class PlanningProvider
     {
     }
 
-    /** @return list<array{code: string, days: array<string, list<string>>, openDays: list<int>, times: list<string>, serviceCodes: list<string>}> */
+    /** @return list<array{code: string, days: array<string, list<string>>, openDays: list<int>, times: list<string>, serviceCodes: list<string>, weeklyDays?: array<string, list<array{start: string, end: string}>>, timezone?: string, staffMemberId?: ?int}> */
     public function active(): array
     {
         $taxons = $this->entityManager->getRepository(Taxon::class)->createQueryBuilder('taxon')
@@ -26,7 +27,29 @@ final class PlanningProvider
             ->getResult();
 
         $result = [];
+        $knownCodes = [];
+        foreach ($this->entityManager->getRepository(Planning::class)->findBy([], ['code' => 'ASC']) as $planning) {
+            $knownCodes[$planning->getCode()] = true;
+            if (!$planning->isActive()) {
+                continue;
+            }
+            $legacy = $planning->getLegacyConfig() ?? [];
+            $result[] = [
+                'code' => $planning->getCode(),
+                'days' => $this->days($legacy['days'] ?? null),
+                'openDays' => $this->integers($legacy['openDays'] ?? null),
+                'times' => $this->times($legacy['times'] ?? null),
+                'weeklyDays' => $legacy === [] ? $planning->getDays() : [],
+                'timezone' => $planning->getTimezone(),
+                'staffMemberId' => $planning->getStaffMember()?->getId(),
+                'serviceCodes' => $planning->getServiceCodes(),
+            ];
+        }
         foreach ($taxons as $taxon) {
+            // A migrated planning is authoritative, including its inactive state.
+            if (isset($knownCodes[$taxon->getCode()])) {
+                continue;
+            }
             $data = json_decode($taxon->getTranslation('en_US')?->getDescription() ?: '{}', true);
             if (!\is_array($data)) {
                 continue;

@@ -20,7 +20,14 @@ final class BookingView
     {
         if (!$booking->getOrderNumber() || $this->em === null) return null;
         $order = $this->em->getRepository(\App\Entity\Order\Order::class)->findOneBy(['number' => $booking->getOrderNumber()]);
-        return $order instanceof \App\Entity\Order\Order ? \App\Service\GiftCard\GiftCardPaymentService::breakdown($order) : null;
+        if (!$order instanceof \App\Entity\Order\Order) return null;
+        $paidAmount = 0;
+        foreach ($order->getPayments() as $payment) {
+            if ($payment->getState() === 'completed') {
+                $paidAmount += (int) $payment->getAmount();
+            }
+        }
+        return \App\Service\GiftCard\GiftCardPaymentService::breakdown($order) + ['paidAmount' => $paidAmount];
     }
 
     /** @return array<string, mixed> */
@@ -88,6 +95,7 @@ final class BookingView
             'balanceDue' => $booking->getBalanceDue(),
             'currencyCode' => $booking->getCurrencyCode(),
             'paymentState' => $booking->getPaymentState(),
+            'paymentBreakdown' => $this->payments($booking),
             'postponedReason' => $booking->getPostponedReason(),
             'createdAt' => $booking->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $booking->getUpdatedAt()->format(\DateTimeInterface::ATOM),

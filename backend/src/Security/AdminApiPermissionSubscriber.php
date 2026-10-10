@@ -55,6 +55,8 @@ final class AdminApiPermissionSubscriber
     {
         $resource = substr($path, strlen('/api/v2/admin/'));
 
+        if ($method !== 'GET' && preg_match('#^tax-(categories|rates)(?:/|$)#', $resource)) return TeamPermission::Settings;
+
         if (preg_match('#^taxons?/(?:todatempo_config|skybook_config)(?:/|$)#', $resource)) return TeamPermission::Settings;
 
         if (preg_match('#^(bookings|plannings|staff-time-offs|waitlist)(?:/|$)#', $resource)) {

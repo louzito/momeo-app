@@ -529,6 +529,8 @@ export const httpApi = {
     return membersOf(data).map((p) => mapPhysicalProduct(p, tenantId))
   },
   async getTaxCategories() { return sylius.getTaxCategories() },
+  async getTaxConfiguration() { return sylius.getTaxConfiguration() },
+  async saveTaxRate(data) { return sylius.saveTaxRate(data) },
   async getProductTaxCategory(code) { return sylius.getProductTaxCategory(code) },
   async uploadPhysicalProductImage(tenantId, code, file) { return sylius.replaceProductImage(code, file) },
   async createPhysicalProduct(tenantId, data) { return sylius.createPhysicalProduct(data) },

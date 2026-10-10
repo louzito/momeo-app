@@ -9,6 +9,7 @@ use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
 use App\Entity\Customer\Customer;
+use App\Entity\Payment\Payment;
 use Doctrine\ORM\EntityManagerInterface;
 
 /** Lecture dans les repositories du tenant courant ; plage locale, calcul UTC. */
@@ -21,6 +22,7 @@ final class DashboardReadService
         private readonly DashboardMetricsCalculator $calculator,
         private readonly CenterTimeZoneProvider $timeZoneProvider,
         private readonly EntityManagerInterface $entityManager,
+        private readonly CollectedRevenueCalculator $revenueCalculator,
     ) {}
 
     /** @return array<string, mixed> */
@@ -50,6 +52,13 @@ final class DashboardReadService
             $timezone,
             $this->entityManager->getRepository(Customer::class)->findAll(),
         );
+
+        $receipts = $this->revenueCalculator->calculate(
+            $this->entityManager->getRepository(Payment::class)->findBy(['state' => ['completed', 'refunded']]),
+            $fromUtc,
+            $toUtc,
+        );
+        $metrics = array_replace($metrics, $receipts);
 
         return $metrics + ['range' => ['from' => $from->format(\DateTimeInterface::ATOM), 'to' => $to->format(\DateTimeInterface::ATOM), 'timezone' => $timezone->getName()]];
     }

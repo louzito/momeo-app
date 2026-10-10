@@ -4,6 +4,7 @@ import { useAdminStore } from '@/stores/admin'
 import api from '@/api'
 import Spinner from '@/components/ui/Spinner.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import BookingPaymentStatus from '@/components/BookingPaymentStatus.vue'
 import SlotCalendar from '@/components/SlotCalendar.vue'
 import { formatDate, formatTime } from '@/utils/format'
 
@@ -33,7 +34,7 @@ const filtered = computed(() => {
   const now = Date.now()
   if (filter.value === 'all') return bookings.value
   if (filter.value === 'upcoming')
-    return bookings.value.filter((b) => b.status === 'confirmed' && new Date(b.slotStart) >= now - 864e5)
+    return bookings.value.filter((b) => ['confirmed', 'awaiting_payment'].includes(b.status) && new Date(b.slotStart) >= now - 864e5)
   return bookings.value.filter((b) => b.status === filter.value)
 })
 
@@ -145,6 +146,7 @@ const isFuture = (b) => new Date(b.slotStart) >= Date.now()
               <span v-if="b.customerEmail && b.customerPhone"> · </span>
               <span v-if="b.customerPhone">{{ b.customerPhone }}</span>
             </p>
+            <BookingPaymentStatus :booking="b" />
           </div>
 
           <!-- Actions -->

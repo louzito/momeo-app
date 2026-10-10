@@ -72,13 +72,16 @@ final class AvailabilityService
             }
             $matchedStaffCount = 0;
             foreach ($eligibleStaff as $staff) {
+                if ($plannedSlot['staffMemberId'] !== null && $plannedSlot['staffMemberId'] !== $staff->getId()) {
+                    continue;
+                }
                 if (\App\Service\Staff\WorkingHours::contains($staff->getWorkingHours(), $plannedSlot['localStart'], $plannedSlot['end'], $timezone)) {
                     $startUtc = $plannedSlot['start'];
                     $endUtc = $plannedSlot['end'];
                     if (!$this->isBlocked($staff, $startUtc, $endUtc, $blocking, $timeOffs)) {
                         ++$matchedStaffCount;
                         $slots[] = [
-                            'id' => sprintf('staff_%d_%s_%s', $staff->getId(), $startUtc->format('Ymd_Hi'), $serviceCode),
+                            'id' => sprintf('staff_%d_%s_%s_%s', $staff->getId(), $startUtc->format('Ymd_Hi'), $serviceCode, $plannedSlot['planningCode']),
                             'planningCode' => $plannedSlot['planningCode'],
                             'start' => $startUtc->format(\DateTimeInterface::ATOM),
                             'end' => $endUtc->format(\DateTimeInterface::ATOM),

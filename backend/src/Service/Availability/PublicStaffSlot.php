@@ -58,7 +58,7 @@ final class PublicStaffSlot
             return 'Ce créneau ne correspond plus aux disponibilités de cette prestation.';
         }
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $localStart->format('Y-m-d'), $timezone);
-        if (!$date || !$this->isPlanned($serviceCode, $start, $date, $timezone, $planningCode)) {
+        if (!$date || !$this->isPlanned($serviceCode, $start, $date, $timezone, $planningCode, $staff->getId())) {
             return 'Ce créneau ne figure plus au planning.';
         }
         if ($this->bookingRepository->hasOverlap($staff, $start, $end)) {
@@ -71,7 +71,7 @@ final class PublicStaffSlot
         return null;
     }
 
-    private function isPlanned(string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $date, \DateTimeZone $timezone, string $planningCode): bool
+    private function isPlanned(string $serviceCode, \DateTimeImmutable $start, \DateTimeImmutable $date, \DateTimeZone $timezone, string $planningCode, int $staffId): bool
     {
         $slots = $this->slotGenerator->generate(
             $this->planningProvider->active(),
@@ -83,7 +83,7 @@ final class PublicStaffSlot
             $timezone,
         );
         foreach ($slots as $slot) {
-            if ($slot['start']->getTimestamp() === $start->getTimestamp() && hash_equals($slot['planningCode'], $planningCode)) {
+            if (($slot['staffMemberId'] === null || $slot['staffMemberId'] === $staffId) && $slot['start']->getTimestamp() === $start->getTimestamp() && hash_equals($slot['planningCode'], $planningCode)) {
                 return true;
             }
         }

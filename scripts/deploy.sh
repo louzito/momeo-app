@@ -13,6 +13,10 @@ flock -n 9 || { echo 'Un build ou déploiement est déjà en cours.' >&2; exit 1
 
 if [[ "$MODE" != build ]]; then
   export APP_ENV=prod APP_DEBUG=0
+  # Liip Imagine crée les images filtrées à la première consultation HTTP.
+  # Le groupe du serveur web doit pouvoir écrire dans ce cache.
+  mkdir -p "$ROOT/backend/public/media/cache"
+  chmod 2775 "$ROOT/backend/public/media/cache"
   # Installer avant Encore : ses paquets Sylius proviennent de vendor/.
   (cd backend && composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader --no-scripts)
   # Valider la configuration avant de modifier les fichiers publiés.

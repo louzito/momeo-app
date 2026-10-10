@@ -226,6 +226,7 @@ const tenantRoutes = [
       { path: 'clients', name: 'admin-clients', component: () => import('@/views/admin/AdminClients.vue'), meta: { title: 'Clients', layout: 'admin', requiresAdmin: true, permission: 'clients' } },
       { path: 'orders', name: 'admin-orders', component: () => import('@/views/admin/AdminOrders.vue'), meta: { title: 'Commandes', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
       { path: 'vouchers', name: 'admin-vouchers', component: () => import('@/views/admin/AdminVouchers.vue'), meta: { title: 'Chèques cadeaux', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
+      { path: 'taxes', name: 'admin-taxes', component: () => import('@/views/admin/AdminTaxes.vue'), meta: { title: 'TVA', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'payments', name: 'admin-payments', component: () => import('@/views/admin/AdminPayments.vue'), meta: { title: 'Moyens de paiement', layout: 'admin', requiresAdmin: true, permission: 'finances' } },
       { path: 'site/images', name: 'admin-site-images', component: () => import('@/views/admin/AdminSiteImages.vue'), meta: { title: 'Images du site', layout: 'admin', requiresAdmin: true, permission: 'settings' } },
       { path: 'site/appearance', name: 'admin-site-appearance', component: () => import('@/views/admin/AdminSiteAppearance.vue'), meta: { title: 'Apparence', layout: 'admin', requiresAdmin: true, permission: 'settings' } },

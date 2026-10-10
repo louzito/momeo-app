@@ -51,6 +51,25 @@ final class AvailabilitySlotGeneratorTest extends TestCase
         self::assertSame(45 * 60, $slots[0]['end']->getTimestamp() - $slots[0]['start']->getTimestamp());
     }
 
+    public function testWeeklyRangesFitDurationAndKeepSeparatePlannings(): void
+    {
+        $first = $this->planning([]);
+        $first['weeklyDays'] = ['monday' => [
+            ['start' => '09:00', 'end' => '11:30'],
+            ['start' => '14:00', 'end' => '14:30'],
+        ]];
+        $first['timezone'] = 'Europe/Paris';
+        $first['staffMemberId'] = 42;
+        $second = $first;
+        $second['code'] = 'planning_b';
+        $slots = $this->generator->generate([$first, $second], 'service', 60, $this->date('2027-05-03'), $this->date('2027-05-03'), new \DateTimeImmutable('@0'), new \DateTimeZone('UTC'));
+        self::assertCount(4, $slots);
+        self::assertSame(['09:00', '09:00', '10:00', '10:00'], array_map(static fn (array $slot): string => $slot['localStart']->format('H:i'), $slots));
+        self::assertSame('07:00', $slots[0]['start']->format('H:i'));
+        self::assertSame(42, $slots[0]['staffMemberId']);
+        self::assertSame(['planning_a', 'planning_b'], array_column(array_slice($slots, 0, 2), 'planningCode'));
+    }
+
     /** @param array<string, list<string>> $days @param list<string> $services */
     private function planning(array $days, array $services = []): array
     {

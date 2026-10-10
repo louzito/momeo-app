@@ -72,6 +72,10 @@ final class AdminApiPermissionContractTest extends TestCase
         yield 'manager finances' => ['/api/v2/admin/payments/1', 'GET', TeamRole::Manager, true];
         yield 'manager catalog' => ['/api/v2/admin/products', 'POST', TeamRole::Manager, true];
         yield 'reception clients' => ['/api/v2/admin/clients', 'GET', TeamRole::Reception, true];
+        yield 'tax rate write owner' => ['/api/v2/admin/tax-rates', 'POST', TeamRole::Owner, true];
+        yield 'tax rate write manager' => ['/api/v2/admin/tax-rates/reduced', 'PUT', TeamRole::Manager, false];
+        yield 'tax category write reception' => ['/api/v2/admin/tax-categories', 'POST', TeamRole::Reception, false];
+        yield 'tax category read catalog' => ['/api/v2/admin/tax-categories', 'GET', TeamRole::Manager, true];
         yield 'public token' => ['/api/v2/admin/administrators/token', 'POST', TeamRole::Practitioner, true];
         yield 'public handoff' => ['/api/v2/admin/todatempo/sso/handoff', 'POST', TeamRole::Practitioner, true];
         yield 'shop' => ['/api/v2/shop/products', 'GET', TeamRole::Practitioner, true];

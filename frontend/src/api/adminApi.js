@@ -396,6 +396,48 @@ export async function getTaxCategories() {
   })
 }
 
+export async function getTaxConfiguration() {
+  const [categories, rates, zones] = await Promise.all([
+    request('GET', '/admin/tax-categories?pagination=false'),
+    request('GET', '/admin/tax-rates?pagination=false'),
+    request('GET', '/admin/zones?pagination=false'),
+  ])
+  const members = (data) => data['hydra:member'] || data.member || []
+  return { categories: members(categories), rates: members(rates), zones: members(zones) }
+}
+
+export async function saveTaxRate(data) {
+  const percentage = Number(data.percentage)
+  if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) throw new Error('Le taux doit être compris entre 0 et 100 %.')
+  if (!data.name?.trim() || data.name.trim().length < 2 || !data.zone) throw new Error('Renseignez un nom et une zone d’application.')
+  if (data.startDate && data.endDate && data.endDate <= data.startDate) throw new Error('La fin d’application doit être après la date de début.')
+  let category = data.category
+  let createdCategoryCode = null
+  const code = data.code || `tva_${crypto.randomUUID().replaceAll('-', '')}`
+  if (!category) {
+    createdCategoryCode = `${code}_category`
+    const created = await request('POST', '/admin/tax-categories', { code: createdCategoryCode, name: data.name.trim() })
+    category = created['@id'] || `/api/v2/admin/tax-categories/${createdCategoryCode}`
+  }
+  const payload = {
+    name: data.name.trim(), amount: percentage / 100, category, zone: data.zone,
+    calculator: 'default', includedInPrice: Boolean(data.includedInPrice),
+    startDate: data.startDate ? `${data.startDate}T00:00:00` : null,
+    endDate: data.endDate ? `${data.endDate}T00:00:00` : null,
+  }
+  try {
+    return data.code
+      ? await request('PUT', `/admin/tax-rates/${encodeURIComponent(code)}`, payload)
+      : await request('POST', '/admin/tax-rates', { code, ...payload })
+  } catch (error) {
+    if (createdCategoryCode) {
+      try { await request('DELETE', `/admin/tax-categories/${encodeURIComponent(createdCategoryCode)}`) }
+      catch { throw new Error(`${error.message} La catégorie créée reste disponible ; sélectionnez-la pour réessayer.`) }
+    }
+    throw error
+  }
+}
+
 export async function getProductTaxCategory(code) {
   const variant = await request('GET', `/admin/product-variants/${encodeURIComponent(code)}-variant`)
   return variant.taxCategory?.['@id'] || variant.taxCategory || null

@@ -44,6 +44,7 @@ const GROUPS = [
     { name: 'admin-plannings', label: 'Plannings' },
     { name: 'admin-resources', label: 'Ressources' },
     { name: 'admin-payments', label: 'Moyens de paiement' },
+    { name: 'admin-taxes', label: 'TVA' },
     settings('shop'), settings('emails'),
   ] },
 ]

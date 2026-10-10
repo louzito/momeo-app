@@ -31,6 +31,7 @@ final class AvailabilityServiceTest extends AvailabilityTestCase
         $planning = new Planning();
         $planning->setCode($this->planningCode);
         $planning->setName('Availability contract');
+        $planning->setLegacyConfig(['days' => [$this->start->format('Y-m-d') => ['12:00']]]);
         $planning->setServiceCodes([$this->serviceCode]);
         $planning->setCapacity($capacity);
         $this->entityManager->persist($planning);
@@ -76,6 +77,34 @@ final class AvailabilityServiceTest extends AvailabilityTestCase
             self::assertSame($resourceCapacity > 0 ? ['resource_'.$this->serviceCode] : [], $slot['availableResourceCodes']);
             self::assertSame($resourceCapacity > 0, $slot['resourceRequired']);
         }
+    }
+
+    public function testCurrentPlanningWithoutLegacyTaxonIsDisplayedAndBookable(): void
+    {
+        $taxon = $this->entityManager->getRepository(\App\Entity\Taxonomy\Taxon::class)->findOneBy(['code' => $this->planningCode]);
+        if ($taxon !== null) {
+            $this->entityManager->remove($taxon);
+        }
+        $planning = new Planning();
+        $planning->setCode($this->planningCode);
+        $planning->setName('Current weekly planning');
+        $planning->setStaffMember($this->staff);
+        $planning->setServiceCodes([$this->serviceCode]);
+        $planning->setDays([strtolower($this->start->format('l')) => [['start' => '12:00', 'end' => '13:30']]]);
+        $this->entityManager->persist($planning);
+        $this->configureRules([]);
+        $controller = self::getContainer()->get(ShopBookingApiController::class);
+        $request = Request::create('/api/v2/shop/availability', 'GET', [
+            'serviceCode' => $this->serviceCode, 'from' => $this->start->format('Y-m-d'), 'to' => $this->start->format('Y-m-d'),
+        ]);
+        $slots = $this->planningSlots($controller->availability($request)->getContent());
+        self::assertCount(2, $slots);
+        self::assertNull(self::getContainer()->get(\App\Service\Availability\PublicStaffSlot::class)->validateStaffSlot(
+            $this->staff, $this->serviceCode, $this->start, $this->start->modify('+1 hour'), $this->planningCode,
+        ));
+        $planning->setActive(false);
+        $this->entityManager->flush();
+        self::assertSame([], $this->planningSlots($controller->availability($request)->getContent()));
     }
 
     public function testAdminExplicitPlanningKeepsItsDifferentRangePolicy(): void

@@ -190,6 +190,7 @@ async function save() {
               <option v-for="category in taxCategories" :key="category.id" :value="category.id">{{ category.name }}</option>
             </select>
             <p v-if="!taxCategories.length" class="mt-1 text-xs text-slate-500">Aucune catégorie de TVA configurée.</p>
+            <RouterLink v-if="admin.can('settings')" :to="{ name: 'admin-taxes' }" class="mt-1 inline-block text-xs text-brand-700 underline">Configurer les taux de TVA</RouterLink>
           </div>
           <div class="grid gap-4 sm:grid-cols-3">
             <div>
