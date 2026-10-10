@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { getShopConfig, getSiteAppearance, saveSiteAppearance, getSitePages, getSiteMedia, uploadShopImage } from '@/api/adminApi'
+import { getShopConfig, getSiteAppearance, saveSiteAppearance, getSitePages, getSiteMedia, uploadSiteLogo } from '@/api/adminApi'
 import { displayImageUrl } from '@/api/config'
 import { siteThemeStyle, TYPOGRAPHIES } from '@/utils/siteTheme'
 import SiteLinkEditor from '@/components/site/SiteLinkEditor.vue'
@@ -47,7 +47,7 @@ async function save() {
   saving.value = true; error.value = ''; notice.value = ''
   try {
     if (logo.value) {
-      const uploaded = await uploadShopImage(logo.value, 'logo')
+      const uploaded = await uploadSiteLogo(logo.value)
       cfg.value.assets = { ...cfg.value.assets, logo: uploaded.path }
       cfg.value.logoUrl = displayImageUrl(uploaded.path); logo.value = null
     }
@@ -78,7 +78,7 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
             <img v-if="logoPreview || cfg.logoUrl" :src="logoPreview || cfg.logoUrl" alt="Logo actuel" class="h-16 max-w-full object-contain" />
             <p v-else>Aucun logo. Le nom de votre établissement sera affiché.</p>
             <label class="block">Choisir un logo <input type="file" accept="image/jpeg,image/png,image/webp" class="mt-2 block max-w-full" @change="pickLogo" /></label>
-            <p class="text-sm text-slate-500">JPG, PNG ou WebP, 4 Mo maximum.</p>
+            <p class="text-sm text-slate-500">JPG, PNG ou WebP, 5 Mio maximum.</p>
           </section>
           <section class="card space-y-4 p-5">
             <h2 class="text-lg font-semibold">Couleurs et caractères</h2>

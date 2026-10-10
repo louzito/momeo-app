@@ -1070,6 +1070,11 @@ export function uploadSiteMedia(file, alt = '') {
 export const getSitePage = (id) => request('GET', `/admin/site/pages/${encodeURIComponent(id)}`)
 
 export const getSiteAppearance = () => request('GET', '/admin/site/appearance')
+export function uploadSiteLogo(file) {
+  const form = new FormData()
+  form.append('file', file)
+  return request('POST', '/admin/site/appearance/logo', form, null)
+}
 export const saveSiteAppearance = (value) => request('PUT', '/admin/site/appearance', value, 'application/json')
 
 export const getSitePreview = (id, menus = '') => request('GET', `/admin/site/pages/${encodeURIComponent(id)}/preview?menus=${encodeURIComponent(menus)}`)

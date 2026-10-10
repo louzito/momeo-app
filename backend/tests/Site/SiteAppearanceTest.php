@@ -9,6 +9,10 @@ use App\Entity\Channel\Channel;
 use App\Service\Site\{SiteAppearanceService, SiteTemplateService, SiteManagementService, SiteDocumentValidator, SiteLinkResolver, SiteMediaReferences};
 use Doctrine\ORM\{EntityManagerInterface, EntityRepository};
 use PHPUnit\Framework\TestCase;
+use App\Service\Site\SiteLogoUploadService;
+use App\Service\Security\ImageUploadValidator;
+use Sylius\Component\Core\Uploader\ImageUploaderInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class SiteAppearanceTest extends TestCase
 {
@@ -36,6 +40,31 @@ final class SiteAppearanceTest extends TestCase
     private function theme(SiteAppearanceService $service): array
     {
         return $service->state() + ['colors' => ['header' => '#ffffff', 'textHeader' => '#111111', 'footer' => '#111111', 'textFooter' => '#ffffff'], 'branding' => ['brandPalette' => 'violet', 'accent' => 'rose'], 'typography' => 'classic', 'logo' => 'tenant/logo.png'];
+    }
+    public function testUploadedLogoIsOwnedAndCanBeSavedWithoutChangingPublishedLogo(): void
+    {
+        $published = ['assets' => ['logo' => 'tenant/logo.png']];
+        [$em, $taxon, , , $service] = $this->setupTenant(['schemaVersion' => 1, 'draft' => $published, 'published' => $published]);
+        $uploader = $this->createMock(ImageUploaderInterface::class);
+        $uploader->expects(self::once())->method('upload')->willReturnCallback(static function ($image): void {
+            self::assertSame('draft_logo', $image->getType());
+            $image->setPath('tenant/new-logo.png');
+        });
+        $uploader->expects(self::never())->method('remove');
+        $em->expects(self::atLeastOnce())->method('persist');
+        $path = tempnam(sys_get_temp_dir(), 'logo-test-');
+        try {
+            file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='));
+            $result = (new SiteLogoUploadService($em, $uploader, new ImageUploadValidator()))->upload(new UploadedFile($path, 'logo.png', null, null, true));
+            self::assertSame('tenant/new-logo.png', $result['path']);
+            self::assertCount(2, $taxon->getImages());
+            self::assertSame($taxon, $taxon->getImages()->last()->getOwner());
+            $data = $this->theme($service); $data['logo'] = $result['path'];
+            $service->save($data);
+            $document = json_decode($taxon->getTranslation('en_US')->getDescription(), true);
+            self::assertSame($result['path'], $document['draft']['assets']['logo']);
+            self::assertSame($published, $document['published']);
+        } finally { if (is_file($path)) unlink($path); }
     }
     public function testTemplatesCreateEditableUnpublishedPagesUsingTenantFactsAndTrackedMedia(): void
     {

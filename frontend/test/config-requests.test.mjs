@@ -72,3 +72,19 @@ test('imports logo et prestation : multipart, chemin conservé et erreur serveur
     await assert.rejects(admin.replaceProductImage('service_test', file), /JPEG, PNG et WebP/)
   } finally { globalThis.fetch = original }
 })
+
+test('logo apparence : endpoint dédié, multipart et chemin de stockage conservé', async () => {
+  const original = globalThis.fetch
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, '/api/v2/admin/site/appearance/logo')
+    assert.equal(options.method, 'POST')
+    assert.ok(options.body instanceof FormData)
+    assert.ok(options.body.get('file') instanceof Blob)
+    assert.equal(options.headers['Content-Type'], undefined)
+    return { ok: true, status: 201, text: async () => JSON.stringify({ path: 'test/new-logo.png' }) }
+  }
+  try {
+    const admin = await loadClient('adminApi.js')
+    assert.deepEqual(await admin.uploadSiteLogo(new Blob(['image'], { type: 'image/png' })), { path: 'test/new-logo.png' })
+  } finally { globalThis.fetch = original }
+})
