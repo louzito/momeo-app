@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import api from '@/api'
 import { useAdminStore } from '@/stores/admin'
 import Spinner from '@/components/ui/Spinner.vue'
@@ -16,6 +16,7 @@ const viewMode = ref('week')
 const anchor = ref(startOfWeek(new Date()))
 const staffFilter = ref('')
 const modal = ref(null)
+const agendaScroll = ref(null)
 
 const bookingForm = ref(emptyBooking())
 const timeOffForm = ref(emptyTimeOff())
@@ -59,6 +60,24 @@ const visibleDays = computed(() => {
   const count = viewMode.value === 'week' ? 7 : 1
   return Array.from({ length: count }, (_, index) => addDays(anchor.value, index))
 })
+
+function defaultDay() {
+  return visibleDays.value.find(dayIsToday) || visibleDays.value[0]
+}
+
+function revealToday() {
+  if (viewMode.value !== 'week') return
+  const container = agendaScroll.value
+  const column = container?.querySelector('[data-today="true"]')
+  if (!column) return
+  const bounds = container.getBoundingClientRect()
+  const dayBounds = column.getBoundingClientRect()
+  if (dayBounds.right > bounds.right) {
+    container.scrollLeft += dayBounds.right - bounds.right
+  } else if (dayBounds.left < bounds.left) {
+    container.scrollLeft -= bounds.left - dayBounds.left
+  }
+}
 
 const periodLabel = computed(() => {
   const first = visibleDays.value[0]
@@ -130,6 +149,8 @@ async function load() {
     error.value = exception.message || 'L’agenda n’a pas pu être chargé.'
   } finally {
     loading.value = false
+    await nextTick()
+    revealToday()
   }
 }
 
@@ -144,12 +165,13 @@ async function today() {
 }
 
 async function changeMode(mode) {
+  const selectedDay = defaultDay()
   viewMode.value = mode
-  anchor.value = mode === 'week' ? startOfWeek(anchor.value) : new Date(anchor.value)
+  anchor.value = mode === 'week' ? startOfWeek(anchor.value) : new Date(selectedDay)
   await load()
 }
 
-function openBooking(day = visibleDays.value[0]) {
+function openBooking(day = defaultDay()) {
   const form = emptyBooking()
   form.date = dateKey(day)
   form.serviceCode = services.value[0]?.id || ''
@@ -165,7 +187,7 @@ function serviceChanged() {
   }
 }
 
-function openTimeOff(day = visibleDays.value[0]) {
+function openTimeOff(day = defaultDay()) {
   const form = emptyTimeOff()
   form.date = dateKey(day)
   form.staffMemberId = staffFilter.value || activeStaff.value[0]?.id || ''
@@ -274,9 +296,9 @@ onMounted(load)
 
     <Spinner v-if="loading" />
 
-    <div v-else class="mt-4 overflow-x-auto pb-2">
+    <div v-else ref="agendaScroll" class="mt-4 overflow-x-auto pb-2">
       <div class="grid gap-3" :class="viewMode === 'week' ? 'min-w-[1050px] grid-cols-7' : 'grid-cols-1'">
-        <section v-for="day in visibleDays" :key="dateKey(day)" class="min-h-[520px] rounded-2xl border bg-white p-3" :class="dayIsToday(day) ? 'border-brand-300 ring-2 ring-brand-100' : 'border-slate-200'">
+        <section v-for="day in visibleDays" :key="dateKey(day)" :data-today="dayIsToday(day)" class="min-h-[520px] rounded-2xl border bg-white p-3" :class="dayIsToday(day) ? 'border-brand-300 ring-2 ring-brand-100' : 'border-slate-200'">
         <button type="button" class="flex w-full items-center justify-between border-b border-slate-100 pb-3 text-left" @click="openBooking(day)">
           <span class="font-display text-sm font-bold capitalize" :class="dayIsToday(day) ? 'text-brand-700' : 'text-slate-700'">{{ dayTitle(day) }}</span>
           <span class="text-lg text-slate-300">＋</span>
