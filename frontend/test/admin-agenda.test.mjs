@@ -6,7 +6,7 @@ import vm from 'node:vm'
 const source = await readFile(new URL('../src/views/admin/AdminAgenda.vue', import.meta.url), 'utf8')
 const script = source.split('<script setup>')[1].split('</script>')[0].replace(/^import .*$/gm, '')
 
-function setup(day = 10) {
+function setup(day = 10, apiOverrides = {}) {
   class FixedDate extends Date {
     constructor(...args) {
       super(...(args.length ? args : [2026, 9, day, 15]))
@@ -19,9 +19,9 @@ function setup(day = 10) {
     onMounted: () => {},
     nextTick: async () => {},
     useAdminStore: () => ({ tenantId: 'salon' }),
-    api: Object.fromEntries(['getTenantBookings', 'getStaffMembers', 'getJumpTypes', 'getStaffTimeOffs'].map(name => [name, async () => []])),
+    api: { ...Object.fromEntries(['getTenantBookings', 'getStaffMembers', 'getJumpTypes', 'getStaffTimeOffs'].map(name => [name, async () => []])), ...apiOverrides },
   })
-  vm.runInContext(`${script}\nglobalThis.view = { anchor, viewMode, bookingForm, timeOffForm, agendaScroll, openBooking, openTimeOff, changeMode, move, today, load, dateKey };`, context)
+  vm.runInContext(`${script}\nglobalThis.view = { anchor, viewMode, bookingForm, timeOffForm, services, staff, bookings, saving, error, modal, saveBooking, agendaScroll, openBooking, openTimeOff, changeMode, move, today, load, dateKey };`, context)
   return context.view
 }
 
@@ -87,4 +87,58 @@ test('le chargement rend la colonne courante visible sans déplacement vertical'
   container.querySelector = () => null
   await view.changeMode('week')
   assert.equal(container.scrollLeft, 300)
+})
+
+
+test('aucun appel de création sans prestation, même si un collaborateur existe', async () => {
+  let calls = 0
+  const view = setup(10, { createManualBooking: async () => { calls++ } })
+  view.staff.value = [{ id: 1, active: true, serviceCodes: [] }]
+  view.openBooking()
+  view.bookingForm.value.staffMemberId = 1
+  await view.saveBooking()
+  assert.equal(calls, 0)
+  assert.equal(view.saving.value, false)
+  assert.equal(view.modal.value, 'booking')
+})
+
+test('la création transmet le client et le créneau, ferme la modale et recharge l’agenda', async () => {
+  let payload
+  const persisted = []
+  const members = [{ id: 1, active: true, serviceCodes: ['service_soin'] }]
+  const services = [{ id: 'service_soin', name: 'Soin' }]
+  const view = setup(10, {
+    getStaffMembers: async () => members,
+    getJumpTypes: async () => services,
+    getTenantBookings: async () => persisted,
+    createManualBooking: async (tenant, data) => {
+      assert.equal(tenant, 'salon')
+      payload = data
+      persisted.push({ id: 1, slotStart: data.start, status: 'confirmed' })
+    },
+  })
+  await view.load()
+  view.openBooking()
+  Object.assign(view.bookingForm.value, { firstName: 'Jeanne', lastName: 'Dupont', email: 'jeanne@example.test', phone: '0600000000', notes: 'Accueil', time: '14:30' })
+  await view.saveBooking()
+  assert.equal(payload.serviceCode, 'service_soin')
+  assert.equal(payload.staffMemberId, 1)
+  assert.equal(payload.start, new Date('2026-10-10T14:30:00').toISOString())
+  assert.deepEqual(JSON.parse(JSON.stringify(payload.customer)), { firstName: 'Jeanne', lastName: 'Dupont', email: 'jeanne@example.test', phone: '0600000000', notes: 'Accueil' })
+  assert.equal(view.bookings.value[0].id, 1)
+  assert.equal(view.modal.value, null)
+  assert.equal(view.saving.value, false)
+})
+
+test('un refus serveur garde le formulaire ouvert et autorise une nouvelle tentative', async () => {
+  const view = setup(10, { createManualBooking: async () => { throw new Error('Ce créneau est déjà occupé.') } })
+  view.services.value = [{ id: 'service_soin' }]
+  view.staff.value = [{ id: 1, serviceCodes: ['service_soin'] }]
+  view.openBooking()
+  view.bookingForm.value.firstName = 'Jeanne'
+  await view.saveBooking()
+  assert.equal(view.error.value, 'Ce créneau est déjà occupé.')
+  assert.equal(view.bookingForm.value.firstName, 'Jeanne')
+  assert.equal(view.modal.value, 'booking')
+  assert.equal(view.saving.value, false)
 })

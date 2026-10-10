@@ -201,6 +201,7 @@ function closeModal() {
 }
 
 async function saveBooking() {
+  if (saving.value || !services.value.length || !bookingForm.value.serviceCode || !bookingForm.value.staffMemberId) return
   saving.value = true
   error.value = ''
   try {
@@ -336,32 +337,40 @@ onMounted(load)
     </div>
 
     <div v-if="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="closeModal">
-      <form v-if="modal === 'booking'" class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-soft" @submit.prevent="saveBooking">
-        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <div><h2 class="font-display text-xl font-bold text-slate-900">Nouveau rendez-vous</h2><p class="text-sm text-slate-500">Ajout manuel depuis le téléphone ou l’accueil.</p></div>
+      <form v-if="modal === 'booking'" role="dialog" aria-modal="true" aria-labelledby="booking-title" class="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-soft" @submit.prevent="saveBooking">
+        <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div><h2 id="booking-title" class="font-display text-xl font-bold text-slate-900">Nouveau rendez-vous</h2><p class="text-sm text-slate-500">Ajout manuel depuis le téléphone ou l’accueil.</p></div>
           <button type="button" class="btn-ghost" @click="closeModal">×</button>
         </div>
-        <p v-if="error" class="mx-6 mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</p>
-        <div class="grid gap-4 p-6 sm:grid-cols-2">
-          <label class="block text-sm font-medium text-slate-700">Prénom *<input v-model.trim="bookingForm.firstName" required class="input mt-1 w-full" /></label>
-          <label class="block text-sm font-medium text-slate-700">Nom *<input v-model.trim="bookingForm.lastName" required class="input mt-1 w-full" /></label>
-          <label class="block text-sm font-medium text-slate-700">Email *<input v-model.trim="bookingForm.email" required type="email" class="input mt-1 w-full" /></label>
-          <label class="block text-sm font-medium text-slate-700">Téléphone<input v-model.trim="bookingForm.phone" type="tel" class="input mt-1 w-full" /></label>
-          <label class="block text-sm font-medium text-slate-700">Prestation *
-            <select v-model="bookingForm.serviceCode" required class="input mt-1 w-full" @change="serviceChanged">
-              <option disabled value="">Choisir</option><option v-for="service in services" :key="service.id" :value="service.id">{{ service.name }}</option>
-            </select>
-          </label>
-          <label class="block text-sm font-medium text-slate-700">Collaborateur *
-            <select v-model="bookingForm.staffMemberId" required class="input mt-1 w-full">
-              <option disabled value="">Choisir</option><option v-for="member in eligibleStaff" :key="member.id" :value="member.id">{{ member.displayName }}</option>
-            </select>
-          </label>
-          <label class="block text-sm font-medium text-slate-700">Date *<input v-model="bookingForm.date" required type="date" class="input mt-1 w-full" /></label>
-          <label class="block text-sm font-medium text-slate-700">Heure *<input v-model="bookingForm.time" required type="time" step="900" class="input mt-1 w-full" /></label>
-          <label class="block text-sm font-medium text-slate-700 sm:col-span-2">Note interne<textarea v-model.trim="bookingForm.notes" rows="3" class="input mt-1 w-full" /></label>
+        <div class="min-h-0 overflow-y-auto">
+          <p v-if="error" class="mx-6 mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</p>
+          <div class="grid gap-4 p-6 sm:grid-cols-2">
+            <label class="block text-sm font-medium text-slate-700">Prénom *<input v-model.trim="bookingForm.firstName" required class="input mt-1 w-full" /></label>
+            <label class="block text-sm font-medium text-slate-700">Nom *<input v-model.trim="bookingForm.lastName" required class="input mt-1 w-full" /></label>
+            <label class="block text-sm font-medium text-slate-700">Email *<input v-model.trim="bookingForm.email" required type="email" class="input mt-1 w-full" /></label>
+            <label class="block text-sm font-medium text-slate-700">Téléphone<input v-model.trim="bookingForm.phone" type="tel" class="input mt-1 w-full" /></label>
+            <div>
+              <label class="block text-sm font-medium text-slate-700">Prestation *
+                <select v-model="bookingForm.serviceCode" required :disabled="!services.length" :aria-describedby="!services.length ? 'booking-services-empty' : undefined" class="input mt-1 w-full" @change="serviceChanged">
+                  <option disabled value="">Choisir</option><option v-for="service in services" :key="service.id" :value="service.id">{{ service.name }}</option>
+                </select>
+              </label>
+              <p v-if="!services.length" id="booking-services-empty" role="status" class="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Aucune prestation, créez-en une dans
+                <RouterLink :to="{ name: 'admin-products' }" class="font-semibold underline">Catalogue &gt; Prestations</RouterLink>.
+              </p>
+            </div>
+            <label class="block text-sm font-medium text-slate-700">Collaborateur *
+              <select v-model="bookingForm.staffMemberId" required class="input mt-1 w-full">
+                <option disabled value="">Choisir</option><option v-for="member in eligibleStaff" :key="member.id" :value="member.id">{{ member.displayName }}</option>
+              </select>
+            </label>
+            <label class="block text-sm font-medium text-slate-700">Date *<input v-model="bookingForm.date" required type="date" class="input mt-1 w-full" /></label>
+            <label class="block text-sm font-medium text-slate-700">Heure *<input v-model="bookingForm.time" required type="time" step="900" class="input mt-1 w-full" /></label>
+            <label class="block text-sm font-medium text-slate-700 sm:col-span-2">Note interne<textarea v-model.trim="bookingForm.notes" rows="3" class="input mt-1 w-full" /></label>
+          </div>
         </div>
-        <div class="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"><button type="button" class="btn-outline" @click="closeModal">Annuler</button><button type="submit" class="btn-primary" :disabled="saving || !eligibleStaff.length">{{ saving ? 'Ajout…' : 'Ajouter le rendez-vous' }}</button></div>
+        <div class="flex shrink-0 flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"><button type="button" class="btn-outline" @click="closeModal">Annuler</button><button type="submit" class="btn-primary" :disabled="saving || !services.length || !bookingForm.serviceCode || !bookingForm.staffMemberId || !eligibleStaff.length">{{ saving ? 'Ajout…' : 'Ajouter le rendez-vous' }}</button></div>
       </form>
 
       <form v-else class="w-full max-w-lg rounded-3xl bg-white shadow-soft" @submit.prevent="saveTimeOff">

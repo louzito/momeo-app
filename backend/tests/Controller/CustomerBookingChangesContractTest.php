@@ -266,8 +266,12 @@ final class CustomerBookingChangesContractTest extends \App\Tests\Availability\A
         $response = $admin->create($this->request(['resourceCode' => 'not-associated']));
         self::assertSame(409, $response->getStatusCode());
         self::assertSame(['error' => 'Cette ressource n’est pas associée à la prestation.'], json_decode($response->getContent(), true));
+        $dashboard = self::getContainer()->get(\App\Controller\AdminDashboardApiController::class);
+        $range = ['from' => $this->start->format('Y-m-d'), 'timezone' => 'Europe/Paris'];
+        $before = json_decode($dashboard->overview(new Request($range))->getContent(), true);
+        $email = 'manual-'.$this->serviceCode.'@example.test';
         $this->expectedEmails = ['booking_confirmation'];
-        $response = $admin->create($this->request());
+        $response = $admin->create($this->request(['customer' => ['firstName' => 'Manual', 'lastName' => 'Test', 'email' => $email]]));
         self::assertSame(201, $response->getStatusCode(), $response->getContent());
         $data = json_decode($response->getContent(), true);
         self::assertSame('manual', $data['source']);
@@ -277,6 +281,25 @@ final class CustomerBookingChangesContractTest extends \App\Tests\Availability\A
         self::assertMatchesRegularExpression('/^MOM-[0-9A-F]{8}$/', $data['reference']);
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $data['publicId']);
         self::assertSame(2, $this->entityManager->getRepository(Booking::class)->count(['serviceCode' => $this->serviceCode]));
+
+        // Agenda and the reservations list consume the same persisted booking feed.
+        $feed = json_decode($admin->index()->getContent(), true)['member'];
+        $created = array_values(array_filter($feed, fn (array $booking): bool => $booking['id'] === $data['id']));
+        self::assertCount(1, $created);
+        self::assertSame('confirmed', $created[0]['status']);
+        self::assertGreaterThan(new \DateTimeImmutable(), new \DateTimeImmutable($created[0]['slotStart']));
+
+        $clients = json_decode(self::getContainer()->get(\App\Controller\AdminClientApiController::class)
+            ->index(new Request(['q' => $email]))->getContent(), true)['member'];
+        self::assertCount(1, $clients);
+        self::assertContains($data['id'], array_column($clients[0]['bookings'], 'id'));
+        self::assertSame($data['slotStart'], $clients[0]['nextBookingAt']);
+
+        $metrics = json_decode($dashboard->overview(new Request($range))->getContent(), true);
+        self::assertSame($before['appointments'] + 1, $metrics['appointments']);
+        self::assertSame($before['occupiedMinutes'] + 60, $metrics['occupiedMinutes']);
+        self::assertSame($before['paidRevenue'], $metrics['paidRevenue']); // Manual bookings are paid on site.
+
     }
 
     #[DataProvider('customerActions')]
