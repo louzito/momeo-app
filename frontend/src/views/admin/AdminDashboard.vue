@@ -51,7 +51,7 @@ onMounted(load)
         <div class="card p-5"><p class="text-sm text-slate-400">Chiffre d'affaires encaissé</p><p class="mt-1 text-2xl font-bold text-slate-900">{{ formatMoney(stats.paidRevenue / 100, stats.currency) }}</p><p class="text-xs text-slate-400">Paiements encaissés et cartes activées</p></div>
         <div class="card p-5"><p class="text-sm text-slate-400">Taux d'occupation</p><p class="mt-1 text-2xl font-bold text-emerald-600">{{ stats.occupancyRate }} %</p><p class="text-xs text-slate-400">{{ stats.occupiedMinutes }} / {{ stats.capacityMinutes }} minutes-capacité</p></div>
         <div class="card p-5"><p class="text-sm text-slate-400">Annulations / absences</p><p class="mt-1 text-2xl font-bold text-rose-600">{{ stats.cancelled }} / {{ stats.noShows }}</p><p class="text-xs text-slate-400">Selon la date du rendez-vous</p></div>
-        <div class="card p-5"><p class="text-sm text-slate-400">Nouveaux clients</p><p class="mt-1 text-2xl font-bold text-slate-900">{{ stats.newClients }}</p><p class="text-xs text-slate-400">Première réservation créée sur la plage</p></div>
+        <div class="card p-5"><p class="text-sm text-slate-400">Nouveaux clients</p><p class="mt-1 text-2xl font-bold text-slate-900">{{ stats.newClients }}</p><p class="text-xs text-slate-400">Inscription ou première réservation sur la plage</p></div>
         <div class="card p-5"><p class="text-sm text-slate-400">Cartes cadeaux vendues</p><p class="mt-1 text-2xl font-bold text-violet-700">{{ stats.giftCards.sold }}</p><p class="text-xs text-slate-400">{{ formatMoney(stats.giftCards.paidAmount / 100, stats.currency) }} encaissés</p></div>
       </div>
       <div class="card mt-6 p-6">

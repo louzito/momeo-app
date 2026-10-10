@@ -8,6 +8,8 @@ use App\Service\Availability\CenterTimeZoneProvider;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
+use App\Entity\Customer\Customer;
+use Doctrine\ORM\EntityManagerInterface;
 
 /** Lecture dans les repositories du tenant courant ; plage locale, calcul UTC. */
 final class DashboardReadService
@@ -18,6 +20,7 @@ final class DashboardReadService
         private readonly GiftVoucherRepository $vouchers,
         private readonly DashboardMetricsCalculator $calculator,
         private readonly CenterTimeZoneProvider $timeZoneProvider,
+        private readonly EntityManagerInterface $entityManager,
     ) {}
 
     /** @return array<string, mixed> */
@@ -45,6 +48,7 @@ final class DashboardReadService
             $fromUtc,
             $toUtc,
             $timezone,
+            $this->entityManager->getRepository(Customer::class)->findAll(),
         );
 
         return $metrics + ['range' => ['from' => $from->format(\DateTimeInterface::ATOM), 'to' => $to->format(\DateTimeInterface::ATOM), 'timezone' => $timezone->getName()]];

@@ -7,6 +7,7 @@ namespace App\Service\Customer;
 use App\Service\Booking\BookingView;
 use App\Entity\Booking;
 use App\Entity\ClientProfile;
+use App\Entity\Customer\Customer;
 use App\Repository\BookingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -37,32 +38,13 @@ final class ClientDirectoryService
             }
 
             if (!isset($clients[$email])) {
-                $clients[$email] = [
-                    'id' => substr(hash('sha256', $email), 0, 16),
-                    'firstName' => $booking->getCustomerFirstName(),
-                    'lastName' => $booking->getCustomerLastName(),
-                    'displayName' => trim($booking->getCustomerFirstName().' '.$booking->getCustomerLastName()),
-                    'email' => $email,
-                    'phone' => $booking->getCustomerPhone(),
-                    'notes' => $booking->getCustomerNotes(),
-                    'bookingCount' => 0,
-                    'completedCount' => 0,
-                    'cancelledCount' => 0,
-                    'totalAmount' => 0,
-                    'currencyCode' => $booking->getCurrencyCode(),
-                    'firstBookingAt' => $booking->getCreatedAt(),
-                    'lastBookingAt' => null,
-                    'nextBookingAt' => null,
-                    'lastServiceName' => null,
-                    'nextServiceName' => null,
-                    'bookings' => [],
-                    'purchases' => [],
-                ];
+                $clients[$email] = $this->newClient($email, $booking->getCustomerFirstName(), $booking->getCustomerLastName(), $booking->getCustomerPhone(), $booking->getCustomerNotes(), $booking->getCurrencyCode(), $booking->getCreatedAt());
             }
 
             $client = &$clients[$email];
             $client['bookingCount']++;
             $client['firstBookingAt'] = min($client['firstBookingAt'], $booking->getCreatedAt());
+            $client['clientSince'] = $client['firstBookingAt'];
             if ($booking->getCustomerPhone()) {
                 $client['phone'] = $booking->getCustomerPhone();
             }
@@ -111,6 +93,23 @@ final class ClientDirectoryService
             unset($client);
         }
 
+        foreach ($this->entityManager->getRepository(Customer::class)->findAll() as $customer) {
+            $email = mb_strtolower(trim((string) $customer->getEmail()));
+            if ($email === '') continue;
+            $createdAt = $customer->getCreatedAt();
+            if (!isset($clients[$email])) {
+                $clients[$email] = $this->newClient($email, (string) $customer->getFirstName(), (string) $customer->getLastName(), $customer->getPhoneNumber(), null, 'EUR', $createdAt);
+                $clients[$email]['firstBookingAt'] = null;
+            }
+            $clients[$email]['clientSince'] = min($clients[$email]['clientSince'], $createdAt);
+            if (trim((string) $customer->getFirstName()) !== '' && trim((string) $customer->getLastName()) !== '') {
+                $clients[$email]['firstName'] = $customer->getFirstName();
+                $clients[$email]['lastName'] = $customer->getLastName();
+                $clients[$email]['displayName'] = trim($customer->getFirstName().' '.$customer->getLastName());
+            }
+            $clients[$email]['phone'] = $customer->getPhoneNumber() ?? $clients[$email]['phone'];
+        }
+
         $newThisMonth = 0;
         $withUpcoming = 0;
         $recurring = 0;
@@ -125,7 +124,7 @@ final class ClientDirectoryService
             unset($client['notes']);
             $client['purchases'] = array_values($client['purchases']);
             usort($client['bookings'], static fn (array $left, array $right): int => strcmp($right['slotStart'], $left['slotStart']));
-            if ($client['firstBookingAt'] >= $monthStart) {
+            if ($client['clientSince'] >= $monthStart) {
                 $newThisMonth++;
             }
             if ($client['nextBookingAt'] instanceof \DateTimeImmutable) {
@@ -134,7 +133,8 @@ final class ClientDirectoryService
             if ($client['bookingCount'] > 1) {
                 $recurring++;
             }
-            $client['firstBookingAt'] = $client['firstBookingAt']->format(\DateTimeInterface::ATOM);
+            $client['clientSince'] = $client['clientSince']->format(\DateTimeInterface::ATOM);
+            $client['firstBookingAt'] = $client['firstBookingAt']?->format(\DateTimeInterface::ATOM);
             $client['lastBookingAt'] = $client['lastBookingAt']?->format(\DateTimeInterface::ATOM);
             $client['nextBookingAt'] = $client['nextBookingAt']?->format(\DateTimeInterface::ATOM);
         }
@@ -169,6 +169,42 @@ final class ClientDirectoryService
                 'recurring' => $recurring,
             ],
         ];
+    }
+
+    private function newClient(string $email, string $firstName, string $lastName, ?string $phone, ?string $notes, string $currency, \DateTimeInterface $createdAt): array
+    {
+        return [
+            'id' => substr(hash('sha256', $email), 0, 16),
+            'firstName' => $firstName,
+            'lastName' => $lastName,
+            'displayName' => trim($firstName.' '.$lastName),
+            'email' => $email,
+            'phone' => $phone,
+            'notes' => $notes,
+            'bookingCount' => 0,
+            'completedCount' => 0,
+            'cancelledCount' => 0,
+            'totalAmount' => 0,
+            'currencyCode' => $currency,
+            'firstBookingAt' => $createdAt,
+            'clientSince' => $createdAt,
+            'lastBookingAt' => null,
+            'nextBookingAt' => null,
+            'lastServiceName' => null,
+            'nextServiceName' => null,
+            'bookings' => [],
+            'purchases' => [],
+        ];
+    }
+
+    public function findClient(string $id): Booking|Customer|null
+    {
+        $booking = $this->findBookingForClient($id);
+        if ($booking !== null) return $booking;
+        foreach ($this->entityManager->getRepository(Customer::class)->findAll() as $customer) {
+            if (hash_equals(substr(hash('sha256', mb_strtolower(trim((string) $customer->getEmail()))), 0, 16), $id)) return $customer;
+        }
+        return null;
     }
 
     public function findBookingForClient(string $id): ?Booking

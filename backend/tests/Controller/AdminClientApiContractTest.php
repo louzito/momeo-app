@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Controller\AdminClientApiController;
 use App\Entity\Booking;
 use App\Entity\ClientProfile;
+use App\Entity\Customer\Customer;
 use App\Tests\Customer\CustomerReadFixture;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -98,6 +99,46 @@ final class AdminClientApiContractTest extends KernelTestCase
         $this->em->flush();
         self::assertSame(['b-'.$this->email, 'a-'.$this->email, 'c-'.$this->email], array_column($this->directory($this->email)['member'], 'email'));
         self::assertCount(1, $this->directory('TAG-'.$this->email)['member']);
+    }
+
+    public function testRegisteredCustomerWithoutBookingIsListedCountedAndEditable(): void
+    {
+        $before = $this->directory()['stats'];
+        $customer = new Customer();
+        $customer->setEmail($this->email);
+        $customer->setFirstName('Alice');
+        $customer->setLastName('Martin');
+        $customer->setPhoneNumber('0600000000');
+        $this->em->persist($customer);
+        $this->em->flush();
+
+        $result = $this->directory(strtoupper($this->email));
+        self::assertCount(1, $result['member']);
+        $client = $result['member'][0];
+        self::assertSame(1, $result['stats']['total']);
+        self::assertSame($before['newThisMonth'] + 1, $result['stats']['newThisMonth']);
+        self::assertSame(0, $client['bookingCount']);
+        self::assertSame([], $client['bookings']);
+        self::assertSame([], $client['purchases']);
+        self::assertNull($client['firstBookingAt']);
+        self::assertNull($client['nextBookingAt']);
+        self::assertSame($customer->getCreatedAt()->format(DATE_ATOM), $client['clientSince']);
+        self::assertSame('0600000000', $client['phone']);
+
+        $response = self::getContainer()->get(AdminClientApiController::class)->update($client['id'], new Request(content: '{"firstName":"Bob","internalNotes":"Suivi","tags":["VIP"]}'));
+        self::assertSame(200, $response->getStatusCode());
+        $updated = $this->directory($this->email)['member'][0];
+        self::assertSame('Bob Martin', $updated['displayName']);
+        self::assertSame('Suivi', $updated['internalNotes']);
+        self::assertSame(['VIP'], $updated['tags']);
+
+        $this->bookingFixture(' '.strtoupper($this->email).' ', '+3 days');
+        $result = $this->directory($this->email);
+        self::assertCount(1, $result['member']);
+        self::assertSame($client['id'], $result['member'][0]['id']);
+        self::assertSame(1, $result['member'][0]['bookingCount']);
+        self::assertSame('Bob Martin', $result['member'][0]['displayName']);
+        self::assertSame($before['newThisMonth'] + 1, $result['stats']['newThisMonth']);
     }
 
     public function testProfileWithoutBookingDoesNotCreateDirectoryEntry(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Dashboard;
 
 use App\Entity\Booking;
+use App\Entity\Customer\Customer;
 use App\Entity\GiftVoucher;
 use App\Entity\Planning;
 
@@ -12,11 +13,12 @@ final class DashboardMetricsCalculator
 {
     /**
      * @param list<Booking> $bookings All bookings are required to identify first-time clients.
+     * @param list<Customer> $customers
      * @param list<Planning> $plannings
      * @param list<GiftVoucher> $vouchers
      * @return array<string, mixed>
      */
-    public function calculate(array $bookings, array $plannings, array $vouchers, \DateTimeImmutable $from, \DateTimeImmutable $to, \DateTimeZone $timezone): array
+    public function calculate(array $bookings, array $plannings, array $vouchers, \DateTimeImmutable $from, \DateTimeImmutable $to, \DateTimeZone $timezone, array $customers = []): array
     {
         $appointments = $cancelled = $noShows = $paidAmount = $occupiedMinutes = 0;
         $currency = 'EUR';
@@ -45,6 +47,14 @@ final class DashboardMetricsCalculator
             ++$appointments;
             if (\in_array($booking->getStatus(), [Booking::STATUS_AWAITING_PAYMENT, Booking::STATUS_CONFIRMED, Booking::STATUS_COMPLETED], true)) {
                 $occupiedMinutes += max(0, (int) (($booking->getSlotEnd()->getTimestamp() - $booking->getSlotStart()->getTimestamp()) / 60));
+            }
+        }
+
+        foreach ($customers as $customer) {
+            $email = mb_strtolower(trim((string) $customer->getEmail()));
+            $createdAt = \DateTimeImmutable::createFromInterface($customer->getCreatedAt());
+            if ($email !== '' && (!isset($firstBookingByEmail[$email]) || $createdAt < $firstBookingByEmail[$email])) {
+                $firstBookingByEmail[$email] = $createdAt;
             }
         }
 

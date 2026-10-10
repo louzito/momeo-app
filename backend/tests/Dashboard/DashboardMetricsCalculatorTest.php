@@ -6,6 +6,7 @@ namespace App\Tests\Dashboard;
 
 use App\Service\Dashboard\DashboardMetricsCalculator;
 use App\Entity\Booking;
+use App\Entity\Customer\Customer;
 use App\Entity\GiftVoucher;
 use App\Entity\Planning;
 use PHPUnit\Framework\TestCase;
@@ -44,6 +45,28 @@ final class DashboardMetricsCalculatorTest extends TestCase
         self::assertSame(1, $result['giftCards']['sold']);
         self::assertSame(5000, $result['giftCards']['paidAmount']);
         self::assertSame(1, $result['giftCards']['active']);
+    }
+
+    public function testRegistrationsCountWithoutBookingsAndMergeByNormalizedEmail(): void
+    {
+        $from = new \DateTimeImmutable('2027-05-03T00:00:00Z');
+        $to = $from->modify('+1 day');
+        $registered = new Customer();
+        $registered->setEmail('new@example.test');
+        $registered->setCreatedAt(new \DateTime('2027-05-03T10:00:00Z'));
+        $existing = new Customer();
+        $existing->setEmail('existing@example.test');
+        $existing->setCreatedAt(new \DateTime('2027-04-01T10:00:00Z'));
+        $boundary = new Customer();
+        $boundary->setEmail('boundary@example.test');
+        $boundary->setCreatedAt(\DateTime::createFromImmutable($to));
+        $bookings = [
+            $this->booking(' NEW@example.test ', '2027-05-03T12:00:00Z', '2027-05-04T10:00:00Z', '2027-05-04T11:00:00Z'),
+            $this->booking('existing@example.test', '2027-05-03T12:00:00Z', '2027-05-04T10:00:00Z', '2027-05-04T11:00:00Z'),
+        ];
+        $calculator = new DashboardMetricsCalculator();
+        self::assertSame(1, $calculator->calculate([], [], [], $from, $to, new \DateTimeZone('UTC'), [$registered, $existing, $boundary])['newClients']);
+        self::assertSame(1, $calculator->calculate($bookings, [], [], $from, $to, new \DateTimeZone('UTC'), [$registered, $existing, $boundary])['newClients']);
     }
 
     public function testItReturnsZeroOccupancyWithoutActiveCapacity(): void

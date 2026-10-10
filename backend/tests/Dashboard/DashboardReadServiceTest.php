@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Dashboard;
 
 use App\Controller\AdminDashboardApiController;
+use App\Entity\Customer\Customer;
 use App\Repository\BookingRepository;
 use App\Repository\GiftVoucherRepository;
 use App\Repository\PlanningRepository;
@@ -27,7 +28,7 @@ final class DashboardReadServiceTest extends AvailabilityTestCase
         $data = json_decode($response->getContent(), true);
         self::assertSame(['from' => '2026-03-29T00:00:00+01:00', 'to' => '2026-03-30T00:00:00+02:00', 'timezone' => 'Europe/Paris'], $data['range']);
         unset($data['range']);
-        self::assertEquals($calculator->calculate(self::getContainer()->get(BookingRepository::class)->findForAdministration(), self::getContainer()->get(PlanningRepository::class)->findForAdministration(), self::getContainer()->get(GiftVoucherRepository::class)->findAll(), new \DateTimeImmutable('2026-03-28T23:00:00Z'), new \DateTimeImmutable('2026-03-29T22:00:00Z'), new \DateTimeZone('Europe/Paris')), $data);
+        self::assertEquals($calculator->calculate(self::getContainer()->get(BookingRepository::class)->findForAdministration(), self::getContainer()->get(PlanningRepository::class)->findForAdministration(), self::getContainer()->get(GiftVoucherRepository::class)->findAll(), new \DateTimeImmutable('2026-03-28T23:00:00Z'), new \DateTimeImmutable('2026-03-29T22:00:00Z'), new \DateTimeZone('Europe/Paris'), $this->entityManager->getRepository(Customer::class)->findAll()), $data);
     }
 
     public function testInvalidRangesAre422(): void

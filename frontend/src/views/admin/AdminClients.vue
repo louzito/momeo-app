@@ -115,7 +115,7 @@ onMounted(load)
     <div>
       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Relation client</p>
       <h1 class="mt-1 font-display text-2xl font-bold text-slate-900">Clients</h1>
-      <p class="mt-1 max-w-2xl text-slate-500">Retrouvez les coordonnées et l’historique des personnes ayant réservé dans votre établissement.</p>
+      <p class="mt-1 max-w-2xl text-slate-500">Retrouvez les coordonnées et l’historique des clients inscrits et des personnes ayant réservé dans votre établissement.</p>
     </div>
 
     <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -142,7 +142,7 @@ onMounted(load)
 
     <Spinner v-if="loading" />
 
-    <EmptyState v-else-if="!clients.length" class="mt-6" icon="♡" title="Aucun client pour le moment" message="Les clients apparaîtront automatiquement dès leur première réservation." />
+    <EmptyState v-else-if="!clients.length" class="mt-6" icon="♡" title="Aucun client pour le moment" message="Les clients apparaîtront automatiquement dès leur inscription ou leur première réservation." />
 
     <div v-else-if="!filteredClients.length" class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
       Aucun client ne correspond à cette recherche.
@@ -157,10 +157,10 @@ onMounted(load)
           <tbody class="divide-y divide-slate-100">
             <tr v-for="client in filteredClients" :key="client.id" class="cursor-pointer transition hover:bg-brand-50/40" tabindex="0" @click="openClient(client)" @keydown.enter="openClient(client)">
               <td class="px-5 py-4">
-                <div class="flex items-center gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-xs font-bold text-brand-700">{{ initials(client) }}</span><div><p class="font-semibold text-slate-900">{{ client.displayName }}</p><p class="text-xs text-slate-400">Client depuis {{ formatDate(client.firstBookingAt) }}</p></div></div>
+                <div class="flex items-center gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-xs font-bold text-brand-700">{{ initials(client) }}</span><div><p class="font-semibold text-slate-900">{{ client.displayName }}</p><p class="text-xs text-slate-400">Client depuis {{ formatDate(client.clientSince || client.firstBookingAt) }}</p></div></div>
               </td>
               <td class="px-4 py-4"><p class="text-sm text-slate-700">{{ client.email }}</p><p class="mt-0.5 text-xs text-slate-400">{{ client.phone || 'Téléphone non renseigné' }}</p></td>
-              <td class="px-4 py-4"><p class="font-semibold text-slate-800">{{ client.bookingCount }}</p><p class="text-xs text-slate-400">{{ client.bookingCount > 1 ? 'Client fidèle' : 'Première réservation' }}</p></td>
+              <td class="px-4 py-4"><p class="font-semibold text-slate-800">{{ client.bookingCount }}</p><p class="text-xs text-slate-400">{{ client.bookingCount > 1 ? 'Client fidèle' : client.bookingCount === 1 ? 'Première réservation' : 'Aucune réservation' }}</p></td>
               <td class="px-4 py-4"><p class="text-sm text-slate-700">{{ formatDate(client.lastBookingAt) }}</p><p class="max-w-40 truncate text-xs text-slate-400">{{ client.lastServiceName || 'Aucune visite passée' }}</p></td>
               <td class="px-4 py-4"><template v-if="client.nextBookingAt"><p class="text-sm font-medium text-brand-700">{{ formatDate(client.nextBookingAt, true) }}</p><p class="max-w-40 truncate text-xs text-slate-400">{{ client.nextServiceName }}</p></template><span v-else class="text-sm text-slate-400">Aucun</span></td>
               <td class="px-5 py-4 text-right"><button type="button" class="btn-outline px-3 py-1.5 text-xs" @click.stop="openClient(client)">Ouvrir</button></td>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Booking;
+use App\Entity\Customer\Customer;
 use App\Service\Customer\ClientDirectoryService;
 use App\Service\Customer\ClientProfileService;
 use App\Service\Customer\InvalidClientProfile;
@@ -29,11 +30,11 @@ final class AdminClientApiController
     #[Route('/{id}/export', name: 'todatempo_api_admin_client_export', methods: ['GET'])]
     public function export(string $id): JsonResponse
     {
-        $booking = $this->directory->findBookingForClient($id);
-        if (!$booking instanceof Booking) return new JsonResponse(['message' => 'Client introuvable.'], 404);
+        $client = $this->directory->findClient($id);
+        if (!$client instanceof Booking && !$client instanceof Customer) return new JsonResponse(['message' => 'Client introuvable.'], 404);
         $actor = $this->security->getUser()?->getUserIdentifier() ?? 'admin';
 
-        return new JsonResponse($this->customerDataManager->export($booking->getCustomerEmail(), $actor), headers: [
+        return new JsonResponse($this->customerDataManager->export(($client instanceof Booking ? $client->getCustomerEmail() : (string) $client->getEmail()), $actor), headers: [
             'Content-Disposition' => sprintf('attachment; filename="donnees-client-%s.json"', $id),
             'Cache-Control' => 'private, no-store, max-age=0',
         ]);
@@ -42,11 +43,11 @@ final class AdminClientApiController
     #[Route('/{id}', name: 'todatempo_api_admin_client_erase', methods: ['DELETE'])]
     public function erase(string $id): JsonResponse
     {
-        $booking = $this->directory->findBookingForClient($id);
-        if (!$booking instanceof Booking) return new JsonResponse(['message' => 'Client introuvable.'], 404);
+        $client = $this->directory->findClient($id);
+        if (!$client instanceof Booking && !$client instanceof Customer) return new JsonResponse(['message' => 'Client introuvable.'], 404);
         $actor = $this->security->getUser()?->getUserIdentifier() ?? 'admin';
 
-        return new JsonResponse(['status' => 'anonymized', 'counts' => $this->customerDataManager->erase($booking->getCustomerEmail(), $actor)]);
+        return new JsonResponse(['status' => 'anonymized', 'counts' => $this->customerDataManager->erase(($client instanceof Booking ? $client->getCustomerEmail() : (string) $client->getEmail()), $actor)]);
     }
 
     #[Route('', name: 'momeo_api_admin_client_index', methods: ['GET'])]
@@ -58,8 +59,8 @@ final class AdminClientApiController
     #[Route('/{id}', name: 'momeo_api_admin_client_update', methods: ['PUT'])]
     public function update(string $id, Request $request): JsonResponse
     {
-        $booking = $this->directory->findBookingForClient($id);
-        if (!$booking instanceof Booking) {
+        $client = $this->directory->findClient($id);
+        if (!$client instanceof Booking && !$client instanceof Customer) {
             return new JsonResponse(['message' => 'Client introuvable.'], 404);
         }
 
@@ -70,7 +71,7 @@ final class AdminClientApiController
         }
 
         try {
-            return new JsonResponse($this->profiles->update($booking, $data, $this->security->getUser()?->getUserIdentifier() ?? 'admin'));
+            return new JsonResponse($this->profiles->update($client, $data, $this->security->getUser()?->getUserIdentifier() ?? 'admin'));
         } catch (InvalidClientProfile $exception) {
             return new JsonResponse(['message' => $exception->getMessage()], 422);
         }

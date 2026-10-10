@@ -6,6 +6,7 @@ namespace App\Service\Customer;
 
 use App\Entity\Booking;
 use App\Entity\ClientProfile;
+use App\Entity\Customer\Customer;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class ClientProfileService
@@ -14,13 +15,16 @@ final class ClientProfileService
 
     public function __construct(private readonly EntityManagerInterface $entityManager) {}
 
-    /** The booking email remains the stable matching key when the displayed email changes. */
-    public function update(Booking $booking, array $data, string $actor): array
+    /** The source email remains the stable matching key when the displayed email changes. */
+    public function update(Booking|Customer $client, array $data, string $actor): array
     {
-        $email = mb_strtolower(trim($booking->getCustomerEmail()));
+        $email = mb_strtolower(trim($client instanceof Booking ? $client->getCustomerEmail() : (string) $client->getEmail()));
+        $sourceFirstName = $client instanceof Booking ? $client->getCustomerFirstName() : $client->getFirstName();
+        $sourceLastName = $client instanceof Booking ? $client->getCustomerLastName() : $client->getLastName();
+        $sourcePhone = $client instanceof Booking ? $client->getCustomerPhone() : $client->getPhoneNumber();
         $profile = $this->entityManager->getRepository(ClientProfile::class)->findOneBy(['bookingEmail' => $email]) ?? new ClientProfile($email);
-        $firstName = trim((string) ($data['firstName'] ?? $booking->getCustomerFirstName()));
-        $lastName = trim((string) ($data['lastName'] ?? $booking->getCustomerLastName()));
+        $firstName = trim((string) ($data['firstName'] ?? $sourceFirstName));
+        $lastName = trim((string) ($data['lastName'] ?? $sourceLastName));
         $newEmail = mb_strtolower(trim((string) ($data['email'] ?? $email)));
         if ($firstName === '' || $lastName === '' || !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidClientProfile('Nom, prénom et email valide sont obligatoires.');
@@ -29,7 +33,7 @@ final class ClientProfileService
         $profile->setFirstName($firstName);
         $profile->setLastName($lastName);
         $profile->setEmail($newEmail);
-        $profile->setPhone(isset($data['phone']) ? (string) $data['phone'] : $booking->getCustomerPhone());
+        $profile->setPhone(isset($data['phone']) ? (string) $data['phone'] : $sourcePhone);
         $profile->setVisibleNotes(isset($data['visibleNotes']) ? (string) $data['visibleNotes'] : $profile->getVisibleNotes());
         $profile->setInternalNotes(isset($data['internalNotes']) ? (string) $data['internalNotes'] : $profile->getInternalNotes());
         $profile->setAllergies(isset($data['allergies']) ? (string) $data['allergies'] : $profile->getAllergies());
