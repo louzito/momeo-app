@@ -35,7 +35,7 @@ for (const width of [390, 1280]) {
     await page.getByRole('button', { name: 'Mobile', exact: true }).click()
     await expect(preview.locator('h2.font-display').first()).toHaveCSS('font-family', /Georgia/)
     expect(await page.evaluate(() => document.documentElement.style.cssText)).toBe(rootBefore)
-    const save = page.getByRole('button', { name: 'Enregistrer le brouillon' })
+    const save = page.getByRole('button', { name: 'Enregistrer', exact: true })
     await save.focus(); await page.keyboard.press('Enter')
     await expect(page.getByRole('alert')).toContainText('contrasté')
     await expect(page.getByLabel('Style des caractères')).toHaveValue('classic')

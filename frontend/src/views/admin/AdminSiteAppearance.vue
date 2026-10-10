@@ -95,7 +95,7 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
             <SiteLinkEditor v-if="state.primaryLink" v-model="state.primaryLink" :pages="pages" />
             <p class="text-sm text-slate-500">Ce bouton utilise le menu principal. La réservation commence par le choix d’une prestation.</p>
           </section>
-          <button class="btn-primary">{{ saving ? 'Enregistrement…' : 'Enregistrer le brouillon' }}</button>
+          <button class="btn-primary">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button>
         </fieldset>
       </form>
       <section class="rounded-xl border bg-slate-100 p-3" aria-label="Aperçu du brouillon">

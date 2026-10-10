@@ -40,6 +40,36 @@ async function setup(page, admin = false) {
   return { value, allowPublish: () => { fail = false } }
 }
 for (const width of [390, 1280]) {
+  test(`aucun thème ni menu provisoire pendant le chargement à ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await setup(page)
+    let releaseChannel, releaseNavigation
+    const channelReady = new Promise(resolve => { releaseChannel = resolve })
+    const navigationReady = new Promise(resolve => { releaseNavigation = resolve })
+    await page.route('**/shop/channels', async route => {
+      await channelReady
+      await route.fulfill({ json: { member: [{ code: 'WEB', name: 'Mon institut', baseCurrency: { code: 'EUR' } }] } })
+    })
+    await page.route('**/shop/site/navigation', async route => {
+      await navigationReady
+      await route.fulfill({ json: { main: [{ label: 'Mon menu', url: 'shop', external: false, children: [] }], footer: [], primary: null } })
+    })
+    await page.goto('/centre-e2e/')
+    await expect(page.getByRole('status')).toHaveText('Chargement du site…')
+    await expect(page.locator('header, footer')).toHaveCount(0)
+    await expect(page.getByText('TodaTempo', { exact: true })).toHaveCount(0)
+    releaseChannel()
+    // The tenant facts alone must not reveal the default menu while navigation loads.
+    await expect(page.getByRole('status')).toHaveText('Chargement du site…')
+    await expect(page.locator('header, footer')).toHaveCount(0)
+    releaseNavigation()
+    await expect(page.getByRole('heading', { name: 'Bienvenue chez nous' })).toBeVisible()
+    await expect(page.locator('header')).toContainText('Mon institut')
+    if (width < 768) await page.getByRole('button', { name: 'Menu', exact: true }).click()
+    await expect(page.getByRole('link', { name: 'Mon menu', exact: true }).first()).toBeVisible()
+    await expect(page.getByText('TodaTempo', { exact: true })).toHaveCount(0)
+  })
+
   test(`accueil publié → prestation → réservation et carte cadeau à ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await setup(page)

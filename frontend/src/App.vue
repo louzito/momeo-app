@@ -49,6 +49,14 @@ onMounted(async () => {
     <template v-if="isAdmin || !hasTenant">
       <RouterView />
     </template>
+    <main v-else-if="!tenantStore.current" class="flex-1" :aria-busy="!tenantStore.error || tenantStore.loading">
+      <CatalogError
+        v-if="tenantStore.error && !tenantStore.loading"
+        :message="tenantStore.error"
+        @retry="retryCatalog"
+      />
+      <p v-else role="status" class="section py-12">Chargement du site…</p>
+    </main>
     <template v-else>
       <AppNavbar />
       <main class="flex-1">
