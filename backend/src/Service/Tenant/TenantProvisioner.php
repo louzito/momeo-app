@@ -92,9 +92,9 @@ final class TenantProvisioner
 
             $password = $this->syliusInitializer->initialize($name, $email !== '' ? $email : null);
 
-            // Transitional storage: this taxon will be renamed to momeo_config
-            // when the parachuting vocabulary is removed from the tenant template.
-            $taxon = $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
+            // Prefer the canonical configuration; retain compatibility with old pools.
+            $taxon = $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'todatempo_config'])
+                ?? $this->em->getRepository(Taxon::class)->findOneBy(['code' => 'skybook_config']);
             if ($taxon instanceof Taxon) {
                 $translation = $taxon->getTranslation('en_US');
                 $config = json_decode($translation->getDescription() ?: '{}', true);

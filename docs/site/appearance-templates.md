@@ -33,8 +33,9 @@ restent accessibles, les réglages de réservation et paiement restent dans Rég
 Les écrans avertissent avant de quitter avec des modifications non enregistrées.
 
 Le stockage reste le document du taxon `todatempo_config`, avec compatibilité
-`skybook_config`. Les images historiques de l’ancien taxon et l’ancienne couleur
-`text` sont reprises. Aucun autre document de branding ni table n’est créé.
+`skybook_config` uniquement si le taxon canonique est absent. Le front ne lit
+plus les images de l’ancien taxon lorsque `todatempo_config` existe, même sans logo.
+L’ancienne couleur `text` est reprise. Aucun autre document de branding ni table n’est créé.
 `GET/PUT /api/v2/admin/site/appearance` exige la permission `settings` et un tenant
 explicite, sans cache partagé. Le PUT valide les couleurs et leur contraste,
 les palettes, la typographie, l’appartenance du logo et la destination du bouton.

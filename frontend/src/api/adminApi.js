@@ -12,6 +12,7 @@
 // Chaque requete porte le tenant et cible /api/v2 sur l'origine courante.
 // =============================================================================
 
+import { shareInFlight } from './sharedRead'
 import { API_BASE, JWT_AUTH_HEADER, TENANT_SLUG, displayImageUrl, tenantHeaders } from './config'
 import { normalizeShopColors } from '@/composables/useBranding'
 import { redirectExpiredAdminSession } from '@/utils/adminSession'
@@ -560,21 +561,21 @@ export async function setServiceBookableResources(code, data) {
 // Repartition Sylius-first :
 //   - nom / email / telephone -> CHANNEL Sylius (name, contactEmail,
 //     contactPhoneNumber) : c'est ce que Sylius utilise nativement.
-//   - logo -> IMAGE (type "logo") du taxon technique skybook_config.
-//   - couleurs / reseaux sociaux / adresse -> JSON du taxon skybook_config
+//   - logo -> IMAGE (type "logo") du taxon technique todatempo_config.
+//   - couleurs / reseaux sociaux / adresse -> JSON du taxon todatempo_config
 //     (pas de champ Sylius pour ca), lisible PUBLIQUEMENT via /shop/taxons.
 const CONFIG_TAXON = 'todatempo_config'
 
-async function ensureConfigTaxon() {
+const ensureConfigTaxon = shareInFlight(async () => {
   try {
-    await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
+    return await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
   } catch (e) {
     if (e.status !== 404) throw e
     // Copy persisted legacy configuration once. Subsequent calls find the
     // canonical taxon, so this migration is idempotent.
     let legacy = null
-    try { legacy = await request('GET', '/admin/taxons/skybook_config') } catch { /* first install */ }
-    await request('POST', '/admin/taxons', {
+    try { legacy = await request('GET', '/admin/taxons/skybook_config') } catch (error) { if (error.status !== 404) throw error }
+    return request('POST', '/admin/taxons', {
       code: CONFIG_TAXON,
       enabled: true,
       translations: {
@@ -586,12 +587,11 @@ async function ensureConfigTaxon() {
       },
     })
   }
-}
+})
 
-export async function getShopConfig() {
-  await ensureConfigTaxon()
+export const getShopConfig = shareInFlight(async () => {
   const [t, ch] = await Promise.all([
-    request('GET', `/admin/taxons/${CONFIG_TAXON}`),
+    ensureConfigTaxon(),
     request('GET', `/admin/channels/${(await productChannel()).code}`),
   ])
   let cfg = {}
@@ -601,11 +601,7 @@ export async function getShopConfig() {
   const document = readSiteConfigDocument(cfg)
   cfg = document.draft
   // NB : ne JAMAIS retomber sur images[0] — le taxon porte aussi les bannieres.
-  let legacyImages = []
-  if (!(t.images || []).some(i => i.type === 'logo')) {
-    try { legacyImages = (await request('GET', '/admin/taxons/skybook_config')).images || [] } catch (e) { if (e.status !== 404) throw e }
-  }
-  const imgOf = (type) => [...(t.images || []), ...legacyImages].find((i) => i.type === type)
+  const imgOf = (type) => (t.images || []).find((i) => i.type === type)
   return normalizeSiteConfig({
     name: cfg.name || ch.name || '',
     timezone: typeof cfg.timezone === 'string' ? cfg.timezone : 'Europe/Paris',
@@ -664,7 +660,7 @@ export async function getShopConfig() {
     bannerMobileUrl: displayImageUrl(cfg.assets?.bannerMobile || imgOf('draft_banner_mobile')?.path || imgOf('banner_mobile')?.path),
     _publication: { revision: document.revision, publishedAt: document.publishedAt },
   })
-}
+})
 
 async function writeSiteConfigDocument(document) {
   await ensureConfigTaxon()
@@ -681,8 +677,7 @@ async function writeSiteConfigDocument(document) {
 }
 
 export async function saveShopConfig(cfg) {
-  await ensureConfigTaxon()
-  const taxon = await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
+  const taxon = await ensureConfigTaxon()
   let raw = {}
   try { raw = JSON.parse(taxon.translations?.en_US?.description || '{}') } catch { /* vide */ }
   const document = readSiteConfigDocument(raw)
@@ -692,8 +687,7 @@ export async function saveShopConfig(cfg) {
 }
 
 export async function publishShopConfig(cfg) {
-  await ensureConfigTaxon()
-  const taxon = await request('GET', `/admin/taxons/${CONFIG_TAXON}`)
+  const taxon = await ensureConfigTaxon()
   let raw = {}
   try { raw = JSON.parse(taxon.translations?.en_US?.description || '{}') } catch { /* vide */ }
   const draft = normalizeSiteConfig(cfg)

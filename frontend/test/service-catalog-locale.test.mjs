@@ -11,7 +11,7 @@ const migrateLocalStorageKey = () => null;
 
 for (const locale of ['fr_FR', 'en_US']) {
   test(`création et modification utilisent la langue du canal ${locale}`, async () => {
-    const api = await import(`data:text/javascript;base64,${Buffer.from(stubs + source + `\n// ${locale}`).toString('base64')}`)
+    const api = await import(`data:text/javascript;base64,${Buffer.from(`import { shareInFlight } from '${new URL('../src/api/sharedRead.js', import.meta.url).href}';\n` + stubs + source + `\n// ${locale}`).toString('base64')}`)
     const calls = []
     const originalFetch = globalThis.fetch
     globalThis.fetch = async (url, options) => {

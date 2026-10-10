@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 const source = (await readFile(new URL('../src/api/httpApi.js', import.meta.url), 'utf8'))
   .replace(/^import .*$/gm, '')
 const stubs = `const API_BASE='/api/v2', TENANT_SLUG='demo', tenantHeaders=x=>x, displayImageUrl=x=>x, isServiceProductCode=()=>true, sylius={}, customerRequest=()=>{}, readSiteConfigDocument=()=>{};`
-const { httpApi: api } = await import(`data:text/javascript;base64,${Buffer.from(stubs + source).toString('base64')}`)
+const { httpApi: api } = await import(`data:text/javascript;base64,${Buffer.from(`import { shareInFlight } from '${new URL('../src/api/sharedRead.js', import.meta.url).href}';\n` + stubs + source).toString('base64')}`)
 
 function transport(failAt = '') {
   const calls = []

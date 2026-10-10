@@ -13,6 +13,7 @@
 //
 // =============================================================================
 
+import { shareInFlight } from './sharedRead'
 import { API_BASE, TENANT_SLUG, displayImageUrl, isServiceProductCode, tenantHeaders } from './config'
 import * as sylius from './adminApi'
 import { customerRequest } from './customerAuth'
@@ -38,6 +39,9 @@ async function apiGet(path, params = {}) {
   }
   return data
 }
+
+// Partage uniquement les lectures simultanées : prix et disponibilités restent frais.
+const readShopProducts = shareInFlight(() => apiGet('/shop/products', { itemsPerPage: 100 }))
 
 // Ecritures sur le SHOP API (panier / checkout) — public, sans auth.
 // PATCH -> content-type merge-patch impose par API Platform.
@@ -511,7 +515,7 @@ export const httpApi = {
 
   // --- CATALOGUE : branche sur Sylius ---
   async getJumpTypes(tenantId) {
-    const data = await apiGet('/shop/products', { itemsPerPage: 100 })
+    const data = await readShopProducts()
     let items = membersOf(data)
     items = items.filter((p) => isServiceProductCode(p.code))
     // Attributs reels (altitude, duree, capacite) en parallele — 1 requete par
@@ -682,7 +686,7 @@ export const httpApi = {
   },
 
   // --- CONFIGURATION BOUTIQUE ------------------------------------------------
-  // Lecture PUBLIQUE (vitrine) : le taxon skybook_config porte le JSON de
+  // Lecture PUBLIQUE (vitrine) : le taxon todatempo_config porte le JSON de
   // config (nom, contact, couleurs, reseaux sociaux) + l'image "logo".
   // Channel Sylius du centre (shop API) : nom + devise reels.
   async getShopChannel() {
@@ -697,17 +701,16 @@ export const httpApi = {
     try {
       let t
       try { t = await apiGet('/shop/taxons/todatempo_config') }
-      catch { t = await apiGet('/shop/taxons/skybook_config') }
+      catch (error) {
+        if (error.status !== 404) throw error
+        t = await apiGet('/shop/taxons/skybook_config')
+      }
       let cfg = {}
       try {
         cfg = JSON.parse(t.description || '{}')
       } catch { /* pas encore configure */ }
       cfg = readSiteConfigDocument(cfg).published
-      let legacyImages = []
-      if (t.code !== 'skybook_config' && !(t.images || []).some(i => i.type === 'logo')) {
-        try { legacyImages = (await apiGet('/shop/taxons/skybook_config')).images || [] } catch (error) { if (error.status !== 404) throw error }
-      }
-      const imgOf = (type) => [...(t.images || []), ...legacyImages].find((i) => i.type === type)
+      const imgOf = (type) => (t.images || []).find((i) => i.type === type)
       return {
         ...cfg,
         logoUrl: displayImageUrl(cfg.assets?.logo || imgOf('logo')?.path),
@@ -1220,7 +1223,7 @@ export const httpApi = {
 
   // --- OPTIONS / UPSELLS (produits Sylius code opt_...) ---
   async getOptions(tenantId, jumpTypeId = null) {
-    const data = await apiGet('/shop/products', { itemsPerPage: 100 })
+    const data = await readShopProducts()
     const opts = membersOf(data).filter((p) => (p.code || '').startsWith('opt_'))
     const links = await resolveOptionLinks(opts)
     let list = opts.map((p) => mapProductToOption(p, tenantId, links.get(p.code) || []))
