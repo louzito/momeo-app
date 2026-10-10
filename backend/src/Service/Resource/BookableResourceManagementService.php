@@ -24,8 +24,19 @@ final class BookableResourceManagementService
     public function create(array $payload): BookableResource
     {
         $resource = new BookableResource();
-        $code = trim((string) ($payload['code'] ?? '')) ?: $this->code((string) ($payload['name'] ?? ''));
-        if ($code === '' || $this->repository->findOneBy(['code' => $code]) instanceof BookableResource) {
+        $code = trim((string) ($payload['code'] ?? ''));
+        if ($code === '') {
+            $base = substr($this->code((string) ($payload['name'] ?? '')), 0, 100);
+            $code = $base;
+            for ($suffix = 2; $this->repository->findOneBy(['code' => $code]) instanceof BookableResource; ++$suffix) {
+                $ending = '_'.$suffix;
+                $code = substr($base, 0, 100 - strlen($ending)).$ending;
+            }
+        }
+        if (strlen($code) > 100) {
+            throw new InvalidBookableResourceInput('Le code de la ressource ne doit pas dépasser 100 caractères.');
+        }
+        if ($this->repository->findOneBy(['code' => $code]) instanceof BookableResource) {
             throw new InvalidBookableResourceInput('Le code de la ressource existe déjà ou est invalide.');
         }
         $resource->setCode($code);

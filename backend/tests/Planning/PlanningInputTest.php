@@ -9,6 +9,19 @@ use PHPUnit\Framework\TestCase;
 
 final class PlanningInputTest extends TestCase
 {
+    public function testClosedWeekdaysAreIgnored(): void
+    {
+        $days = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], []);
+        $result = (new PlanningInput())->normalizeDays(['weeklyDays' => $days]);
+        self::assertNull($result['error']);
+        self::assertSame([], $result['days']);
+
+        $days['monday'] = [['start' => '09:00', 'end' => '18:00']];
+        $result = (new PlanningInput())->normalizeDays(['weeklyDays' => $days]);
+        self::assertNull($result['error']);
+        self::assertSame(['monday' => $days['monday']], $result['days']);
+    }
+
     public function testItAcceptsValidNonOverlappingRanges(): void
     {
         $result = (new PlanningInput())->normalizeDays(['weeklyDays' => [

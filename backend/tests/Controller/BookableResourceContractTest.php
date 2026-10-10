@@ -73,6 +73,7 @@ final class BookableResourceContractTest extends KernelTestCase
     {
         yield 'capacity' => [['capacity' => 0], 'La capacité doit être supérieure ou égale à 1.'];
         yield 'empty calendar' => [['calendar' => []], 'Au moins une plage de disponibilité est obligatoire.'];
+        yield 'all weekdays closed' => [['calendar' => array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], [])], 'Au moins une plage de disponibilité est obligatoire.'];
         yield 'reversed range' => [['calendar' => ['monday' => [['start' => '12:00', 'end' => '09:00']]]], 'L’heure de fin doit être après l’heure de début.'];
         yield 'type' => [['type' => 'invalid'], 'Le type de ressource est invalide.'];
     }
@@ -125,6 +126,38 @@ final class BookableResourceContractTest extends KernelTestCase
             self::assertSame(404, $missing->getStatusCode());
             self::assertSame(['error' => 'Ressource introuvable.'], json_decode($missing->getContent(), true));
         }
+    }
+
+    public function testFormPayloadCreatesUniqueResourcesWithClosedWeekdays(): void
+    {
+        $controller = $this->controller();
+        $name = 'Cabine 1 '.bin2hex(random_bytes(8));
+        $calendar = array_fill_keys(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], []);
+        $calendar['monday'] = [['start' => '09:00', 'end' => '18:00']];
+        $payload = ['code' => '', 'name' => $name, 'type' => 'room', 'capacity' => 1, 'active' => true, 'calendar' => $calendar];
+        $created = [];
+        foreach (['', '_2'] as $suffix) {
+            $response = $controller->create($this->request($payload));
+            self::assertSame(201, $response->getStatusCode());
+            $data = json_decode($response->getContent(), true);
+            self::assertSame('resource_'.str_replace(' ', '_', strtolower($name)).$suffix, $data['code']);
+            self::assertSame(['monday' => $calendar['monday']], $data['calendar']);
+            self::assertSame(1, $data['capacity']);
+            self::assertTrue($data['active']);
+            $created[] = $data;
+        }
+        $this->em->clear();
+        $listed = json_decode($controller->index()->getContent(), true)['member'];
+        foreach ($created as $data) {
+            self::assertContains($data, $listed);
+        }
+    }
+
+    public function testExplicitCodeTooLongReturnsValidationError(): void
+    {
+        $response = $this->controller()->create($this->request(['code' => str_repeat('x', 101)]));
+        self::assertSame(422, $response->getStatusCode());
+        self::assertSame(['error' => 'Le code de la ressource ne doit pas dépasser 100 caractères.'], json_decode($response->getContent(), true));
     }
 
     public function testProductAssignmentValidationAndCalculatedAvailability(): void

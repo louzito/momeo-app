@@ -71,6 +71,9 @@ final class PlanningInput
             if (!\in_array($weekday, self::WEEKDAYS, true) || !\is_array($ranges)) {
                 return ['days' => [], 'legacyConfig' => null, 'error' => 'Un jour du planning est invalide.'];
             }
+            if ($ranges === []) {
+                continue;
+            }
             foreach ($ranges as $range) {
                 if (!\is_array($range) || !$this->validTime((string) ($range['start'] ?? '')) || !$this->validTime((string) ($range['end'] ?? ''))) {
                     return ['days' => [], 'legacyConfig' => null, 'error' => 'Une plage horaire est invalide (format HH:MM attendu).'];

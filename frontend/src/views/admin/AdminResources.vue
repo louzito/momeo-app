@@ -25,6 +25,7 @@ async function load() {
 onMounted(load)
 
 function edit(resource) {
+  error.value = ''
   editing.value = JSON.parse(JSON.stringify(resource || blank()))
   weekdays.forEach(([key]) => { editing.value.calendar[key] ||= [] })
 }
@@ -58,10 +59,11 @@ async function remove(resource) {
       <div><h1 class="font-display text-2xl font-bold text-slate-900">Ressources réservables</h1><p class="mt-1 text-slate-500">Cabines, salles, machines et fauteuils disponibles à la réservation.</p></div>
       <button v-if="!editing" class="btn-primary" @click="edit(null)">+ Nouvelle ressource</button>
     </div>
-    <div v-if="error" class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">⚠️ {{ error }}</div>
+    <div v-if="error && !editing" role="alert" class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">⚠️ {{ error }}</div>
     <Spinner v-if="loading" />
 
     <form v-else-if="editing" class="card mt-6 space-y-5 p-6" @submit.prevent="save">
+      <div v-if="error" role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">⚠️ {{ error }}</div>
       <div class="grid gap-4 sm:grid-cols-3">
         <div><label class="label">Nom</label><input v-model="editing.name" class="input" required placeholder="Cabine 1" /></div>
         <div><label class="label">Type</label><select v-model="editing.type" class="input"><option v-for="(label, value) in types" :key="value" :value="value">{{ label }}</option></select></div>
