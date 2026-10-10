@@ -45,9 +45,9 @@ const files = ref({ logo: null, banner: null, banner_mobile: null })
 const previews = ref({ logo: '', banner: '', banner_mobile: '' })
 
 const IMAGE_RULES = {
-  logo: { label: 'logo', maxMo: 4, minWidth: 128, minHeight: 128 },
-  banner: { label: 'bannière ordinateur', maxMo: 6, minWidth: 1200, minHeight: 400 },
-  banner_mobile: { label: 'bannière mobile', maxMo: 6, minWidth: 600, minHeight: 800 },
+  logo: { label: 'logo', maxMo: 5, minWidth: 128, minHeight: 128 },
+  banner: { label: 'bannière ordinateur', maxMo: 5, minWidth: 1200, minHeight: 400 },
+  banner_mobile: { label: 'bannière mobile', maxMo: 5, minWidth: 600, minHeight: 800 },
 }
 
 
@@ -133,8 +133,8 @@ async function onImagePicked(type, e) {
   const f = e.target.files?.[0]
   if (!f) return
   const rule = IMAGE_RULES[type]
-  if (!f.type.startsWith('image/')) { error.value = 'Choisissez un fichier image.'; return }
-  if (f.size > rule.maxMo * 1024 * 1024) { error.value = `Image trop lourde pour la ${rule.label} (${rule.maxMo} Mo max).`; return }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) { error.value = 'Choisissez une image JPG, PNG ou WebP.'; return }
+  if (f.size > rule.maxMo * 1024 * 1024) { error.value = `Image trop lourde pour la ${rule.label} (${rule.maxMo} Mio max).`; return }
   try {
     const dimensions = await new Promise((resolve, reject) => {
       const image = new Image()
@@ -392,7 +392,7 @@ async function publish() {
           <h2 class="mb-1 font-semibold text-slate-800">Bannière (ordinateur)</h2>
           <p class="mb-4 text-sm text-slate-500">
             Grande image du haut de la page d'accueil. <strong>Taille recommandée : 1920 × 640 px</strong>
-            (format paysage, JPG conseillé, 6 Mo max). Sans bannière, l'image par défaut est utilisée.
+            (format paysage, JPG conseillé, 5 Mio max). Sans bannière, l'image par défaut est utilisée.
           </p>
           <div
             v-if="previews.banner || cfg.bannerUrl"
@@ -402,7 +402,7 @@ async function publish() {
           </div>
           <label class="btn-outline focus-within:ring-2 focus-within:ring-brand-600 cursor-pointer px-4 py-2 text-sm">
             {{ cfg.bannerUrl || files.banner ? 'Changer la bannière…' : 'Ajouter une bannière…' }}
-            <input type="file" accept="image/*" class="sr-only" @change="onImagePicked('banner', $event)" />
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" @change="onImagePicked('banner', $event)" />
           </label>
         </section>
 
@@ -410,7 +410,7 @@ async function publish() {
           <h2 class="mb-1 font-semibold text-slate-800">Bannière mobile <span class="font-normal text-slate-400">(optionnelle)</span></h2>
           <p class="mb-4 text-sm text-slate-500">
             Variante affichée sur téléphone, plus verticale. <strong>Taille recommandée : 828 × 1100 px</strong>
-            (6 Mo max). Sans variante, la bannière ordinateur est réutilisée.
+            (5 Mio max). Sans variante, la bannière ordinateur est réutilisée.
           </p>
           <div
             v-if="previews.banner_mobile || cfg.bannerMobileUrl"
@@ -420,7 +420,7 @@ async function publish() {
           </div>
           <label class="btn-outline focus-within:ring-2 focus-within:ring-brand-600 cursor-pointer px-4 py-2 text-sm">
             {{ cfg.bannerMobileUrl || files.banner_mobile ? 'Changer la bannière mobile…' : 'Ajouter une bannière mobile…' }}
-            <input type="file" accept="image/*" class="sr-only" @change="onImagePicked('banner_mobile', $event)" />
+            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" @change="onImagePicked('banner_mobile', $event)" />
           </label>
         </section>
 

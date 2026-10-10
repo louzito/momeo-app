@@ -45,3 +45,13 @@ test('la base fournie par le HTML permet le domaine personnalisé avec un build 
     assert.equal(runtime.TENANT_SLUG, 'centre-paris')
   } finally { delete globalThis.document; delete globalThis.window }
 })
+
+
+test('les chemins de stockage des logos et prestations ciblent les médias publics', () => {
+  assert.equal(config.displayImageUrl('centre-paris/ab/cd/logo.png'), '/media/image/centre-paris/ab/cd/logo.png')
+  assert.equal(config.displayImageUrl('ab/cd/prestation.webp'), '/media/image/ab/cd/prestation.webp')
+  assert.equal(config.displayImageUrl('/media/image/centre-paris/logo.png'), '/media/image/centre-paris/logo.png')
+  assert.equal(config.displayImageUrl('/media/cache/sylius_small/centre-paris/photo.jpg'), '/media/cache/resolve/photo/centre-paris/photo.jpg')
+  assert.equal(config.displayImageUrl('https://images.example.org/photo.jpg'), 'https://images.example.org/photo.jpg')
+  assert.equal(config.displayImageUrl(null), '')
+})

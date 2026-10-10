@@ -64,6 +64,8 @@ export function isServiceProductCode(code = '') {
 // fichier au premier appel puis redirige vers le cache statique.
 export function displayImageUrl(path) {
   if (!path) return ''
+  // Sylius uploads and admin reads return a storage path, not a public URL.
+  if (!path.startsWith('/') && !/^https?:\/\//i.test(path)) path = `/media/image/${path}`
   let abs = path.startsWith('http') ? path : `${MEDIA_BASE}${path.startsWith('/') ? '' : '/'}${path}`
   // Les URLs absolues generees par Sylius peuvent contenir son host interne.
   // Les medias applicatifs doivent toujours repasser par l'origine publique.

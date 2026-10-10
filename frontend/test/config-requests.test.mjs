@@ -46,3 +46,29 @@ test('config sans logo : un GET admin et aucune lecture legacy ; produits partag
     globalThis.fetch = original
   }
 })
+
+test('imports logo et prestation : multipart, chemin conservé et erreur serveur lisible', async () => {
+  const original = globalThis.fetch
+  let rejectUpload = false
+  const file = new Blob(['image'], { type: 'image/png' })
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'POST' && String(url).endsWith('/images')) {
+      assert.ok(options.body instanceof FormData)
+      assert.ok(options.body.get('file') instanceof Blob)
+      assert.ok(['main', 'draft_logo'].includes(options.body.get('type')))
+      assert.equal(options.headers['Content-Type'], undefined)
+      return { ok: !rejectUpload, status: rejectUpload ? 422 : 201, json: async () => rejectUpload
+        ? { error: 'invalid_image', message: 'Seules les images JPEG, PNG et WebP sont acceptees.' }
+        : { id: 42, path: 'test/ab/cd/image.png' } }
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify({ code: 'todatempo_config', images: [] }) }
+  }
+  try {
+    const admin = await loadClient('adminApi.js')
+    assert.equal((await admin.uploadShopImage(file)).path, 'test/ab/cd/image.png')
+    assert.equal((await admin.replaceProductImage('service_test', file)).path, 'test/ab/cd/image.png')
+    rejectUpload = true
+    await assert.rejects(admin.uploadShopImage(file), /JPEG, PNG et WebP/)
+    await assert.rejects(admin.replaceProductImage('service_test', file), /JPEG, PNG et WebP/)
+  } finally { globalThis.fetch = original }
+})

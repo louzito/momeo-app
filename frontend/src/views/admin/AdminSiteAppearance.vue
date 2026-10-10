@@ -40,7 +40,7 @@ function clearPreview() { if (logoPreview.value) URL.revokeObjectURL(logoPreview
 function pickLogo(event) {
   const file = event.target.files?.[0]
   if (!file) return
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024) { error.value = 'Choisissez une image JPG, PNG ou WebP de moins de 4 Mo.'; return }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) { error.value = 'Choisissez une image JPG, PNG ou WebP de 5 Mio maximum.'; return }
   clearPreview(); logo.value = file; logoPreview.value = URL.createObjectURL(file); error.value = ''
 }
 async function save() {
@@ -53,7 +53,7 @@ async function save() {
     }
     state.value = await saveSiteAppearance(payload())
     saved.value = JSON.stringify(payload()); notice.value = 'Apparence enregistrée dans le brouillon. Le site publié reste inchangé.'
-  } catch (e) { error.value = [409, 422].includes(e.status) ? e.message : 'Impossible d’enregistrer. Vos modifications sont conservées.' }
+  } catch (e) { error.value = e.message || 'Impossible d’enregistrer. Vos modifications sont conservées.' }
   finally { saving.value = false }
 }
 function beforeUnload(event) { if (dirty.value) { event.preventDefault(); event.returnValue = '' } }

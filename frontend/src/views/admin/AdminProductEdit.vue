@@ -28,8 +28,8 @@ onUnmounted(() => {
 function onImagePicked(e) {
   const f = e.target.files?.[0]
   if (!f) return
-  if (!f.type.startsWith('image/')) { error.value = 'Choisissez un fichier image (JPG, PNG, WebP...).'; return }
-  if (f.size > 8 * 1024 * 1024) { error.value = 'Image trop lourde (8 Mo max).'; return }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) { error.value = 'Choisissez un fichier image (JPG, PNG, WebP).'; return }
+  if (f.size > 5 * 1024 * 1024) { error.value = 'Image trop lourde (5 Mio max).'; return }
   error.value = ''
   imageFile.value = f
   if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
@@ -175,10 +175,10 @@ async function save() {
               <div>
                 <label class="btn-outline cursor-pointer px-4 py-2 text-sm">
                   {{ imageFile ? 'Changer de fichier' : 'Choisir une image…' }}
-                  <input type="file" accept="image/*" class="hidden" @change="onImagePicked" />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onImagePicked" />
                 </label>
                 <p class="mt-1 text-xs text-slate-400">
-                  {{ imageFile ? `${imageFile.name} — envoyée à l'enregistrement.` : 'JPG / PNG / WebP, 8 Mo max. Remplace l\'image actuelle.' }}
+                  {{ imageFile ? `${imageFile.name} — envoyée à l'enregistrement.` : 'JPG / PNG / WebP, 5 Mio max. Remplace l\'image actuelle.' }}
                 </p>
               </div>
             </div>

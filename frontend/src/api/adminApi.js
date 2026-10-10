@@ -721,7 +721,7 @@ export async function uploadShopImage(file, type = 'logo') {
   })
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    const err = new Error(data?.detail || `Echec de l'upload de l'image (HTTP ${res.status}).`)
+    const err = new Error(data?.message || data?.['hydra:description'] || data?.detail || `Echec de l'upload de l'image (HTTP ${res.status}).`)
     err.status = res.status
     throw err
   }
@@ -770,7 +770,7 @@ async function uploadProductImage(code, file) {
   })
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    const err = new Error(data?.['hydra:description'] || data?.detail || `Echec de l'upload (HTTP ${res.status}).`)
+    const err = new Error(data?.message || data?.['hydra:description'] || data?.detail || `Echec de l'upload (HTTP ${res.status}).`)
     err.status = res.status
     throw err
   }

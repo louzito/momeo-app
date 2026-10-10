@@ -50,6 +50,10 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Le client appelle /api/... avec X-Skybook-Tenant. Vite ne fait ici
       // qu'acheminer vers Sylius, exactement comme le proxy de production.
+      '/media': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
