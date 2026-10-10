@@ -9,6 +9,8 @@ import api from '@/api'
 import { displayImageUrl } from '@/api/config'
 import { SOCIAL_NETWORKS } from '@/utils/socialIcons'
 import Spinner from '@/components/ui/Spinner.vue'
+import SiteRichTextEditor from '@/components/site/SiteRichTextEditor.vue'
+import { legalDocument, legalPlainText } from '@/utils/legalContent'
 import { validateSiteConfig } from '@/utils/siteConfig'
 
 const admin = useAdminStore()
@@ -28,6 +30,14 @@ const router = useRouter()
 const tab = computed({
   get: () => settingsSection(route.query),
   set: (section) => router.push({ name: 'admin-settings', query: { ...route.query, section } }),
+})
+
+const legalContent = computed({
+  get: () => legalDocument(cfg.value?.legal?.[tab.value]),
+  set: (document) => {
+    cfg.value.legal[tab.value].contentRich = document
+    cfg.value.legal[tab.value].content = legalPlainText(document)
+  },
 })
 
 // Fichiers images en attente d'upload (uploades a l'enregistrement).
@@ -555,15 +565,14 @@ async function publish() {
             <input v-model="cfg.legal[tab].enabled" type="checkbox" class="h-4 w-4 accent-brand-600" />
             <span class="font-medium text-slate-800">Activer la page {{ tab === 'terms' ? '« Conditions générales »' : '« Mentions légales »' }}</span>
           </label>
-          <textarea
-            v-model="cfg.legal[tab].content"
-            class="input min-h-72 font-mono text-[13px] leading-relaxed"
-            rows="16"
-            :placeholder="tab === 'terms'
-              ? 'Article 1 — Objet\nLes présentes conditions générales régissent…'
-              : 'Éditeur du site\nRaison sociale, adresse, SIRET…\n\nHébergement\n…'"
+          <SiteRichTextEditor
+            :key="tab"
+            v-model="legalContent"
+            large
+            :disabled="saving || publishing"
+            :label="tab === 'terms' ? 'Texte des conditions générales' : 'Texte des mentions légales'"
           />
-          <p class="mt-2 text-xs text-slate-400">Texte simple — les retours à la ligne sont conservés à l'affichage.</p>
+          <p class="mt-2 text-xs text-slate-400">Utilisez la barre d’outils pour mettre en forme les titres, paragraphes, listes et liens.</p>
         </section>
       </template>
 

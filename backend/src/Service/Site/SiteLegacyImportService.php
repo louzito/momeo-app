@@ -80,7 +80,7 @@ final class SiteLegacyImportService
         if ($role !== 'home') {
             $legal = $cfg['legal'][$role] ?? [];
             $blocks = [$block('heading', ['text' => $title, 'level' => 2])];
-            if (trim($legal['content'] ?? '') !== '') $blocks[] = $block('text', ['content' => $rich($legal['content'])]) + ['hidden' => !($legal['enabled'] ?? false)];
+            if (trim($legal['content'] ?? '') !== '') $blocks[] = $block('text', ['content' => $legal['contentRich'] ?? $rich($legal['content'])]) + ['hidden' => !($legal['enabled'] ?? false)];
         } else {
             $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
             $home = $cfg['home'] ?? [];
