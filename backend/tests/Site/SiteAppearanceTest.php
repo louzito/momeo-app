@@ -41,7 +41,7 @@ final class SiteAppearanceTest extends TestCase
     {
         return $service->state() + ['colors' => ['header' => '#ffffff', 'textHeader' => '#111111', 'footer' => '#111111', 'textFooter' => '#ffffff'], 'branding' => ['brandPalette' => 'violet', 'accent' => 'rose'], 'typography' => 'classic', 'logo' => 'tenant/logo.png'];
     }
-    public function testUploadedLogoIsOwnedAndCanBeSavedWithoutChangingPublishedLogo(): void
+    public function testUploadedLogoIsOwnedAndPublishedOnSave(): void
     {
         $published = ['assets' => ['logo' => 'tenant/logo.png']];
         [$em, $taxon, , , $service] = $this->setupTenant(['schemaVersion' => 1, 'draft' => $published, 'published' => $published]);
@@ -63,7 +63,7 @@ final class SiteAppearanceTest extends TestCase
             $service->save($data);
             $document = json_decode($taxon->getTranslation('en_US')->getDescription(), true);
             self::assertSame($result['path'], $document['draft']['assets']['logo']);
-            self::assertSame($published, $document['published']);
+            self::assertSame($result['path'], $document['published']['assets']['logo']);
         } finally { if (is_file($path)) unlink($path); }
     }
     public function testTemplatesCreateEditableUnpublishedPagesUsingTenantFactsAndTrackedMedia(): void
@@ -84,21 +84,26 @@ final class SiteAppearanceTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         (new SiteTemplateService($em))->document('arbitrary');
     }
-    public function testAppearancePreservesPublishedAndOperationalDataAndRejectsStaleWrites(): void
+    public function testAppearancePublishesThemePreservesOperationalDataAndRejectsStaleWrites(): void
     {
         $published = ['name' => 'Ancien nom', 'colors' => ['header' => '#123456'], 'assets' => ['logo' => 'old.png']];
         $draft = $published + ['bookingRules' => ['minimumNoticeHours' => 12], 'legal' => ['terms' => ['content' => 'Conditions']]];
         [, $taxon, , , $service] = $this->setupTenant(['schemaVersion' => 1, 'draft' => $draft, 'published' => $published, 'revision' => 8]);
         $data = $this->theme($service); $service->save($data);
         $result = json_decode($taxon->getTranslation('en_US')->getDescription(), true);
-        self::assertSame($published, $result['published']);
+        self::assertSame('Ancien nom', $result['published']['name']);
+        self::assertSame($data['colors'], $result['published']['colors']);
+        self::assertSame($data['logo'], $result['published']['assets']['logo']);
+        self::assertArrayNotHasKey('bookingRules', $result['published']);
+        self::assertArrayNotHasKey('legal', $result['published']);
         self::assertSame($draft['bookingRules'], $result['draft']['bookingRules']);
         self::assertSame($draft['legal'], $result['draft']['legal']);
         self::assertSame('classic', $result['draft']['typography']);
-        self::assertSame(8, $result['revision']);
+        self::assertSame(9, $result['revision']);
+        self::assertNotEmpty($result['publishedAt']);
         $this->expectException(\DomainException::class); $service->save($data);
     }
-    public function testCustomColorsAndIndependentFontsAreSavedInDraft(): void
+    public function testCustomColorsAndIndependentFontsArePublished(): void
     {
         [, $taxon, , , $service] = $this->setupTenant(['name' => 'Institut']);
         $data = $this->theme($service);
@@ -108,7 +113,8 @@ final class SiteAppearanceTest extends TestCase
         $document = json_decode($taxon->getTranslation('en_US')->getDescription(), true);
         self::assertSame($data['branding'], $document['draft']['branding']);
         self::assertSame($data['typography'], $document['draft']['typography']);
-        self::assertSame(['name' => 'Institut'], $document['published']);
+        self::assertSame($data['branding'], $document['published']['branding']);
+        self::assertSame($data['typography'], $document['published']['typography']);
         $this->expectException(\InvalidArgumentException::class);
         SiteAppearanceService::validateTheme(array_replace($data, ['typography' => ['heading' => 'url(x)', 'body' => 'Inter']]));
     }
@@ -121,14 +127,15 @@ final class SiteAppearanceTest extends TestCase
             catch (\InvalidArgumentException) { self::assertSame($original, $taxon->getTranslation('en_US')->getDescription()); }
         }
     }
-    public function testLegacyConfigurationBecomesDraftWithoutPublishingAndMenuEditKeepsButton(): void
+    public function testLegacyAppearanceIsPublishedAndMenuEditKeepsButton(): void
     {
         [, $taxon, , $pages, $service] = $this->setupTenant(['name' => 'Institut']);
         $data = $this->theme($service); $data['primaryLink'] = ['type' => 'route', 'target' => 'booking'];
         $service->save($data);
-        self::assertSame(['name' => 'Institut'], json_decode($taxon->getTranslation('en_US')->getDescription(), true)['published']);
+        self::assertSame($data['colors'], json_decode($taxon->getTranslation('en_US')->getDescription(), true)['published']['colors']);
+        self::assertSame($data['primaryLink'], $pages->menu('main')->getPublishedPrimaryLink());
         $pages->saveMenu('main', ['items' => []]);
         self::assertSame($data['primaryLink'], $pages->menu('main')->getPrimaryLink());
-        self::assertNull($pages->menu('main')->getPublished());
+        self::assertSame([], $pages->menu('main')->getPublished());
     }
 }

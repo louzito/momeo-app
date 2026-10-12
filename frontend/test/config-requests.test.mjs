@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
+const siteConfig = new URL('../src/utils/siteConfig.js', import.meta.url).href
 const helper = new URL('../src/api/sharedRead.js', import.meta.url).href
 async function loadClient(file) {
   const source = (await readFile(new URL(`../src/api/${file}`, import.meta.url), 'utf8'))
@@ -10,8 +11,8 @@ async function loadClient(file) {
     import { shareInFlight } from '${helper}';
     const API_BASE = '/api/v2', JWT_AUTH_HEADER = 'Authorization', TENANT_SLUG = 'test';
     const tenantHeaders = h => h, displayImageUrl = p => p || '';
-    const normalizeShopColors = c => c, normalizeSiteConfig = c => c;
-    const readSiteConfigDocument = c => ({draft: c, published: c});
+    const normalizeShopColors = c => c;
+    import { normalizeSiteConfig, readSiteConfigDocument, publishSiteConfigDocument } from '${siteConfig}';
     const migrateLocalStorageKey = () => null;
     const isServiceProductCode = c => c.startsWith('service_');
     const sylius = {}, customerRequest = () => {};
@@ -86,5 +87,32 @@ test('logo apparence : endpoint dédié, multipart et chemin de stockage conserv
   try {
     const admin = await loadClient('adminApi.js')
     assert.deepEqual(await admin.uploadSiteLogo(new Blob(['image'], { type: 'image/png' })), { path: 'test/new-logo.png' })
+  } finally { globalThis.fetch = original }
+})
+
+
+test('enregistrer les réglages applique immédiatement configuration et canal', async () => {
+  const original = globalThis.fetch
+  const previous = { schemaVersion: 1, revision: 3, draft: { name: 'Brouillon' }, published: { name: 'Ancien' } }
+  const writes = []
+  globalThis.fetch = async (url, options = {}) => {
+    const path = new URL(String(url), 'http://localhost').pathname
+    if (options.method === 'PUT') writes.push({ path, data: JSON.parse(options.body) })
+    const body = path.endsWith('/channels') ? { member: [{ code: 'WEB' }] }
+      : { code: 'todatempo_config', translations: { en_US: { description: JSON.stringify(previous) } } }
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) }
+  }
+  try {
+    const admin = await loadClient('adminApi.js')
+    const cfg = { name: 'Nouveau', contactEmail: 'contact@example.org', shopOrder: ['service_test'], emails: { booking_confirmation: { subject: 'Nouveau sujet' } }, assets: { logo: 'tenant/logo.png' }, _publication: { revision: 3 } }
+    const result = await admin.saveShopConfig(cfg)
+    assert.equal(writes.length, 2)
+    assert.equal(writes[0].data.name, cfg.name)
+    const document = JSON.parse(writes[1].data.translations.en_US.description)
+    assert.equal(document.revision, 4)
+    assert.deepEqual(document.draft, document.published)
+    for (const key of ['name', 'shopOrder', 'emails', 'assets']) assert.deepEqual(document.published[key], cfg[key])
+    assert.equal(document.published._publication, undefined)
+    assert.equal(result.revision, 4)
   } finally { globalThis.fetch = original }
 })

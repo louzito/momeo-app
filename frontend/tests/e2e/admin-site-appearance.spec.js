@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 for (const width of [390, 1280]) {
-  test(`apparence : ancien thème, aperçu isolé, brouillon et erreur à ${width}px`, async ({ page }) => {
+  test(`apparence : ancien thème, aperçu isolé, enregistrement direct et erreur à ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.addInitScript(() => localStorage.setItem('todatempo.admin.centre-e2e', JSON.stringify({ admin: { name: 'Équipe', permissions: ['settings'] }, tenant: { id: 'centre-e2e', name: 'Institut', currency: 'EUR' } })))
     const original = { name: 'Institut réel', colors: { header: '#123456', textHeader: '#ffffff', footer: '#111111', textFooter: '#ffffff' }, assets: { logo: 'tenant/logo.png' } }
@@ -25,6 +25,7 @@ for (const width of [390, 1280]) {
           const data = route.request().postDataJSON()
           Object.assign(document.draft, { colors: data.colors, typography: data.typography, branding: data.branding })
           document.draft.assets = { logo: data.logo }
+          Object.assign(document.published, structuredClone(document.draft))
           state = { revision: 'after', primaryLink: data.primaryLink }
         }
         body = state
@@ -34,7 +35,7 @@ for (const width of [390, 1280]) {
     await page.route('https://api.fontsource.org/**', route => route.fulfill({ json: [{ family: 'Lora', type: 'google' }, { family: 'Inter', type: 'google' }] }))
     await page.goto('/centre-e2e/admin/settings?section=appearance')
     await expect(page).toHaveURL(/site\/appearance$/)
-    const preview = page.getByRole('region', { name: 'Aperçu du brouillon' })
+    const preview = page.getByRole('region', { name: 'Aperçu des modifications' })
     await expect(page.getByLabel('Fond du haut de page')).toHaveValue('#123456')
     await expect(page.getByAltText('Logo actuel')).toHaveAttribute('src', /tenant\/logo.png/)
     const rootBefore = await page.evaluate(() => document.documentElement.style.cssText)
@@ -50,8 +51,9 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole('alert')).toContainText('contrasté')
     await expect(page.getByLabel('Police des titres')).toHaveValue('Lora')
     fail = false; await save.click()
-    await expect(page.getByRole('status')).toContainText('site publié reste inchangé')
-    expect(document.published).toEqual(original)
+    await expect(page.getByRole('status')).toContainText('modifications sont visibles sur le site')
+    expect(document.published.typography.heading).toBe('Lora')
+    expect(document.published.assets.logo).toBe('tenant/new-logo.png')
     expect(document.draft.assets.logo).toBe('tenant/new-logo.png')
     expect(uploads).toBe(1)
     expect(state.primaryLink).toEqual({ type: 'route', target: 'booking' })

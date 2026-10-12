@@ -51,11 +51,19 @@ final class SiteAppearanceService
             $raw = json_decode($translation->getDescription() ?: '{}', true, 32, JSON_THROW_ON_ERROR);
             if (!is_array($raw)) throw new \InvalidArgumentException('Configuration invalide.');
             $document = ($raw['schemaVersion'] ?? null) === 1 && isset($raw['draft'], $raw['published']) ? $raw : ['schemaVersion' => 1, 'revision' => 0, 'draft' => $raw, 'published' => $raw, 'publishedAt' => null];
-            foreach (['colors', 'branding', 'typography'] as $key) $document['draft'][$key] = $data[$key];
+            foreach (['colors', 'branding', 'typography'] as $key) {
+                $document['draft'][$key] = $data[$key];
+                $document['published'][$key] = $data[$key];
+            }
             // null keeps the historical logo fallback; uploaded assets use tenant-owned paths only.
-            if ($data['logo'] !== null) $document['draft']['assets']['logo'] = $data['logo'];
+            if ($data['logo'] !== null) {
+                $document['draft']['assets']['logo'] = $data['logo'];
+                $document['published']['assets']['logo'] = $data['logo'];
+            }
+            $document['revision'] = (int) ($document['revision'] ?? 0) + 1;
+            $document['publishedAt'] = (new \DateTimeImmutable())->format(DATE_ATOM);
             $menu = $this->pages->menu('main');
-            $this->pages->saveMenu('main', ['items' => $menu ? $this->pages->menuItems($menu) : [], 'primaryLink' => $data['primaryLink']]);
+            $this->pages->saveMenu('main', ['items' => $menu ? $this->pages->menuItems($menu) : [], 'primaryLink' => $data['primaryLink']], true);
             $translation->setDescription(json_encode($document, JSON_THROW_ON_ERROR));
             $this->em->flush();
             return $this->state();

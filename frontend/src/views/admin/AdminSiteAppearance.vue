@@ -2,6 +2,7 @@
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { getShopConfig, getSiteAppearance, saveSiteAppearance, getSitePages, getSiteMedia, uploadSiteLogo } from '@/api/adminApi'
+import { invalidateSite } from '@/api/sitePublication'
 import { displayImageUrl } from '@/api/config'
 import { siteThemeStyle, normalizeTypography, brandingColor } from '@/utils/siteTheme'
 import { BRAND_PALETTES, ACCENT_PALETTES } from '@/utils/palettes'
@@ -65,7 +66,8 @@ async function save() {
       cfg.value.logoUrl = displayImageUrl(uploaded.path); logo.value = null
     }
     state.value = await saveSiteAppearance(payload())
-    saved.value = JSON.stringify(payload()); notice.value = 'Apparence enregistrée dans le brouillon. Le site publié reste inchangé.'
+    invalidateSite()
+    saved.value = JSON.stringify(payload()); notice.value = 'Apparence enregistrée. Les modifications sont visibles sur le site.'
   } catch (e) { error.value = e.message || 'Impossible d’enregistrer. Vos modifications sont conservées.' }
   finally { saving.value = false }
 }
@@ -77,7 +79,7 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
 <template>
   <div class="mx-auto max-w-5xl space-y-5" :aria-busy="loading || saving">
     <h1 class="font-display text-2xl font-bold">Apparence</h1>
-    <p>Un même style pour vos pages, votre catalogue et votre commande. L’aperçu montre vos modifications sans changer le site publié.</p>
+    <p>Un même style pour vos pages, votre catalogue et votre commande. Les modifications sont visibles sur le site dès l’enregistrement.</p>
     <p v-if="loading" role="status">Chargement de l’apparence…</p>
     <p v-if="error" role="alert" class="rounded bg-rose-50 p-3 text-rose-700">{{ error }}</p>
     <button v-if="error && !loading" class="btn-outline" @click="load">Recharger</button>
@@ -116,8 +118,8 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
           <button class="btn-primary">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button>
         </fieldset>
       </form>
-      <section class="rounded-xl border bg-slate-100 p-3" aria-label="Aperçu du brouillon">
-        <div class="mb-4 flex flex-wrap items-center gap-3"><h2 class="font-semibold">Aperçu du brouillon</h2><button class="btn-outline" :aria-pressed="!mobile" @click="mobile = false">Ordinateur</button><button class="btn-outline" :aria-pressed="mobile" @click="mobile = true">Mobile</button><label v-if="pages.length">Page<select v-model="selected" class="input"><option v-for="page in pages" :key="page.id" :value="page.id">{{ page.draft.title }}</option></select></label></div>
+      <section class="rounded-xl border bg-slate-100 p-3" aria-label="Aperçu des modifications">
+        <div class="mb-4 flex flex-wrap items-center gap-3"><h2 class="font-semibold">Aperçu des modifications</h2><button class="btn-outline" :aria-pressed="!mobile" @click="mobile = false">Ordinateur</button><button class="btn-outline" :aria-pressed="mobile" @click="mobile = true">Mobile</button><label v-if="pages.length">Page<select v-model="selected" class="input"><option v-for="page in pages" :key="page.id" :value="page.id">{{ page.draft.title }}</option></select></label></div>
         <div class="mx-auto max-w-full overflow-hidden rounded-xl bg-white" :style="{ ...siteThemeStyle(cfg), width: mobile ? '360px' : '100%', containerType: 'inline-size', containerName: 'site-page' }" @click.capture="($event.target.closest('a')) && $event.preventDefault()">
           <header class="flex flex-wrap items-center gap-3 p-4" style="background:var(--sb-header-bg);color:var(--sb-header-text)"><img v-if="logoPreview || cfg.logoUrl" :src="logoPreview || cfg.logoUrl" alt="" class="h-10 max-w-24 object-contain" /><strong>{{ cfg.name }}</strong><button v-if="state.primaryLink" type="button" class="btn-primary">Prendre rendez-vous</button></header>
           <main class="p-4"><SiteSections v-if="previewBlocks.length" :blocks="previewBlocks" :media="media" :links="links" editor /><div v-else class="space-y-3"><h2 class="font-display text-2xl font-bold">{{ cfg.name }}</h2><p>{{ cfg.home?.subtitle }}</p><p class="text-slate-500">Créez une page pour visualiser ses sections ici.</p></div><div class="mt-4 rounded border p-4"><h2 class="font-display text-xl">Votre commande</h2><p class="my-2 text-sm">Vos pages et votre commande partagent ces couleurs et caractères.</p><button type="button" class="btn-primary">Continuer</button></div></main>

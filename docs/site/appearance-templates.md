@@ -39,9 +39,9 @@ L’ancienne couleur `text` est reprise. Aucun autre document de branding ni tab
 `GET/PUT /api/v2/admin/site/appearance` exige la permission `settings` et un tenant
 explicite, sans cache partagé. Le PUT valide les couleurs et leur contraste,
 les palettes, la typographie, l’appartenance du logo et la destination du bouton.
-Un jeton de révision refuse une sauvegarde obsolète (409). La modification du
-brouillon et du bouton utilise une transaction Doctrine ; l’instantané publié,
-les contenus légaux et les paramètres opérationnels sont conservés.
+Un jeton de révision refuse une sauvegarde obsolète (409). Depuis le ticket #157, l’enregistrement du thème et du bouton les applique
+immédiatement au site public dans une transaction Doctrine. Les contenus légaux
+et les paramètres opérationnels publiés sont conservés.
 
 Le bouton principal reste `SiteMenu.primaryLink` : Apparence est son seul éditeur,
 Menus contient un lien vers celui-ci. Enregistrer les entrées du menu sans ce
@@ -55,7 +55,7 @@ la commande et les aperçus. L’aperçu immédiat les applique à son conteneur
 sans changer le thème global ou publié. Les aperçus de sections relisent le thème
 brouillon. La lecture publique continue à prendre exclusivement la configuration
 publiée. La publication des pages et menus reste le contrat de l’étape suivante ;
-la publication historique des réglages est conservée.
+les réglages sont appliqués dès leur enregistrement.
 
 ## Vérifications
 

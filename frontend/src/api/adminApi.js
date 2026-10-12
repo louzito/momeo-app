@@ -719,13 +719,7 @@ async function writeSiteConfigDocument(document) {
 }
 
 export async function saveShopConfig(cfg) {
-  const taxon = await ensureConfigTaxon()
-  let raw = {}
-  try { raw = JSON.parse(taxon.translations?.en_US?.description || '{}') } catch { /* vide */ }
-  const document = readSiteConfigDocument(raw)
-  document.draft = normalizeSiteConfig(cfg)
-  delete document.draft._publication
-  return writeSiteConfigDocument(document)
+  return publishShopConfig(cfg)
 }
 
 export async function publishShopConfig(cfg) {

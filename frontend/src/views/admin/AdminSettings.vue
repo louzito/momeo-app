@@ -1,5 +1,5 @@
 <script setup>
-// Les rubriques partagent le même brouillon et les mêmes API historiques.
+// Les rubriques partagent la même configuration et les mêmes API historiques.
 // Le paramètre section permet les liens directs sans recréer la configuration.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
@@ -11,13 +11,13 @@ import { SOCIAL_NETWORKS } from '@/utils/socialIcons'
 import Spinner from '@/components/ui/Spinner.vue'
 import SiteRichTextEditor from '@/components/site/SiteRichTextEditor.vue'
 import { legalDocument, legalPlainText } from '@/utils/legalContent'
+import { invalidateSite } from '@/api/sitePublication'
 import { validateSiteConfig } from '@/utils/siteConfig'
 
 const admin = useAdminStore()
 const loading = ref(true)
 const saving = ref(false)
 const saved = ref(false)
-const publishing = ref(false)
 const previewing = ref(false)
 const error = ref('')
 
@@ -243,7 +243,8 @@ async function save() {
       cfg.value.assets[assetKeys[type]] = res.path
       files.value[type] = null
     }
-    await api.saveShopConfig(admin.tenantId, cfg.value)
+    cfg.value._publication = await api.saveShopConfig(admin.tenantId, cfg.value)
+    invalidateSite()
     lastSaved.value = JSON.stringify(cfg.value)
     saved.value = true
     setTimeout(() => (saved.value = false), 2500)
@@ -254,28 +255,13 @@ async function save() {
   }
   return !error.value
 }
-
-async function publish() {
-  if (!await save()) return
-  publishing.value = true
-  try {
-    const publication = await api.publishShopConfig(admin.tenantId, cfg.value)
-    cfg.value._publication = publication
-    lastSaved.value = JSON.stringify(cfg.value)
-    saved.value = false
-  } catch (e) { error.value = e?.message || 'Échec de la publication.' }
-  finally { publishing.value = false }
-}
 </script>
 
 <template>
   <div class="mx-auto max-w-3xl">
     <h1 class="font-display text-2xl font-bold text-slate-900">{{ SETTINGS_SECTIONS[tab] }}</h1>
     <p class="mt-1 text-slate-500">
-      Les rubriques partagent un même brouillon. Enregistrez vos modifications, puis publiez l’ensemble lorsque vous êtes prêt.
-    </p>
-    <p v-if="cfg?._publication" class="mt-1 text-xs text-slate-400">
-      Version publiée : {{ cfg._publication.revision || 0 }}<span v-if="cfg._publication.publishedAt"> · {{ new Date(cfg._publication.publishedAt).toLocaleString('fr-FR') }}</span>
+      Les modifications sont appliquées dès l’enregistrement sur le site et dans les emails.
     </p>
 
     <div v-if="error" role="alert" class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
@@ -574,7 +560,7 @@ async function publish() {
             :key="tab"
             v-model="legalContent"
             large
-            :disabled="saving || publishing"
+            :disabled="saving"
             :label="tab === 'terms' ? 'Texte des conditions générales' : 'Texte des mentions légales'"
           />
           <p class="mt-2 text-xs text-slate-400">Utilisez la barre d’outils pour mettre en forme les titres, paragraphes, listes et liens.</p>
@@ -582,16 +568,15 @@ async function publish() {
       </template>
 
       <div class="flex flex-wrap items-center justify-end gap-3">
-        <span v-if="saved" role="status" class="text-sm text-emerald-600">✓ Brouillon enregistré</span>
+        <span v-if="saved" role="status" class="text-sm text-emerald-600">✓ Modifications enregistrées et appliquées</span>
         <button type="button" class="btn-outline px-5" @click="previewing = true">Aperçu responsive</button>
-        <button class="btn-outline px-5" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer le brouillon' }}</button>
-        <button type="button" class="btn-primary px-6" :disabled="saving || publishing" @click="publish">{{ publishing ? 'Publication…' : 'Publier' }}</button>
+        <button class="btn-primary px-6" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button>
       </div>
     </form>
 
     <div v-if="previewing && cfg" class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Aperçu du site">
       <div class="mx-auto max-w-6xl rounded-2xl bg-slate-100 p-4 shadow-2xl">
-        <div class="mb-3 flex items-center justify-between"><strong>Aperçu du brouillon</strong><button type="button" class="btn-outline px-3 py-1" @click="previewing = false">Fermer</button></div>
+        <div class="mb-3 flex items-center justify-between"><strong>Aperçu des modifications</strong><button type="button" class="btn-outline px-3 py-1" @click="previewing = false">Fermer</button></div>
         <div class="grid items-start gap-5 lg:grid-cols-[1fr_390px]">
           <div v-for="device in ['Ordinateur', 'Mobile']" :key="device" class="overflow-hidden rounded-xl bg-white shadow" :class="device === 'Mobile' ? 'mx-auto w-full max-w-[390px]' : ''">
             <div class="px-5 py-3 font-semibold" :style="{ backgroundColor: cfg.colors.header, color: cfg.colors.textHeader }">{{ cfg.name }}</div>

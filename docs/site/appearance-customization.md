@@ -14,4 +14,4 @@ Le catalogue complet est chargé depuis l’API publique Fontsource, filtrée su
 les Google Fonts, sans clé API. Seules les familles choisies sont chargées via
 Google Fonts. Une panne du catalogue affiche un message et un bouton Réessayer,
 et conserve les polices actuelles. Sans accès à Google Fonts, les polices de
-secours du navigateur assurent le rendu. L’enregistrement reste un brouillon.
+secours du navigateur assurent le rendu. Depuis le ticket #157, l’enregistrement applique immédiatement l’apparence au site public.
