@@ -1,9 +1,11 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { getShopConfig, getSiteAppearance, saveSiteAppearance, getSitePages, getSiteMedia, uploadSiteLogo } from '@/api/adminApi'
 import { displayImageUrl } from '@/api/config'
-import { siteThemeStyle, TYPOGRAPHIES } from '@/utils/siteTheme'
+import { siteThemeStyle, normalizeTypography, brandingColor } from '@/utils/siteTheme'
+import { BRAND_PALETTES, ACCENT_PALETTES } from '@/utils/palettes'
+import { getGoogleFonts, loadThemeFonts } from '@/utils/googleFonts'
 import SiteLinkEditor from '@/components/site/SiteLinkEditor.vue'
 import SiteSections from '@/components/site/SiteSections.vue'
 
@@ -11,6 +13,15 @@ const cfg = ref(null), state = ref(null), pages = ref([]), media = ref({}), save
 const loading = ref(true), saving = ref(false), error = ref(''), notice = ref(''), mobile = ref(false), selected = ref('')
 const logo = ref(null), logoPreview = ref('')
 const fields = [{ key: 'header', label: 'Fond du haut de page' }, { key: 'textHeader', label: 'Texte du haut de page' }, { key: 'footer', label: 'Fond du pied de page' }, { key: 'textFooter', label: 'Texte du pied de page' }]
+const fontFamilies = ref(['Inter', 'Plus Jakarta Sans']), fontError = ref(''), fontsLoading = ref(false)
+const fontOptions = computed(() => [...new Set([...fontFamilies.value, cfg.value?.typography?.heading, cfg.value?.typography?.body].filter(Boolean))].sort((a, b) => a.localeCompare(b)))
+async function loadFonts() {
+  fontsLoading.value = true; fontError.value = ''
+  try { fontFamilies.value = await getGoogleFonts() }
+  catch { fontError.value = 'Le catalogue Google Fonts est indisponible. Les polices actuelles restent utilisables.' }
+  finally { fontsLoading.value = false }
+}
+watch(() => cfg.value?.typography, value => loadThemeFonts(value), { deep: true })
 const payload = () => ({ revision: state.value.revision, colors: cfg.value.colors, branding: cfg.value.branding, typography: cfg.value.typography, logo: cfg.value.assets?.logo || null, primaryLink: state.value.primaryLink })
 const dirty = computed(() => cfg.value && state.value && (logo.value || JSON.stringify(payload()) !== saved.value))
 const previewBlocks = computed(() => pages.value.find(p => p.id === selected.value)?.draft.document.blocks || [])
@@ -29,6 +40,8 @@ async function load() {
     // Ensures the existing configuration taxon is present before reading its revision.
     const config = await getShopConfig()
     const [value, list, images] = await Promise.all([getSiteAppearance(), getSitePages(), getSiteMedia()])
+    config.typography = normalizeTypography(config.typography)
+    config.branding = { brandPalette: brandingColor(config.branding?.brandPalette, BRAND_PALETTES, 'sky'), accent: brandingColor(config.branding?.accent, ACCENT_PALETTES, 'orange') }
     cfg.value = config; state.value = value; pages.value = list.member.filter(p => !p.archived)
     media.value = Object.fromEntries(images.member.map(i => [i.id, i]))
     selected.value = pages.value[0]?.id || ''; saved.value = JSON.stringify(payload())
@@ -57,7 +70,7 @@ async function save() {
   finally { saving.value = false }
 }
 function beforeUnload(event) { if (dirty.value) { event.preventDefault(); event.returnValue = '' } }
-onMounted(() => { load(); window.addEventListener('beforeunload', beforeUnload) })
+onMounted(() => { load(); loadFonts(); window.addEventListener('beforeunload', beforeUnload) })
 onBeforeUnmount(() => { clearPreview(); window.removeEventListener('beforeunload', beforeUnload) })
 onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistrer vos modifications ?'))
 </script>
@@ -84,10 +97,15 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Quitter sans enregistre
             <h2 class="text-lg font-semibold">Couleurs et caractères</h2>
             <div class="grid gap-4 sm:grid-cols-2">
               <label v-for="field in fields" :key="field.key" class="block">{{ field.label }}<input v-model="cfg.colors[field.key]" type="color" class="mt-1 block h-11 w-full rounded border" /></label>
-              <label>Couleur principale<select v-model="cfg.branding.brandPalette" class="input"><option value="sky">Bleu</option><option value="emerald">Vert</option><option value="violet">Violet</option></select></label>
-              <label>Couleur complémentaire<select v-model="cfg.branding.accent" class="input"><option value="orange">Orange</option><option value="amber">Ambre</option><option value="rose">Rose</option><option value="cyan">Turquoise</option></select></label>
-              <label>Style des caractères<select v-model="cfg.typography" class="input"><option v-for="(font, key) in TYPOGRAPHIES" :key="key" :value="key">{{ font.label }}</option></select></label>
+              <label>Couleur principale<input v-model="cfg.branding.brandPalette" type="color" class="mt-1 block h-11 w-full rounded border" /></label>
+              <label>Couleur complémentaire<input v-model="cfg.branding.accent" type="color" class="mt-1 block h-11 w-full rounded border" /></label>
+              <div v-for="field in [{ key: 'heading', label: 'Police des titres' }, { key: 'body', label: 'Police du texte' }]" :key="field.key" class="min-w-0">
+                <label>{{ field.label }}<select v-model="cfg.typography[field.key]" class="input"><option v-for="family in fontOptions" :key="family" :value="family">{{ family }}</option></select></label>
+                <p class="mt-3 break-words" :style="{ fontFamily: siteThemeStyle(cfg)[field.key === 'heading' ? '--site-font-heading' : '--site-font-body'], fontSize: field.key === 'heading' ? '1.5rem' : '1rem' }">Découvrez notre univers et prenez rendez-vous.</p>
+              </div>
             </div>
+            <p v-if="fontsLoading" role="status">Chargement des Google Fonts…</p>
+            <p v-if="fontError" role="status">{{ fontError }} <button type="button" class="underline" @click="loadFonts">Réessayer</button></p>
           </section>
           <section class="card space-y-3 p-5">
             <h2 class="text-lg font-semibold">Bouton principal « Prendre rendez-vous »</h2>

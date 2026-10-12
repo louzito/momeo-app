@@ -72,7 +72,17 @@ final class SiteAppearanceService
             if ((max($a, $b) + .05) / (min($a, $b) + .05) < 4.5) throw new \InvalidArgumentException('Le texte doit être suffisamment contrasté avec son fond (4,5:1 minimum).');
         }
         $validator->keys($data['branding'], ['brandPalette', 'accent']);
-        if (!in_array($data['branding']['brandPalette'], ['sky', 'emerald', 'violet'], true) || !in_array($data['branding']['accent'], ['orange', 'amber', 'rose', 'cyan'], true) || !in_array($data['typography'] ?? null, ['modern', 'classic', 'system'], true)) throw new \InvalidArgumentException('Choisissez un style proposé.');
+        foreach (['brandPalette' => ['sky', 'emerald', 'violet'], 'accent' => ['orange', 'amber', 'rose', 'cyan']] as $key => $legacy) {
+            $value = $data['branding'][$key];
+            if (!in_array($value, $legacy, true) && (!is_string($value) || !preg_match('/^#[a-f0-9]{6}$/iD', $value))) throw new \InvalidArgumentException('Choisissez une couleur valide.');
+        }
+        $typography = $data['typography'] ?? null;
+        if (is_array($typography)) {
+            $validator->keys($typography, ['heading', 'body']);
+            foreach ($typography as $family) if (!is_string($family) || !preg_match('/^[A-Za-z0-9][A-Za-z0-9 -]{0,99}$/D', $family)) throw new \InvalidArgumentException('Choisissez une police valide.');
+        } elseif (!in_array($typography, ['modern', 'classic', 'system'], true)) {
+            throw new \InvalidArgumentException('Choisissez une police valide.');
+        }
     }
     private static function luminance(string $hex): float
     {

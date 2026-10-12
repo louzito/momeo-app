@@ -16,3 +16,16 @@ test('preview theme is isolated and resetting a tenant restores default palettes
   assert.notEqual(draft['--brand-600'], siteThemeStyle({})['--brand-600'])
   assert.deepEqual(config, original)
 })
+
+test('custom colors generate shades and independent fonts without mutating the configuration', () => {
+  const config = { branding: { brandPalette: '#123456', accent: '#abcdef' }, typography: { heading: 'Lora', body: 'Roboto' } }
+  const original = structuredClone(config)
+  const style = siteThemeStyle(config)
+  assert.equal(style['--brand-600'], '18 52 86')
+  assert.equal(style['--accent-500'], '171 205 239')
+  assert.notEqual(style['--brand-50'], style['--brand-900'])
+  assert.match(style['--site-font-heading'], /Lora/)
+  assert.match(style['--site-font-body'], /Roboto/)
+  assert.deepEqual(config, original)
+  assert.doesNotMatch(siteThemeStyle({ typography: { heading: 'url(x)', body: '";color:red' } })['--site-font-heading'], /url/)
+})

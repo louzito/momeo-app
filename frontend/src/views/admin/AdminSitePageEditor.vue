@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { loadThemeFonts } from '@/utils/googleFonts'
 import { siteThemeStyle } from '@/utils/siteTheme'
 import { getShopConfig, getSitePage, getSitePages, getSiteMedia, updateSitePage } from '@/api/adminApi'
 import SiteMediaPicker from '@/components/site/SiteMediaPicker.vue'
@@ -25,7 +26,7 @@ async function load() {
   loading.value = true; error.value = ''
   try {
     const [value, list, images, config] = await Promise.all([getSitePage(route.params.id), getSitePages(), getSiteMedia(), getShopConfig()])
-    appearance.value = config
+    appearance.value = config; loadThemeFonts(config.typography)
     page.value = value; draft.value = structuredClone(value.draft); saved.value = JSON.stringify(draft.value)
     pages.value = list.member; media.value = Object.fromEntries(images.member.map(i => [i.id, i])); selected.value = draft.value.document.blocks[0]?.id
     conflict.value = false

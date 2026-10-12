@@ -98,6 +98,20 @@ final class SiteAppearanceTest extends TestCase
         self::assertSame(8, $result['revision']);
         $this->expectException(\DomainException::class); $service->save($data);
     }
+    public function testCustomColorsAndIndependentFontsAreSavedInDraft(): void
+    {
+        [, $taxon, , , $service] = $this->setupTenant(['name' => 'Institut']);
+        $data = $this->theme($service);
+        $data['branding'] = ['brandPalette' => '#123456', 'accent' => '#abcdef'];
+        $data['typography'] = ['heading' => 'Lora', 'body' => 'Inter'];
+        $service->save($data);
+        $document = json_decode($taxon->getTranslation('en_US')->getDescription(), true);
+        self::assertSame($data['branding'], $document['draft']['branding']);
+        self::assertSame($data['typography'], $document['draft']['typography']);
+        self::assertSame(['name' => 'Institut'], $document['published']);
+        $this->expectException(\InvalidArgumentException::class);
+        SiteAppearanceService::validateTheme(array_replace($data, ['typography' => ['heading' => 'url(x)', 'body' => 'Inter']]));
+    }
     public function testForeignLogoAndUnsafeStylesAreRejectedWithoutWriting(): void
     {
         [$em, $taxon, , , $service] = $this->setupTenant(['name' => 'Institut']);
