@@ -23,6 +23,8 @@ const error = ref('')
 
 const cfg = ref(null)
 const timezones = ref([])
+const timezoneError = ref('')
+const loadingTimezones = ref(false)
 const lastSaved = ref('')
 const dirty = computed(() => cfg.value && (JSON.stringify(cfg.value) !== lastSaved.value || Object.values(files.value).some(Boolean)))
 
@@ -112,14 +114,27 @@ const jumps = ref([])
 const MAX_FEATURED = 9
 const MAX_HIGHLIGHTS = 6
 
+async function loadTimezones() {
+  loadingTimezones.value = true
+  timezoneError.value = ''
+  try {
+    timezones.value = await api.getTimezones()
+  } catch {
+    // Conserver le réglage existant pour permettre les autres modifications.
+    timezones.value = cfg.value?.timezone ? [cfg.value.timezone] : []
+    timezoneError.value = 'La liste des fuseaux horaires est indisponible. Le fuseau actuel est conservé.'
+  } finally {
+    loadingTimezones.value = false
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [config, supportedTimezones] = await Promise.all([api.getShopConfig(), api.getTimezones()])
-    timezones.value = supportedTimezones
-    cfg.value = config
+    cfg.value = await api.getShopConfig()
     lastSaved.value = JSON.stringify(cfg.value)
+    await loadTimezones()
     try { jumps.value = await api.getJumpTypes(admin.tenantId) } catch { jumps.value = [] }
   } catch (e) {
     error.value = e?.message || 'Impossible de charger la configuration.'
@@ -282,12 +297,16 @@ async function save() {
           </div>
           <div class="mt-4">
             <label for="center-timezone" class="label">Fuseau horaire de l'établissement</label>
-            <select id="center-timezone" v-model="cfg.timezone" class="input" required>
+            <select id="center-timezone" v-model="cfg.timezone" class="input" required :disabled="loadingTimezones || !!timezoneError">
               <option disabled value="">Sélectionnez un fuseau horaire</option>
               <option v-if="!timezones.includes(cfg.timezone) && cfg.timezone" :value="cfg.timezone" disabled>{{ cfg.timezone }} (à remplacer)</option>
               <option v-for="timezone in timezones" :key="timezone" :value="timezone">{{ timezone }}</option>
             </select>
             <p class="mt-1 text-xs text-slate-400">Fuseaux horaires pris en charge par PHP.</p>
+            <div v-if="timezoneError" class="mt-2 text-sm text-amber-700" role="status">
+              <p>{{ timezoneError }}</p>
+              <button type="button" class="mt-1 underline" :disabled="loadingTimezones" @click="loadTimezones">Réessayer de charger les fuseaux horaires</button>
+            </div>
           </div>
         </section>
 
