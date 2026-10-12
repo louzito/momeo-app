@@ -105,7 +105,7 @@ final class AdminSiteApiController
     public function saveMenu(string $location, Request $request): JsonResponse
     {
         return $this->write(function () use ($location, $request): array {
-            $menu = $this->management->saveMenu($location, $this->payload($request));
+            $menu = $this->management->saveMenu($location, $this->payload($request), true);
             return ['location' => $location, 'revision' => $menu?->getRevision(), 'items' => $this->management->menuItems($menu), 'primaryLink' => $menu->getPrimaryLink(), 'published' => $menu->getPublished()];
         });
     }

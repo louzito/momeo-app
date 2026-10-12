@@ -232,3 +232,20 @@ et sous-menus sur mobile et ordinateur, mais leur exécution n’a pas pu démar
 l’environnement interdit l’écoute du serveur Vite sur le port local (`EPERM`).
 Aucun contrôle navigateur n’est donc annoncé comme réussi. Aucun déploiement
 ni changement de branche, commit ou push n’a été effectué.
+
+## Enregistrement direct des menus — #153
+
+`PUT /api/v2/admin/site/menus/{main|footer}` enregistre et publie désormais le
+menu dans une seule transaction. L’écran Menus propose « Enregistrer le menu »
+sans étape de brouillon ni restauration. Les pages liées doivent déjà être
+publiées ; un refus conserve le menu enregistré et sa publication précédente.
+Le bouton principal existant est conservé et validé. Un menu vide enregistré
+est immédiatement publié comme volontairement vide. Le workflow des pages et
+les méthodes internes de gestion des brouillons restent disponibles.
+
+Vérifications : 21 tests backend gestion/publication, 105 assertions réussies
+(une dépréciation PHPUnit), 33 tests unitaires frontend et builds client/SSR
+réussis avec les dépendances locales disponibles. La suite backend Site complète
+n’a pas pu être validée avec l’installation partielle (dépendances Sylius
+manquantes). Le scénario Playwright est actualisé, mais non exécuté : le paquet
+Playwright est absent des dépendances locales. Aucun déploiement effectué.

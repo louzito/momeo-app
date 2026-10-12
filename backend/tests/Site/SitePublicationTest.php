@@ -26,6 +26,42 @@ final class SitePublicationTest extends TestCase
     {
         return Request::create('/', 'POST', [], [], [], [], json_encode(['pages' => array_map(static fn ($p) => ['id' => $p->getId(), 'revision' => $p->getRevision()], $pages), 'menus' => array_map(static fn ($m) => ['id' => $m->getLocation(), 'revision' => $m->getRevision()], $menus)]));
     }
+    public function testMenuHttpSaveImmediatelyUpdatesPublicNavigation(): void
+    {
+        [$site, $admin, $public] = $this->tenant();
+        $page = $site->create(['title' => 'Contact', 'slug' => 'contact']);
+        $site->publish($page);
+        $primary = ['type' => 'route', 'target' => 'booking'];
+        $site->saveMenu('main', ['items' => [], 'primaryLink' => $primary]);
+        foreach (['main', 'footer'] as $location) {
+            $items = [['label' => 'Contact', 'link' => ['type' => 'page', 'target' => $page->getId()]]];
+            $response = $admin->saveMenu($location, Request::create('/', 'PUT', [], [], [], [], json_encode(['items' => $items])));
+            self::assertSame(200, $response->getStatusCode());
+            $saved = json_decode($response->getContent(), true);
+            self::assertSame($saved['items'], $saved['published']);
+            self::assertSame('contact', json_decode($public->navigation()->getContent(), true)[$location][0]['url']);
+            self::assertSame(200, $admin->saveMenu($location, Request::create('/', 'PUT', [], [], [], [], '{"items":[]}'))->getStatusCode());
+            self::assertSame([], json_decode($public->navigation()->getContent(), true)[$location]);
+        }
+        self::assertSame($primary, $site->menu('main')->getPublishedPrimaryLink());
+    }
+    public function testRejectedImmediateSavePreservesStoredMenuAndPublication(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'site-menu-save-');
+        try {
+            [$site, $admin, $public, $em] = $this->tenant($file);
+            $items = [['label' => 'Réserver', 'link' => ['type' => 'route', 'target' => 'booking']]];
+            $site->saveMenu('main', ['items' => $items], true);
+            $before = $public->navigation()->getContent();
+            $page = $site->create(['title' => 'Privée', 'slug' => 'privee']);
+            $invalid = [['label' => 'Privée', 'link' => ['type' => 'page', 'target' => $page->getId()]]];
+            self::assertSame(422, $admin->saveMenu('main', Request::create('/', 'PUT', [], [], [], [], json_encode(['items' => $invalid])))->getStatusCode());
+            [$next, , $nextPublic, $nextEm] = $this->tenant($file, false);
+            self::assertSame($before, $nextPublic->navigation()->getContent());
+            self::assertSame($next->menu('main')->getPublished(), $next->menuItems($next->menu('main')));
+            $em->getConnection()->close(); $nextEm->getConnection()->close();
+        } finally { unlink($file); }
+    }
     public function testPrivatePreviewAndAtomicHttpPublication(): void
     {
         [$site, $admin, $public, $em] = $this->tenant();

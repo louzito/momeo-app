@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { getSitePages, getSiteMenu, saveSiteMenu, restoreSiteMenu } from '@/api/adminApi'
+import { getSitePages, getSiteMenu, saveSiteMenu } from '@/api/adminApi'
 import SiteMenuListEditor from '@/components/site/SiteMenuListEditor.vue'
 import { invalidateSite } from '@/api/sitePublication'
 const pages = ref([]), menus = ref({}), location = ref('main')
@@ -18,7 +18,7 @@ const warnings = computed(() => {
     if (link?.type !== 'page') return
     const page = pages.value.find(p => p.id === link.target)
     if (!page || page.archived) result.add('Une page liée est indisponible. Remplacez ou supprimez ce lien.')
-    else if (!page.published) result.add(`« ${page.draft.title} » devra être publiée avec ce menu. Sinon, sa publication sera refusée.`)
+    else if (!page.published) result.add(`« ${page.draft.title} » doit être publiée avant d’enregistrer ce menu.`)
   }
   function walk(items) { items.forEach(item => { if (!item.hidden) { check(item.link); walk(item.children) } }) }
   if (current.value) { walk(current.value.items); check(current.value.primaryLink) }
@@ -38,23 +38,11 @@ async function save() {
   const selected = location.value
   try {
     const saved = await saveSiteMenu(selected, { items: clean(current.value.items) })
-    menus.value[selected].revision = saved.revision
+    menus.value[selected] = { ...saved, items: decorate(saved.items) }
+    invalidateSite()
     dirty.value[selected] = false
-    notice.value = 'Brouillon enregistré. Les visiteurs voient toujours la dernière version publiée.'
+    notice.value = 'Menu enregistré. Les modifications sont visibles sur le site.'
   } catch (e) { error.value = [409, 422].includes(e.status) ? e.message : 'Impossible d’enregistrer. Vos modifications sont conservées.' }
-  finally { saving.value = false }
-}
-async function restore() {
-  if (!window.confirm('Remplacer ce brouillon par le dernier menu publié ?')) return
-  saving.value = true; error.value = ''
-  const selected = location.value
-  try {
-    await restoreSiteMenu(selected, current.value.revision)
-    const value = await getSiteMenu(selected)
-    menus.value[selected] = { ...value, items: decorate(value.items) }
-    dirty.value[selected] = false; invalidateSite()
-    notice.value = 'Dernier menu publié restauré dans le brouillon.'
-  } catch (e) { error.value = [409, 422].includes(e.status) ? e.message : 'Impossible de restaurer le menu.' }
   finally { saving.value = false }
 }
 onBeforeRouteLeave(() => !(dirty.value.main || dirty.value.footer) || window.confirm('Quitter sans enregistrer les modifications des menus ?'))
@@ -63,9 +51,7 @@ onMounted(load)
 <template>
   <div class="mx-auto max-w-5xl" :aria-busy="loading || saving">
     <h1 class="font-display text-2xl font-bold">Menus du site</h1>
-    <p class="mt-2 text-slate-600">Organisez vos liens. Les modifications restent en brouillon jusqu’à la publication du site.</p>
-    <RouterLink class="btn-outline mt-3" :to="{ name: 'admin-site-pages' }">Publier les pages et menus</RouterLink>
-    <button v-if="current?.published" type="button" class="btn-ghost mt-3" :disabled="saving" @click="restore">Restaurer le menu publié</button>
+    <p class="mt-2 text-slate-600">Organisez vos liens. Les modifications sont visibles sur le site dès l’enregistrement.</p>
     <p v-if="error" role="alert" class="my-4 text-rose-700">{{ error }}</p>
     <p v-if="notice" role="status" class="my-4 text-emerald-700">{{ notice }}</p>
     <p v-if="loading" role="status" class="mt-6">Chargement des menus…</p>
@@ -80,7 +66,7 @@ onMounted(load)
         <p v-if="!current.items.length">Ce menu est vide. Ajoutez votre premier lien.</p>
         <SiteMenuListEditor :key="location" :items="current.items" :pages="pages" :disabled="saving" @change="changed" />
         <RouterLink v-if="location === 'main'" class="block underline" :to="{ name: 'admin-site-appearance' }">Personnaliser le bouton principal dans Apparence</RouterLink>
-        <button class="btn-primary" :disabled="!dirty[location]">{{ saving ? 'Enregistrement…' : 'Enregistrer le brouillon' }}</button>
+        <button class="btn-primary" :disabled="!dirty[location]">{{ saving ? 'Enregistrement…' : 'Enregistrer le menu' }}</button>
       </fieldset>
     </form>
   </div>

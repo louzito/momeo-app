@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test('menus mobiles : sous-menu, clavier, brouillons indépendants et saisie conservée après erreur', async ({ page }) => {
+test('menus mobiles : sous-menu, clavier, menus indépendants et saisie conservée après erreur', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.addInitScript(() => localStorage.setItem('todatempo.admin.centre-e2e', JSON.stringify({ admin: { name: 'Équipe', permissions: ['settings'] }, tenant: { id: 'centre-e2e', name: 'Institut', currency: 'EUR' } })))
   const menus = { main: { items: [], primaryLink: null }, footer: { items: [], primaryLink: null } }
@@ -25,18 +25,18 @@ test('menus mobiles : sous-menu, clavier, brouillons indépendants et saisie con
   await page.getByLabel('Libellé', { exact: true }).nth(1).fill('Contact')
   await page.getByLabel('Destination', { exact: true }).nth(1).selectOption('page')
   await page.getByLabel('Page', { exact: true }).selectOption('a'.repeat(32))
-  await expect(page.getByText('« Contact » devra être publiée', { exact: false })).toBeVisible()
+  await expect(page.getByText('« Contact » doit être publiée', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Ajouter un lien', exact: true }).click()
   await page.getByLabel('Libellé', { exact: true }).nth(2).fill('Boutique')
   const move = page.getByRole('button', { name: 'Monter Boutique', exact: true })
   await move.focus(); await page.keyboard.press('Enter')
   await expect(page.getByLabel('Libellé', { exact: true }).first()).toHaveValue('Boutique')
-  await page.getByRole('button', { name: 'Enregistrer le brouillon' }).click()
+  await page.getByRole('button', { name: 'Enregistrer le menu' }).click()
   await expect(page.getByRole('alert')).toContainText('Lien invalide')
   await expect(page.getByLabel('Libellé', { exact: true }).last()).toHaveValue('Contact')
   fail = false
-  await page.getByRole('button', { name: 'Enregistrer le brouillon' }).click()
-  await expect(page.getByText('Brouillon enregistré.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Enregistrer le menu' }).click()
+  await expect(page.getByText('Menu enregistré.', { exact: false })).toBeVisible()
   expect(menus.main.items[1].children[0].link.target).toBe('a'.repeat(32))
   expect(menus.main.items[1].children[0]).not.toHaveProperty('children')
   await page.getByLabel('Menu à modifier').selectOption('footer')

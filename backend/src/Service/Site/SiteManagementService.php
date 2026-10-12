@@ -131,12 +131,18 @@ final class SiteManagementService
     {
         return array_map(static fn (SiteMenuItem $item): array => $item->getDocument(), $this->em->getRepository(SiteMenuItem::class)->findBy(['menu' => $menu], ['position' => 'ASC']));
     }
-    public function saveMenu(string $location, array $data): SiteMenu
+    public function saveMenu(string $location, array $data, bool $publish = false): SiteMenu
     {
         $this->validator->keys($data, ['items'], ['primaryLink']);
         $items = $this->validator->menu($data['items']);
         $this->links->menu($items);
-        return $this->em->wrapInTransaction(function () use ($location, $items, $data): SiteMenu {
+        return $this->em->wrapInTransaction(function () use ($location, $items, $data, $publish): SiteMenu {
+            if ($publish) {
+                foreach ($this->em->getRepository(SitePage::class)->findBy([], ['id' => 'ASC']) as $page) {
+                    $this->em->lock($page, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+                    $this->em->refresh($page);
+                }
+            }
             $menu = $this->menu($location) ?? new SiteMenu($location);
             if ($this->em->contains($menu)) {
                 $this->em->lock($menu, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
@@ -147,8 +153,13 @@ final class SiteManagementService
                 if ($location !== 'main') throw new \InvalidArgumentException('Le bouton principal appartient au menu principal.');
                 $this->links->resolve($this->validator->link($primary));
             }
+            if ($publish) {
+                $this->assertPublishedLinks($items);
+                if ($primary !== null && $this->links->resolve($primary, true) === null) throw new \InvalidArgumentException('Publiez d’abord la page du bouton principal.');
+            }
             $menu->touchDraft();
             $menu->setPrimaryLink($primary);
+            if ($publish) $menu->publish($items);
             $this->em->persist($menu);
             foreach ($this->em->getRepository(SiteMenuItem::class)->findBy(['menu' => $menu]) as $item) $this->em->remove($item);
             foreach ($items as $position => $item) $this->em->persist(new SiteMenuItem($menu, $position, $item));
