@@ -24,7 +24,7 @@ async function setup(page, admin = false) {
     } else if (path.includes('/admin/site/menus/')) body = { location: path.split('/').at(-1), revision: 1, items: [], published: null }
     else if (path.endsWith('/admin/site/publish')) {
       if (fail) return route.fulfill({ status: 409, json: { error: 'Cette page a changé. Rechargez la liste.' } })
-      expect(route.request().postDataJSON()).toEqual({ pages: [{ id, revision: 1 }], menus: [{ id: 'main', revision: 1 }] })
+      expect(route.request().postDataJSON()).toEqual({ pages: [{ id, revision: 1 }], menus: [] })
       value.published = structuredClone(value.draft); value.revision++; body = { ok: true }
     } else if (path.includes('/shop/site/roles/')) {
       if (!value.published && admin) return route.fulfill({ status: 404, json: {} })
@@ -89,17 +89,19 @@ for (const width of [390, 1280]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   })
 }
-test('aperçu authentifié, conflit conservé puis publication des pages et menus', async ({ page }) => {
+test('aperçu authentifié, conflit conservé puis publication des pages', async ({ page }) => {
   const state = await setup(page, true)
   await page.goto('/centre-e2e/admin/site/pages')
+  await expect(page.getByRole('button', { name: 'Publier la sélection' })).toBeDisabled()
+  await expect(page.getByLabel('Menu principal', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Pied de page', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Les modifications des menus sont visibles dès leur enregistrement.', { exact: false })).toBeVisible()
   await page.getByLabel('Inclure dans la publication').check()
-  await page.getByLabel('Menu principal', { exact: true }).check()
   await page.getByRole('link', { name: 'Aperçu privé' }).click()
   await expect(page.getByRole('heading', { name: 'Bienvenue chez nous' })).toBeVisible()
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
   await page.getByRole('link', { name: 'Retour aux pages' }).click()
   await page.getByLabel('Inclure dans la publication').check()
-  await page.getByLabel('Menu principal', { exact: true }).check()
   await page.getByRole('button', { name: 'Publier la sélection' }).click()
   await expect(page.getByRole('alert')).toContainText('a changé')
   await expect(page.getByLabel('Inclure dans la publication')).toBeChecked()

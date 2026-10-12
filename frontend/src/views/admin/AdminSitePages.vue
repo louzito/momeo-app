@@ -2,15 +2,13 @@
 import { useRouter } from 'vue-router'
 import SitePageImagesEditor from '@/components/site/SitePageImagesEditor.vue'
 import { nextTick, onMounted, ref } from 'vue'
-import { getSitePages, createSitePage, updateSitePage, duplicateSitePage, archiveSitePage, restoreSitePage, getSiteMenu, publishSite, importLegacySite } from '@/api/adminApi'
+import { getSitePages, createSitePage, updateSitePage, duplicateSitePage, archiveSitePage, restoreSitePage, publishSite, importLegacySite } from '@/api/adminApi'
 
 import { invalidateSite } from '@/api/sitePublication'
 const router = useRouter()
 const templates = { blank: 'Page vide', home: 'Accueil', presentation: 'Présentation de l’établissement', contact: 'Contact' }
 const pages = ref([])
 const selection = ref([])
-const menuSelection = ref([])
-const menus = ref([])
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
@@ -25,9 +23,9 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [result, main, footer] = await Promise.all([getSitePages(), getSiteMenu('main'), getSiteMenu('footer')])
-    pages.value = result.member; menus.value = [main, footer].filter(menu => menu.revision)
-    selection.value = []; menuSelection.value = []
+    const result = await getSitePages()
+    pages.value = result.member
+    selection.value = []
   }
   catch (e) { error.value = message(e, 'Impossible de charger les pages.') }
   finally { loading.value = false }
@@ -81,7 +79,7 @@ async function action(page, restore = false) {
 async function publish(page = null) {
   saving.value = true; error.value = ''; notice.value = ''
   try {
-    await publishSite({ pages: (page ? [page] : pages.value.filter(p => selection.value.includes(p.id))).map(p => ({ id: p.id, revision: p.revision })), menus: page ? [] : menus.value.filter(m => menuSelection.value.includes(m.location)).map(m => ({ id: m.location, revision: m.revision })) })
+    await publishSite({ pages: (page ? [page] : pages.value.filter(p => selection.value.includes(p.id))).map(p => ({ id: p.id, revision: p.revision })), menus: [] })
     invalidateSite()
     await load(); notice.value = 'Votre sélection est maintenant publiée.'
   } catch (e) { error.value = message(e, 'Impossible de publier. Votre site reste inchangé.') }
@@ -117,10 +115,9 @@ async function importSite() {
     </section>
     <div v-else class="mt-6 space-y-4">
       <section class="card space-y-3 p-5" aria-label="Publication du site">
-        <p>Enregistrer prépare un brouillon. Pour rendre vos changements visibles, publiez une page ou sélectionnez ensemble les pages et menus concernés.</p>
-        <div class="flex flex-wrap gap-4"><label v-for="menu in menus" :key="menu.location" class="flex items-center gap-2"><input v-model="menuSelection" type="checkbox" :value="menu.location" :disabled="saving" />{{ menu.location === 'main' ? 'Menu principal' : 'Pied de page' }}</label></div>
-        <div class="flex flex-wrap gap-3"><button class="btn-primary" :disabled="saving || (!selection.length && !menuSelection.length)" @click="publish()">{{ saving ? 'Veuillez patienter…' : 'Publier la sélection' }}</button><button class="btn-outline" :disabled="saving" @click="importSite">Reprendre le site existant</button><RouterLink class="btn-ghost" :to="{ name: 'admin-site-menus' }">Modifier les menus</RouterLink></div>
-        <p class="text-sm text-slate-500">La reprise conserve vos pages existantes et prépare l’accueil et les pages légales. Votre site actuel reste affiché tant que ces pages ne sont pas publiées. Les menus personnalisés deviennent visibles dès leur publication, même si l’accueil actuel est conservé.</p>
+        <p>Enregistrer prépare un brouillon. Pour rendre vos changements visibles, publiez une page ou sélectionnez les pages concernées.</p>
+        <div class="flex flex-wrap gap-3"><button class="btn-primary" :disabled="saving || !selection.length" @click="publish()">{{ saving ? 'Veuillez patienter…' : 'Publier la sélection' }}</button><button class="btn-outline" :disabled="saving" @click="importSite">Reprendre le site existant</button><RouterLink class="btn-ghost" :to="{ name: 'admin-site-menus' }">Modifier les menus</RouterLink></div>
+        <p class="text-sm text-slate-500">La reprise conserve vos pages existantes et prépare l’accueil et les pages légales. Votre site actuel reste affiché tant que ces pages ne sont pas publiées. Les modifications des menus sont visibles dès leur enregistrement.</p>
       </section>
       <button v-if="error" class="btn-outline" @click="load">Réessayer</button>
       <p v-if="!error && !pages.length" class="text-slate-500">Aucune page pour le moment. Créez votre première page pour préparer votre site.</p>
@@ -129,7 +126,7 @@ async function importSite() {
         <h2 class="break-words text-lg font-semibold">{{ page.draft.title }}</h2>
         <p class="break-all text-sm text-slate-500">/{{ page.draft.slug }} · {{ page.archived ? 'Archivée' : page.published ? 'Publiée' : 'Brouillon' }}<span v-if="page.role"> · {{ roles[page.role] }} protégée</span></p>
         <div class="mt-4 flex flex-wrap gap-2">
-          <RouterLink v-if="!page.archived" class="btn-outline" :to="{ name: 'admin-site-preview', params: { id: page.id }, query: { menus: menuSelection.join(',') } }">Aperçu privé</RouterLink>
+          <RouterLink v-if="!page.archived" class="btn-outline" :to="{ name: 'admin-site-preview', params: { id: page.id } }">Aperçu privé</RouterLink>
           <button v-if="!page.archived" class="btn-primary" :disabled="saving" @click="publish(page)">Publier cette page</button>
           <RouterLink v-if="!page.archived" class="btn-primary" :to="{ name: 'admin-site-page-editor', params: { id: page.id } }">Modifier les sections</RouterLink>
           <button v-if="!page.archived" class="btn-outline" :disabled="saving" @click="edit(page, false, true)">Images</button>
