@@ -725,6 +725,10 @@ export const httpApi = {
     }
   },
   // Ecriture (espace centre)
+  async getTimezones() {
+    return sylius.getTimezones()
+  },
+
   async getShopConfig() {
     return sylius.getShopConfig()
   },

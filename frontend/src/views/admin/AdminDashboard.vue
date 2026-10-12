@@ -10,7 +10,7 @@ const admin = useAdminStore()
 const stats = ref(null)
 const loading = ref(true)
 const error = ref('')
-const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris')
+const timezone = ref('')
 const from = ref(isoDay(new Date()))
 const tomorrow = new Date()
 tomorrow.setDate(tomorrow.getDate() + 1)
@@ -20,7 +20,8 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    stats.value = await api.getAdminOverview(admin.tenantId, { from: from.value, to: to.value, timezone: timezone.value })
+    stats.value = await api.getAdminOverview(admin.tenantId, { from: from.value, to: to.value })
+    timezone.value = stats.value.range.timezone
   } catch (e) {
     stats.value = null
     error.value = e?.message || 'Impossible de charger les indicateurs.'
@@ -39,7 +40,21 @@ onMounted(load)
     <form class="card mt-6 grid gap-4 p-4 sm:grid-cols-4" @submit.prevent="load">
       <label class="text-sm text-slate-600">Du (inclus)<input v-model="from" type="date" required class="input mt-1 w-full" /></label>
       <label class="text-sm text-slate-600">Au (exclu)<input v-model="to" type="date" required class="input mt-1 w-full" /></label>
-      <label class="text-sm text-slate-600">Fuseau horaire<input v-model="timezone" type="text" required class="input mt-1 w-full" placeholder="Europe/Paris" /></label>
+      <div class="text-sm text-slate-600">
+        <div class="flex items-center gap-2">
+          <span>Fuseau horaire</span>
+          <div class="group relative" @keydown.esc="$event.currentTarget.querySelector('button').blur()">
+            <button type="button" aria-label="Informations sur le fuseau horaire de l'établissement" aria-describedby="timezone-info" class="flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600">i</button>
+            <div id="timezone-info" role="tooltip" class="invisible absolute left-0 top-full z-10 w-64 pt-2 opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+              <div class="rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
+                <p>Il s'agit du fuseau horaire de l'établissement, utilisé pour les indicateurs.</p>
+                <RouterLink :to="{ name: 'admin-settings', query: { section: 'general' } }" class="mt-2 inline-block text-brand-600 hover:underline">Modifier le fuseau horaire</RouterLink>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mt-2 font-medium text-slate-900">{{ timezone || 'Chargement…' }}</p>
+      </div>
       <button class="btn-primary self-end" type="submit" :disabled="loading">Actualiser</button>
     </form>
 

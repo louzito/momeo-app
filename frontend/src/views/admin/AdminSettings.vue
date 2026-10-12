@@ -22,6 +22,7 @@ const previewing = ref(false)
 const error = ref('')
 
 const cfg = ref(null)
+const timezones = ref([])
 const lastSaved = ref('')
 const dirty = computed(() => cfg.value && (JSON.stringify(cfg.value) !== lastSaved.value || Object.values(files.value).some(Boolean)))
 
@@ -115,7 +116,9 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    cfg.value = await api.getShopConfig()
+    const [config, supportedTimezones] = await Promise.all([api.getShopConfig(), api.getTimezones()])
+    timezones.value = supportedTimezones
+    cfg.value = config
     lastSaved.value = JSON.stringify(cfg.value)
     try { jumps.value = await api.getJumpTypes(admin.tenantId) } catch { jumps.value = [] }
   } catch (e) {
@@ -222,10 +225,8 @@ async function save() {
   if (validationErrors.length) { error.value = validationErrors[0]; return false }
   if (!validateBookingRules(cfg.value.bookingRules)) { error.value = 'Les règles de réservation contiennent une valeur invalide.'; tab.value = 'general'; return }
   cfg.value.bookingChanges.cancelHours = cfg.value.bookingRules.cancellationNoticeHours
-  try {
-    new Intl.DateTimeFormat('fr-FR', { timeZone: cfg.value.timezone }).format()
-  } catch {
-    error.value = 'Le fuseau horaire est invalide (utilisez un identifiant IANA, par exemple Europe/Paris).'
+  if (!timezones.value.includes(cfg.value.timezone)) {
+    error.value = 'Sélectionnez un fuseau horaire dans la liste.'
     tab.value = 'general'
     return
   }
@@ -294,9 +295,13 @@ async function publish() {
             <input v-model="cfg.name" class="input" placeholder="Institut TodaTempo" required />
           </div>
           <div class="mt-4">
-            <label class="label">Fuseau horaire du centre</label>
-            <input v-model="cfg.timezone" class="input" placeholder="Europe/Paris" required />
-            <p class="mt-1 text-xs text-slate-400">Identifiant IANA, par exemple Europe/Paris ou America/Guadeloupe.</p>
+            <label for="center-timezone" class="label">Fuseau horaire de l'établissement</label>
+            <select id="center-timezone" v-model="cfg.timezone" class="input" required>
+              <option disabled value="">Sélectionnez un fuseau horaire</option>
+              <option v-if="!timezones.includes(cfg.timezone) && cfg.timezone" :value="cfg.timezone" disabled>{{ cfg.timezone }} (à remplacer)</option>
+              <option v-for="timezone in timezones" :key="timezone" :value="timezone">{{ timezone }}</option>
+            </select>
+            <p class="mt-1 text-xs text-slate-400">Fuseaux horaires pris en charge par PHP.</p>
           </div>
         </section>
 

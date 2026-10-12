@@ -1124,3 +1124,7 @@ export const publishSite = (data) => request('POST', '/admin/site/publish', data
 export const importLegacySite = () => request('POST', '/admin/site/import', {}, 'application/json')
 
 export const restoreSiteMenu = (location, revision) => request('POST', `/admin/site/menus/${location}/restore`, { revision }, 'application/json')
+
+export async function getTimezones() {
+  return request('GET', '/admin/timezones')
+}
