@@ -729,6 +729,9 @@ export const httpApi = {
     return sylius.getTimezones()
   },
 
+  async testEmailTemplate(type, template) {
+    return sylius.testEmailTemplate(type, template)
+  },
   async getShopConfig() {
     return sylius.getShopConfig()
   },

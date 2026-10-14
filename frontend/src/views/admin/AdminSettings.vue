@@ -110,6 +110,43 @@ const EMAIL_TYPES = [
   },
 ]
 
+const emailEditors = new Map()
+const activeEmailFields = ref({})
+const testingEmail = ref('')
+const emailTestMessages = ref({})
+function emailDocument(type, field) {
+  return legalDocument({ content: cfg.value.emails[type][field], contentRich: cfg.value.emails[type][`${field}Rich`] })
+}
+function updateEmail(type, field, document) {
+  cfg.value.emails[type][`${field}Rich`] = document
+  cfg.value.emails[type][field] = legalPlainText(document)
+  emailTestMessages.value[type] = ''
+}
+function emailEdited(type) {
+  return JSON.stringify(cfg.value.emails[type]) !== JSON.stringify(JSON.parse(lastSaved.value || '{}').emails?.[type])
+}
+function insertEmailVariable(type, variable) {
+  const target = activeEmailFields.value[type] || { field: 'intro' }
+  if (target.field === 'subject') {
+    const input = target.input
+    const start = input.selectionStart ?? input.value.length
+    const end = input.selectionEnd ?? start
+    cfg.value.emails[type].subject = input.value.slice(0, start) + variable + input.value.slice(end)
+    input.value = cfg.value.emails[type].subject
+    input.focus()
+    input.setSelectionRange(start + variable.length, start + variable.length)
+  } else emailEditors.get(`${type}:${target.field}`)?.insertVariable(variable)
+}
+async function testEmail(type) {
+  testingEmail.value = type
+  emailTestMessages.value[type] = ''
+  try {
+    const result = await api.testEmailTemplate(type, cfg.value.emails[type])
+    emailTestMessages.value[type] = `Email de test envoyé à ${result.recipient}.`
+  } catch (e) { emailTestMessages.value[type] = e?.message || "Impossible d’envoyer le test." }
+  finally { testingEmail.value = '' }
+}
+
 const jumps = ref([])
 const MAX_FEATURED = 9
 const MAX_HIGHLIGHTS = 6
@@ -506,21 +543,26 @@ async function save() {
           <div class="space-y-4">
             <div>
               <label class="label">Sujet de l'email</label>
-              <input v-model="cfg.emails[t.key].subject" class="input" maxlength="120" :placeholder="t.defaults.subject" />
+              <input v-model="cfg.emails[t.key].subject" class="input" maxlength="120" :placeholder="t.defaults.subject" @focus="activeEmailFields[t.key] = { field: 'subject', input: $event.target }" />
             </div>
             <div>
               <label class="label">Message d'introduction</label>
-              <textarea v-model="cfg.emails[t.key].intro" class="input min-h-28" rows="4" :placeholder="t.defaults.intro" />
+              <SiteRichTextEditor :ref="editor => editor ? emailEditors.set(`${t.key}:intro`, editor) : emailEditors.delete(`${t.key}:intro`)" :model-value="emailDocument(t.key, 'intro')" label="Message d’introduction" @update:model-value="updateEmail(t.key, 'intro', $event)" @focus="activeEmailFields[t.key] = { field: 'intro' }" />
             </div>
             <div>
               <label class="label">Signature</label>
-              <textarea v-model="cfg.emails[t.key].signature" class="input min-h-20" rows="2" :placeholder="t.defaults.signature" />
+              <SiteRichTextEditor :ref="editor => editor ? emailEditors.set(`${t.key}:signature`, editor) : emailEditors.delete(`${t.key}:signature`)" :model-value="emailDocument(t.key, 'signature')" label="Signature" @update:model-value="updateEmail(t.key, 'signature', $event)" @focus="activeEmailFields[t.key] = { field: 'signature' }" />
             </div>
           </div>
           <p class="mt-3 text-xs text-slate-400">
-            Champs vides = textes par défaut (affichés en grisé). Variables disponibles :
-            <code class="rounded bg-slate-100 px-1">{{ t.vars }}</code> — remplacées automatiquement a l'envoi.
+            Champs vides = textes par défaut. Cliquez sur une variable pour l’insérer dans le dernier champ sélectionné :
+            <button v-for="variable in t.vars.split(' ')" :key="variable" type="button" class="mr-1 mb-1 rounded bg-slate-100 px-2 py-1 text-sky-700 hover:bg-sky-100" :aria-label="`Insérer ${variable}`" @mousedown.prevent @click="insertEmailVariable(t.key, variable)">{{ variable }}</button> — remplacées automatiquement a l'envoi.
           </p>
+          <div v-if="emailEdited(t.key)" class="mt-4 text-sm">
+            <button type="button" class="btn-outline" :disabled="!!testingEmail" @click="testEmail(t.key)">{{ testingEmail === t.key ? 'Envoi…' : 'Envoyer un email de test' }}</button>
+            <p class="mt-2 text-slate-500">Destinataire : {{ admin.admin?.email }}. Objet préfixé par [TEST], variables d’exemple.</p>
+          </div>
+          <p v-if="emailTestMessages[t.key]" role="status" class="mt-2 text-sm">{{ emailTestMessages[t.key] }}</p>
         </section>
         <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">
           Les emails utilisent le nom et les couleurs de votre établissement.

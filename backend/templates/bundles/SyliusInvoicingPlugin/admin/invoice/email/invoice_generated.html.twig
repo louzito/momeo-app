@@ -30,7 +30,7 @@
         '%total%': ((sbOrder.total / 100)|number_format(2, ',', ' ')) ~ ' ' ~ sbOrder.currencyCode,
         '%facture%': invoice.number,
     } %}
-    <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_text('invoice_generated', 'intro', skybookVars)|e }}</div>
+    <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_html('invoice_generated', 'intro', skybookVars) }}</div>
     <div style="margin-bottom: 26px; text-align: center; color: #64748b; font-size: 14px;">📎 Facture {{ invoice.number }} — PDF en pièce jointe</div>
-    <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_text('invoice_generated', 'signature', skybookVars)|e }}</div>
+    <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_html('invoice_generated', 'signature', skybookVars) }}</div>
 {% endblock %}

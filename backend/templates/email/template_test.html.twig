@@ -1,0 +1,7 @@
+{% extends '@SyliusCore/Email/layout.html.twig' %}
+{% block subject %}{{ subject|raw }}{% endblock %}
+{% block content %}
+    <p>Ceci est un email de test avec des données d’exemple.</p>
+    <div style="white-space: pre-line;">{{ intro|raw }}</div>
+    <div style="white-space: pre-line; color: #64748b;">{{ signature|raw }}</div>
+{% endblock %}

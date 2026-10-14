@@ -1122,3 +1122,7 @@ export const restoreSiteMenu = (location, revision) => request('POST', `/admin/s
 export async function getTimezones() {
   return request('GET', '/admin/timezones')
 }
+
+export function testEmailTemplate(type, template) {
+  return request('POST', '/admin/email-templates/test', { type, template }, 'application/json')
+}

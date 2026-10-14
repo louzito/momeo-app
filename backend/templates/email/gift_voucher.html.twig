@@ -29,7 +29,7 @@
         '%expire%': voucher.expiresAt|date('d/m/Y'),
         '%montant%': ((voucher.amount / 100)|number_format(2, ',', ' ')) ~ ' ' ~ voucher.currencyCode,
     } %}
-    <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_text('gift_voucher', 'intro', skybookVars)|e }}</div>
+    <div style="margin-bottom: 26px; white-space: pre-line;">{{ skybook_email_html('gift_voucher', 'intro', skybookVars) }}</div>
 
     <div style="text-align: center; margin-bottom: 10px;">
         <span style="border: 1px solid #e2e8f0; padding: 12px 20px; color: #1abb9c; font-size: 28px; letter-spacing: 2px; border-radius: 8px; font-family: monospace;">
@@ -55,5 +55,5 @@
         </div>
     {% endif %}
 
-    <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_text('gift_voucher', 'signature', skybookVars)|e }}</div>
+    <div style="white-space: pre-line; color: #64748b;">{{ skybook_email_html('gift_voucher', 'signature', skybookVars) }}</div>
 {% endblock %}

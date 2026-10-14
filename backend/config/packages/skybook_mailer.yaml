@@ -7,6 +7,9 @@
 # manuel dans App\Service\GiftVoucher\GiftVoucherMailer).
 sylius_mailer:
     emails:
+        email_template_test:
+            subject: '[TEST] Email'
+            template: 'email/template_test.html.twig'
         booking_confirmation:
             subject: todatempo.emails.booking_confirmation.subject
             template: 'email/booking_transactional.html.twig'

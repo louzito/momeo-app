@@ -78,6 +78,7 @@ final class SkybookEmailExtension extends AbstractExtension
     {
         return [
             new TwigFunction('skybook_email_text', $this->emailText(...)),
+            new TwigFunction('skybook_email_html', $this->emailHtml(...), ['is_safe' => ['html']]),
         ];
     }
 
@@ -90,6 +91,26 @@ final class SkybookEmailExtension extends AbstractExtension
             : (self::DEFAULTS[$type][$field] ?? '');
 
         return strtr($text, $vars);
+    }
+
+    public function emailHtml(string $type, string $field, array $vars = [], ?array $template = null): string
+    {
+        $template ??= $this->config()['emails'][$type] ?? [];
+        $rich = $template[$field.'Rich'] ?? null;
+        if (is_array($rich) && trim((string) ($template[$field] ?? '')) !== '') {
+            return \App\Service\Email\EmailRichText::render($rich, $vars);
+        }
+        $text = $template[$field] ?? '';
+        if (!is_string($text) || trim($text) === '') $text = self::DEFAULTS[$type][$field] ?? '';
+        return htmlspecialchars(strtr($text, $vars), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    public function testSubject(string $type, array $template, array $vars): string
+    {
+        if (!isset(self::DEFAULTS[$type])) throw new \InvalidArgumentException('Modèle inconnu.');
+        $subject = $template['subject'] ?? '';
+        if (!is_string($subject) || strlen($subject) > 1000) throw new \InvalidArgumentException('Objet invalide.');
+        return '[TEST] '.str_replace(["\r", "\n"], '', strtr(trim($subject) !== '' ? $subject : self::DEFAULTS[$type]['subject'], $vars));
     }
 
     /** @return array<string, mixed> */

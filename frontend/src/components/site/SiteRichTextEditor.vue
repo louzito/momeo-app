@@ -3,7 +3,7 @@ import { watch } from 'vue'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 const props = defineProps({ modelValue: Object, disabled: Boolean, large: Boolean, label: { type: String, default: 'Texte de la section' } })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'focus'])
 function clean(node) {
   const value = { type: node.type }
   if (node.type === 'heading') value.attrs = { level: node.attrs.level }
@@ -17,6 +17,7 @@ const editor = useEditor({
   editable: !props.disabled,
   extensions: [StarterKit.configure({ heading: { levels: [2, 3] }, blockquote: false, code: false, codeBlock: false, hardBreak: false, horizontalRule: false, strike: false, underline: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false, protocols: ['http', 'https'], isAllowedUri: url => /^https?:\/\//i.test(url) && !/[\s<>\\]/.test(url) } })],
   editorProps: { attributes: { class: `site-rich-text ${props.large ? 'min-h-[28rem]' : 'min-h-32'} rounded-lg border bg-white p-3`, 'aria-label': props.label, role: 'textbox', 'aria-multiline': 'true' }, handleKeyDown: (_view, event) => event.key === 'Tab' ? false : undefined },
+  onFocus: () => emit('focus'),
   onUpdate: ({ editor }) => emit('update:modelValue', clean(editor.getJSON())),
 })
 watch(() => props.disabled, disabled => editor.value?.setEditable(!disabled))
@@ -27,6 +28,7 @@ function link() {
   if (!href) editor.value.chain().focus().unsetLink().run()
   else if (/^https?:\/\//i.test(href) && !/[\s<>\\]/.test(href)) editor.value.chain().focus().setLink({ href }).run()
 }
+defineExpose({ insertVariable: value => editor.value?.chain().focus().insertContent({ type: 'text', text: value }).run() })
 </script>
 <template>
   <div v-if="editor" class="space-y-2">

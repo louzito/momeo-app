@@ -74,7 +74,7 @@ final class AdminApiPermissionSubscriber
         if (preg_match('#^(products?|product-[^/]+|taxons?|bookable-resources|services)(?:/|$)#', $resource)) {
             return TeamPermission::Catalog;
         }
-        if (preg_match('#^(site|channels|countries|currencies|exchange-rates|locales|shipping-[^/]+|zones|administrators|team)(?:/|$)#', $resource)) {
+        if (preg_match('#^(email-templates|site|channels|countries|currencies|exchange-rates|locales|shipping-[^/]+|zones|administrators|team)(?:/|$)#', $resource)) {
             return TeamPermission::Settings;
         }
 
