@@ -15,6 +15,9 @@ final class ConfiguredRefundProvider implements RefundProvider
         $method = $payment->getMethod();
         if (!$method instanceof PaymentMethod) throw new \DomainException('Le moyen de paiement est introuvable.');
         if ($method->getCode() !== 'stripe_web_elements') {
+            if (!in_array($method->getCode(), ['bank_transfer', 'cash'], true) && $method->getGatewayConfig()?->getFactoryName() !== 'offline') {
+                throw new \DomainException('Le remboursement automatique de ce moyen de paiement n’est pas pris en charge.');
+            }
             return ['provider' => $method->getCode(), 'reference' => 'manual-'.$idempotencyKey];
         }
         $config = $method->getGatewayConfig()?->getConfig() ?? [];

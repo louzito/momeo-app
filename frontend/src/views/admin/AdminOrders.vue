@@ -2,10 +2,11 @@
 // Commandes — liste REELLE des commandes Sylius du centre, avec filtres.
 // C'est ici que le centre encaisse les virements : filtre « Virement en
 // attente » puis bouton « Virement reçu » (PATCH /admin/payments/{id}/complete).
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '@/api'
 import { formatMoney, formatDate } from '@/utils/format'
+import { refundAmount } from '@/utils/refunds'
 import Spinner from '@/components/ui/Spinner.vue'
 
 const orders = ref([])
@@ -14,6 +15,31 @@ const error = ref('')
 const payingId = ref(null)
 const refundingId = ref(null)
 const refunds = ref({})
+const refundOrder = ref(null)
+const refundContext = ref(null)
+const refundLoading = ref(false)
+const refundError = ref('')
+const refundPaymentId = ref(null)
+const refundMode = ref('full')
+const refundValue = ref('')
+const refundReason = ref('')
+const refundConfirmed = ref(false)
+const refundReview = ref(false)
+const refundDialog = ref(null)
+const refundKey = ref(null)
+const refundTrigger = ref(null)
+const success = ref('')
+const selectedPayment = computed(() => refundContext.value?.payments.find(p => p.id === refundPaymentId.value))
+const refundablePayments = computed(() => refundContext.value?.payments.filter(p => p.refundableAmount > 0) || [])
+const requestedAmount = computed(() => refundMode.value === 'full' ? selectedPayment.value?.refundableAmount : refundAmount(refundValue.value))
+const validRefund = computed(() => selectedPayment.value && selectedPayment.value.mode !== 'unsupported' && requestedAmount.value > 0 && requestedAmount.value <= selectedPayment.value.refundableAmount)
+function resetReview() { refundReview.value = false; refundConfirmed.value = false; refundKey.value = null }
+function closeRefund() {
+  if (refundingId.value) return
+  refundDialog.value?.close()
+  refundOrder.value = null
+  refundTrigger.value?.focus()
+}
 const filter = ref('all') // all | awaiting | paid
 
 // --- Detail d'une commande (depliable) ---------------------------------------
@@ -30,10 +56,11 @@ async function toggleDetail(o) {
     loadingDetail.value = o.id
     try {
       orderDetails.value[o.id] = await api.getSyliusOrder(o.id)
-      if (o.paymentId && ['paid', 'partially_refunded', 'refunded'].includes(o.paymentState)) {
+      if (o.paymentId && ['paid', 'partially_paid', 'partially_refunded', 'refunded'].includes(o.paymentState)) {
         const history = await api.getPaymentRefunds(o.paymentId)
         refunds.value[o.id] = history.member || []
-        o.refundedAmount = Math.max(0, o.total - (history.refundableAmount || 0) / 100)
+        o.refundedAmount = history.context.refundedAmount / 100
+        refunds.value[o.id] = history.context.payments.flatMap(p => p.operations)
       }
     } catch (e) {
       error.value = e?.message || 'Impossible de charger le detail.'
@@ -66,6 +93,7 @@ const visible = computed(() => {
 function payBadge(o) {
   switch (o.paymentState) {
     case 'awaiting_payment': return { label: 'En attente de virement', cls: 'bg-amber-100 text-amber-700' }
+    case 'partially_paid': return { label: 'Partiellement payée', cls: 'bg-amber-100 text-amber-700' }
     case 'paid': return { label: 'Payée', cls: 'bg-emerald-100 text-emerald-700' }
     case 'refunded': return { label: 'Remboursée', cls: 'bg-slate-200 text-slate-600' }
     case 'partially_refunded': return { label: 'Partiellement remboursée', cls: 'bg-sky-100 text-sky-700' }
@@ -107,23 +135,45 @@ async function markPaid(order) {
 }
 
 async function refund(order) {
-  const maximum = Math.max(0, Math.round((order.total - (order.refundedAmount || 0)) * 100))
-  const value = window.prompt(`Montant à rembourser en euros (maximum ${(maximum / 100).toFixed(2)})`, (maximum / 100).toFixed(2))
-  if (value === null) return
-  const amount = Math.round(Number(String(value).replace(',', '.')) * 100)
-  if (!Number.isInteger(amount) || amount <= 0 || amount > maximum) { error.value = 'Montant de remboursement invalide.'; return }
-  const reason = window.prompt('Motif du remboursement (facultatif)', '')
-  if (reason === null) return
-  refundingId.value = order.id; error.value = ''
+  refundTrigger.value = document.activeElement
+  refundOrder.value = order
+  refundContext.value = null
+  refundLoading.value = true
+  refundError.value = ''
+  refundReason.value = ''
+  refundValue.value = ''
+  refundMode.value = 'full'
+  resetReview()
+  await nextTick()
+  refundDialog.value.showModal()
   try {
-    const key = `admin-${order.paymentId}-${Date.now()}-${crypto.randomUUID()}`
-    const operation = await api.refundPayment(order.paymentId, amount, reason, key)
-    order.refundedAmount = (order.refundedAmount || 0) + amount / 100
-    order.paymentState = order.refundedAmount >= order.total ? 'refunded' : 'partially_refunded'
-    refunds.value[order.id] = [operation, ...(refunds.value[order.id] || [])]
-  } catch (e) { error.value = e?.message || 'Échec du remboursement.' }
+    const history = await api.getPaymentRefunds(order.paymentId)
+    refundContext.value = history.context
+    refundPaymentId.value = refundablePayments.value.find(p => p.mode !== 'unsupported')?.id ?? refundablePayments.value[0]?.id
+  } catch (e) { refundError.value = e?.message || 'Impossible de charger les paiements.' }
+  finally { refundLoading.value = false }
+}
+
+async function submitRefund() {
+  if (!validRefund.value || !refundConfirmed.value || refundingId.value) return
+  const order = refundOrder.value
+  refundingId.value = order.id
+  refundError.value = ''
+  // Preserve the same key on retry after an ambiguous network error.
+  refundKey.value ||= `admin-${refundPaymentId.value}-${crypto.randomUUID()}`
+  try {
+    await api.refundPayment(refundPaymentId.value, requestedAmount.value, refundReason.value.trim(), refundKey.value)
+    const history = await api.getPaymentRefunds(order.paymentId)
+    order.refundedAmount = history.context.refundedAmount / 100
+    order.paymentState = history.context.paymentState
+    refunds.value[order.id] = history.context.payments.flatMap(p => p.operations)
+    success.value = `Remboursement enregistré pour la commande ${order.number}.`
+    refundingId.value = null
+    closeRefund()
+  } catch (e) { refundError.value = e?.message || 'Échec du remboursement. Réessayez sans modifier la demande pour conserver sa référence.' }
   finally { refundingId.value = null }
 }
+
 </script>
 
 <template>
@@ -158,6 +208,7 @@ async function refund(order) {
       ⚠️ {{ error }}
     </div>
 
+    <p v-if="success" role="status" class="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{{ success }}</p>
     <Spinner v-if="loading" />
 
     <div v-else-if="!visible.length" class="card mt-4 p-6 text-sm text-slate-400">
@@ -195,12 +246,12 @@ async function refund(order) {
               {{ payingId === o.id ? 'Encaissement…' : '✓ Virement reçu' }}
             </button>
             <button
-              v-if="['paid','partially_refunded'].includes(o.paymentState) && o.paymentId"
+              v-if="['paid','partially_paid','partially_refunded','refunded'].includes(o.paymentState) && o.paymentId"
               class="btn-outline px-4 py-1.5 text-sm text-rose-700"
               :disabled="refundingId === o.id"
               @click.stop="refund(o)"
             >
-              {{ refundingId === o.id ? 'Remboursement…' : 'Rembourser' }}
+              {{ refundingId === o.id ? 'Remboursement…' : o.paymentState === 'refunded' ? 'Remboursements' : 'Rembourser' }}
             </button>
           </div>
         </div>
@@ -259,6 +310,7 @@ async function refund(order) {
                 <li v-for="operation in refunds[o.id]" :key="operation.idempotencyKey">
                   {{ formatDate(operation.createdAt, { short: true }) }} · {{ formatMoney(operation.amount / 100, operation.currency) }}
                   · {{ operation.provider }} · {{ operation.creditNoteNumber }}
+                  <span v-if="operation.reason"> · {{ operation.reason }}</span>
                 </li>
               </ul>
             </div>
@@ -266,5 +318,70 @@ async function refund(order) {
         </div>
       </div>
     </div>
+    <dialog ref="refundDialog" class="w-[calc(100%-2rem)] max-w-2xl rounded-2xl p-0 shadow-xl backdrop:bg-slate-900/50" aria-labelledby="refund-title" @cancel.prevent="closeRefund">
+      <div class="p-6" v-if="refundOrder">
+        <div class="flex items-start justify-between gap-4">
+          <div><h2 id="refund-title" class="text-xl font-bold text-slate-900">Rembourser la commande {{ refundOrder.number }}</h2>
+            <p class="mt-1 text-sm text-slate-500">Choisissez le règlement et vérifiez le montant avant de confirmer.</p></div>
+          <button type="button" aria-label="Fermer" :disabled="!!refundingId" @click="closeRefund" class="btn-ghost">✕</button>
+        </div>
+        <p v-if="refundError" role="alert" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{{ refundError }}</p>
+        <Spinner v-if="refundLoading" />
+        <template v-else-if="refundContext">
+          <dl class="my-5 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm">
+            <div><dt class="text-slate-500">Valeur de la commande</dt><dd class="font-semibold">{{ formatMoney(refundContext.orderTotal / 100, refundOrder.currency) }}</dd></div>
+            <div><dt class="text-slate-500">Montant encaissé</dt><dd class="font-semibold">{{ formatMoney(refundContext.collectedAmount / 100, refundOrder.currency) }}</dd></div>
+            <div><dt class="text-slate-500">Déjà remboursé</dt><dd class="font-semibold">{{ formatMoney(refundContext.refundedAmount / 100, refundOrder.currency) }}</dd></div>
+            <div><dt class="text-slate-500">Solde prévu sur place</dt><dd class="font-semibold">{{ formatMoney(refundContext.balanceDue / 100, refundOrder.currency) }}</dd></div>
+          </dl>
+          <p v-if="refundContext.balanceDue" class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Cette commande comporte un acompte. Seules les sommes encaissées sont remboursables. Le solde prévu sur place n’est pas inclus.</p>
+          <p v-if="!refundablePayments.length" class="text-sm text-slate-600">Aucun paiement encaissé ne présente de solde remboursable.</p>
+          <form v-else @submit.prevent="refundReview ? submitRefund() : (refundReview = true)">
+            <fieldset :disabled="refundReview || !!refundingId" class="space-y-4">
+              <label class="block text-sm font-medium">Paiement à rembourser
+                <select v-model="refundPaymentId" @change="resetReview" class="mt-1 w-full rounded-lg border border-slate-300 p-2">
+                  <option v-for="payment in refundablePayments" :key="payment.id" :value="payment.id">{{ payment.methodName || payment.method }} · #{{ payment.id }} · disponible : {{ formatMoney(payment.refundableAmount / 100, refundOrder.currency) }}</option>
+                </select>
+              </label>
+              <p v-if="selectedPayment?.mode === 'automatic'" class="text-sm text-slate-600">Le remboursement sera demandé à Stripe sur le paiement d’origine.</p>
+              <p v-else-if="selectedPayment?.mode === 'gift_card'" class="text-sm text-slate-600">Le montant sera recrédité sur la carte cadeau utilisée.</p>
+              <p v-else-if="selectedPayment?.mode === 'manual'" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Effectuez d’abord le remboursement au client par virement ou en espèces. Cette action enregistre le remboursement ; elle ne transfère pas d’argent.</p>
+              <p v-else class="text-sm text-rose-700">Ce moyen de paiement ne dispose pas d’un remboursement pris en charge.</p>
+              <div class="flex flex-wrap gap-4 text-sm">
+                <label><input v-model="refundMode" type="radio" value="full" @change="resetReview"> Tout le solde de ce paiement</label>
+                <label><input v-model="refundMode" type="radio" value="partial" @change="resetReview"> Montant partiel</label>
+              </div>
+              <label v-if="refundMode === 'partial'" class="block text-sm font-medium">Montant ({{ refundOrder.currency }})
+                <input v-model="refundValue" inputmode="decimal" required placeholder="Ex. 25,50" @input="resetReview" class="mt-1 w-full rounded-lg border border-slate-300 p-2">
+                <span class="mt-1 block text-xs text-slate-500">Maximum : {{ formatMoney(selectedPayment?.refundableAmount / 100, refundOrder.currency) }}. Deux décimales maximum.</span>
+              </label>
+              <label class="block text-sm font-medium">Motif du remboursement (facultatif)
+                <textarea v-model="refundReason" rows="2" maxlength="1000" @input="resetReview" class="mt-1 w-full rounded-lg border border-slate-300 p-2" placeholder="Annulation, geste commercial…"></textarea>
+              </label>
+            </fieldset>
+            <div v-if="refundReview" class="mt-4 space-y-3 rounded-xl border border-rose-200 p-4 text-sm">
+              <p class="font-semibold">Montant à rembourser : {{ formatMoney(requestedAmount / 100, refundOrder.currency) }}</p>
+              <p>Solde remboursable de ce paiement après l’opération : {{ formatMoney((selectedPayment.refundableAmount - requestedAmount) / 100, refundOrder.currency) }}.</p>
+              <p v-if="refundContext.payments.every(p => p.refundableAmount === 0 || (p.id === refundPaymentId && p.refundableAmount === requestedAmount))">Tous les montants encaissés seront remboursés. La réservation associée sera annulée, y compris pour un acompte.</p>
+              <label class="flex items-start gap-2"><input v-model="refundConfirmed" type="checkbox" :disabled="!!refundingId" class="mt-1">
+                <span>{{ selectedPayment.mode === 'manual' ? 'Je confirme avoir déjà remboursé ce montant au client.' : 'Je confirme le paiement et le montant à rembourser.' }}</span>
+              </label>
+            </div>
+            <div class="mt-5 flex flex-wrap justify-end gap-3">
+              <button type="button" class="btn-ghost" :disabled="!!refundingId" @click="closeRefund">Annuler</button>
+              <button v-if="refundReview" type="button" class="btn-outline" :disabled="!!refundingId" @click="resetReview">Modifier</button>
+              <button type="submit" class="btn-primary" :disabled="!validRefund || !!refundingId || (refundReview && !refundConfirmed)">{{ refundingId ? 'Remboursement en cours…' : refundReview ? 'Confirmer le remboursement' : 'Vérifier le remboursement' }}</button>
+            </div>
+          </form>
+          <div v-if="refundContext.payments.some(p => p.operations.length)" class="mt-5 border-t pt-4 text-sm">
+            <h3 class="font-semibold">Historique des remboursements</h3>
+            <ul class="mt-2 space-y-2"><li v-for="operation in refundContext.payments.flatMap(p => p.operations)" :key="operation.idempotencyKey">
+              {{ formatDate(operation.createdAt, { short: true }) }} · {{ formatMoney(operation.amount / 100, operation.currency) }} · {{ operation.creditNoteNumber }}
+              <p class="text-xs text-slate-500">{{ operation.reason || 'Sans motif' }} · {{ operation.actor }}</p>
+            </li></ul>
+          </div>
+        </template>
+      </div>
+    </dialog>
   </div>
 </template>

@@ -28,7 +28,7 @@ final class AdminRefundApiController
     public function index(Payment $payment): JsonResponse
     {
         $operations = $this->refunds->operations($payment);
-        return new JsonResponse(['member' => array_map(fn (RefundOperation $operation): array => $this->view->normalize($operation), $operations), 'refundableAmount' => $payment->getRefundableAmount()]);
+        return new JsonResponse(['member' => array_map(fn (RefundOperation $operation): array => $this->view->normalize($operation), $operations), 'refundableAmount' => $payment->getRefundableAmount(), 'context' => $this->view->context($payment, $this->refunds)]);
     }
 
     #[Route('/{id<\d+>}/refunds', name: 'todatempo_admin_payment_refund', methods: ['POST'])]

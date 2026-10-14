@@ -835,7 +835,7 @@ export async function replaceProductImage(code, file) {
 // paiement recu : PATCH /admin/payments/{id}/complete (transition Payum) ->
 // paymentState passe a "paid" (et l'order a "fulfilled", rien a expedier).
 function mapOrder(o) {
-  const firstPayment = (o.payments || [])[0]
+  const firstPayment = (o.payments || []).find(p => ['completed', 'refunded'].includes(p?.state)) || (o.payments || [])[0]
   return {
     id: o.tokenValue,
     number: o.number,
@@ -845,7 +845,7 @@ function mapOrder(o) {
     paymentState: o.paymentState,
     createdAt: o.checkoutCompletedAt || o.createdAt || null,
     notes: o.notes || '',
-    paymentId: codeFromIri(firstPayment?.['@id'] || firstPayment),
+    paymentId: String(firstPayment?.id ?? codeFromIri(firstPayment?.['@id'] || firstPayment)),
     refundedAmount: (firstPayment?.refundedAmount ?? 0) / 100,
     fulfillmentMode: o.fulfillmentMode || null,
     preparationState: o.preparationState || null,

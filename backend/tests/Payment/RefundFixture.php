@@ -35,7 +35,7 @@ trait RefundFixture
         $operations = new \ArrayObject();
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturnCallback(static fn (array $criteria) => $operations[$criteria['idempotencyKey']] ?? null);
-        $repository->method('findBy')->with(['payment' => $payment], ['id' => 'DESC'])->willReturnCallback(static fn () => array_reverse(array_values($operations->getArrayCopy())));
+        $repository->method('findBy')->willReturnCallback(static fn (array $criteria) => array_values(array_filter(array_reverse(array_values($operations->getArrayCopy())), static fn (RefundOperation $operation) => $operation->belongsTo($criteria['payment']))));
         $bookings = $this->createMock(EntityRepository::class);
         $bookings->method('findOneBy')->with(['orderNumber' => 'ORDER-42'])->willReturn($booking);
         $em = $this->createMock(EntityManagerInterface::class);

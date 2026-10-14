@@ -26,6 +26,49 @@ final class AdminRefundContractTest extends TestCase
         $provider->refund($payment, 100, 'refund-42');
     }
 
+    public function testUnsupportedGatewayCannotBeRecordedAsAManualRefund(): void
+    {
+        $payment = new \App\Entity\Payment\Payment();
+        $method = new \App\Entity\Payment\PaymentMethod();
+        $method->setCode('paypal');
+        $payment->setMethod($method);
+        $this->expectException(\DomainException::class);
+        (new \App\Service\Payment\ConfiguredRefundProvider())->refund($payment, 100, 'refund-42');
+    }
+
+    public function testRefundContextSeparatesDepositFromUncollectedBalance(): void
+    {
+        [$service, $payment, $order] = $this->fixture();
+        $adjustment = new \App\Entity\Order\Adjustment();
+        $adjustment->setType('todatempo_payment_terms');
+        $adjustment->setAmount(-4000);
+        $order->addAdjustment($adjustment);
+        $pending = new \App\Entity\Payment\Payment();
+        $pending->setAmount(4000);
+        $pending->setState('new');
+        $order->addPayment($pending);
+        $context = (new \App\Service\Payment\RefundView())->context($payment, $service);
+        self::assertSame(4000, $context['balanceDue']);
+        self::assertSame($order->getTotal() + 4000, $context['orderTotal']);
+        self::assertSame(1000, $context['collectedAmount']);
+        self::assertSame(0, $context['payments'][1]['refundableAmount']);
+    }
+
+    public function testRefundContextIncludesEveryCollectedPaymentAndItsRemainingAmount(): void
+    {
+        [$service, $payment, $order] = $this->fixture();
+        $payment->setRefundedAmount(200);
+        $balancePayment = new \App\Entity\Payment\Payment();
+        $balancePayment->setAmount(4000);
+        $balancePayment->setState('completed');
+        $balancePayment->setRefundedAmount(500);
+        $order->addPayment($balancePayment);
+        $context = (new \App\Service\Payment\RefundView())->context($payment, $service);
+        self::assertSame(5000, $context['collectedAmount']);
+        self::assertSame(700, $context['refundedAmount']);
+        self::assertSame([800, 3500], array_column($context['payments'], 'refundableAmount'));
+    }
+
     private function request(array $payload, ?string $key = 'refund-01'): \Symfony\Component\HttpFoundation\Request
     {
         $request = \Symfony\Component\HttpFoundation\Request::create('/api/v2/admin/payments/1/refunds', 'POST', content: json_encode($payload));
@@ -54,7 +97,12 @@ final class AdminRefundContractTest extends TestCase
         $replay = $controller->create($payment, $this->request(['amount' => 999]), $user);
         self::assertSame(200, $replay->getStatusCode());
         self::assertSame($response->getContent(), $replay->getContent());
-        self::assertSame(['member' => [$expected], 'refundableAmount' => 700], json_decode($controller->index($payment)->getContent(), true));
+        $listing = json_decode($controller->index($payment)->getContent(), true);
+        self::assertSame([$expected], $listing['member']);
+        self::assertSame(700, $listing['refundableAmount']);
+        self::assertSame(1000, $listing['context']['collectedAmount']);
+        self::assertSame(300, $listing['context']['refundedAmount']);
+        self::assertSame(700, $listing['context']['payments'][0]['refundableAmount']);
         self::assertCount(1, $provider->calls);
     }
 
